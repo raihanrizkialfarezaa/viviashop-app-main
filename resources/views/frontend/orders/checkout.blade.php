@@ -188,6 +188,11 @@
                                                 <p class="mb-0 text-dark total-amount">{{ number_format((int)Cart::subtotal(0,'','')) }}</p>
                                             </div>
                                             <p>harap tunggu nominal berubah sesuai dengan total sebelum checkout</p>
+                                            <!-- Debug buttons for testing -->
+                                            <div style="margin-top: 10px;">
+                                                <button type="button" id="test-update-total" class="btn btn-sm btn-info">🔄 Test Update Total</button>
+                                                <button type="button" id="show-debug" class="btn btn-sm btn-warning">🐛 Show Debug</button>
+                                            </div>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -295,6 +300,16 @@
                     }
                     
                     $('#shipping-cost-option').html(options);
+                    
+                    // Update total amount after shipping options are loaded
+                    console.log('📦 Shipping options loaded, updating total...');
+                    updateTotalAmount();
+                    
+                    // Force trigger change event to ensure total updates
+                    setTimeout(function() {
+                        console.log('🔄 Delayed total update...');
+                        updateTotalAmount();
+                    }, 100);
                 },
                 error: function(xhr, status, error) {
                     console.error('Shipping API error:', {
@@ -319,22 +334,37 @@
             
             var deliveryMethod = $('input[name="delivery_method"]:checked').val();
             
+            console.log('Updating total - Delivery method:', deliveryMethod);
+            console.log('Subtotal:', subtotal);
+            console.log('Unique code:', uniqueCode);
+            
             if (deliveryMethod === 'self') {
                 shippingCost = 0;
+                console.log('Self pickup - Shipping cost: 0');
             } else if (deliveryMethod === 'courier') {
                 var selectedShipping = $('#shipping-cost-option').val();
+                console.log('Selected shipping value:', selectedShipping);
+                
                 if (selectedShipping) {
                     try {
                         var shippingData = JSON.parse(selectedShipping);
                         shippingCost = parseInt(shippingData.cost) || 0;
+                        console.log('Parsed shipping cost:', shippingCost);
+                        console.log('Shipping data:', shippingData);
                     } catch (e) {
                         console.error('Error parsing shipping data:', e);
+                        console.log('Raw shipping value:', selectedShipping);
                     }
+                } else {
+                    console.log('No shipping option selected');
                 }
             }
             
             var total = subtotal + uniqueCode + shippingCost;
+            console.log('Final total calculation:', subtotal, '+', uniqueCode, '+', shippingCost, '=', total);
+            
             $('.total-amount').text(number_format(total));
+            console.log('Total updated to:', number_format(total));
         }
 
         $(document).ready(function(){
@@ -347,6 +377,28 @@
             
             $('#shipping-row').hide();
             $('#shipping-cost-option').html('<option value="">-- Select Delivery Method First --</option>');
+            
+            // Initialize total amount calculation
+            updateTotalAmount();
+            
+            // Ensure a delivery method is selected by default if none is selected
+            if ($('input[name="delivery_method"]:checked').length === 0) {
+                console.log('No delivery method selected, defaulting to courier');
+                $('input[name="delivery_method"][value="courier"]').prop('checked', true);
+                $('#shipping-row').show();
+                updateTotalAmount();
+            }
+            
+            // Debug: Test element accessibility
+            console.log('=== CHECKOUT PAGE DEBUG ===');
+            console.log('Total amount element exists:', $('.total-amount').length > 0);
+            console.log('Total amount current text:', $('.total-amount').text());
+            console.log('Unique code element exists:', $('.unique_code').length > 0);
+            console.log('Unique code value:', $('.unique_code').val());
+            console.log('Shipping cost option element exists:', $('#shipping-cost-option').length > 0);
+            console.log('Delivery method elements count:', $('input[name="delivery_method"]').length);
+            console.log('Currently selected delivery method:', $('input[name="delivery_method"]:checked').val());
+            console.log('============================');
             
             $('#shipping-province').on('change', function() {
                 var province_id = $(this).val();
@@ -464,6 +516,7 @@
             
             $('input[name="delivery_method"]').on('change', function() {
                 var method = $(this).val();
+                console.log('🚚 DELIVERY METHOD CHANGED to:', method);
                 
                 if (method === 'self') {
                     $('#shipping-row').hide();
@@ -479,20 +532,24 @@
                     } else {
                         $('#shipping-cost-option').html('<option value="">-- Select District First --</option>');
                     }
+                    
+                    // Update total amount when switching to courier method
+                    updateTotalAmount();
                 }
             });
 
-            $(document).ready(function() {
-                var selectedDistrictId = $('#shipping-district').val();
-                var courierDeliveryChecked = $('input[name="delivery_method"][value="courier"]').is(':checked');
-                
-                if (selectedDistrictId && courierDeliveryChecked) {
-                    $('#shipping-row').show();
-                    getShippingCostOptions(selectedDistrictId);
-                }
-            });
+            // Check initial state for districts and courier delivery
+            var selectedDistrictId = $('#shipping-district').val();
+            var courierDeliveryChecked = $('input[name="delivery_method"][value="courier"]').is(':checked');
+            
+            if (selectedDistrictId && courierDeliveryChecked) {
+                $('#shipping-row').show();
+                getShippingCostOptions(selectedDistrictId);
+            }
 
             $('#shipping-cost-option').on('change', function() {
+                console.log('🚢 SHIPPING COST CHANGED!');
+                console.log('New value:', $(this).val());
                 updateTotalAmount();
             });
 
@@ -506,7 +563,29 @@
                 } else {
                     $('#images').hide();
                 }
-            })
+            });
+            
+            // Debug test buttons
+            $('#test-update-total').on('click', function() {
+                console.log('🧪 MANUAL TOTAL UPDATE TEST');
+                updateTotalAmount();
+            });
+            
+            $('#show-debug').on('click', function() {
+                console.log('🐛 CURRENT STATE DEBUG:');
+                console.log('Subtotal (from Cart):', "{{ (int)Cart::subtotal(0,'','') }}");
+                console.log('Unique code element value:', $('.unique_code').val());
+                console.log('Selected delivery method:', $('input[name="delivery_method"]:checked').val());
+                console.log('Selected shipping option:', $('#shipping-cost-option').val());
+                console.log('Current total text:', $('.total-amount').text());
+                
+                // Test if elements are accessible
+                console.log('Element tests:');
+                console.log('- .total-amount exists:', $('.total-amount').length);
+                console.log('- .unique_code exists:', $('.unique_code').length);
+                console.log('- #shipping-cost-option exists:', $('#shipping-cost-option').length);
+                console.log('- delivery_method radio buttons:', $('input[name="delivery_method"]').length);
+            });
 
        });
     </script>
