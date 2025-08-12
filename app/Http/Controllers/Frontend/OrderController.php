@@ -122,114 +122,120 @@ view()->share('setting', $setting);
 		return $totalWeight;
 	}
 
-	public function cities(Request $request)
+	public function provinces()
 	{
-		$cities = $this->getCities($request->query('province_id'));
-		return response()->json(['cities' => $cities]);
+		try {
+			require_once base_path('rajaongkir_komerce.php');
+			$rajaOngkir = new \RajaOngkirKomerce();
+			$provinces = $rajaOngkir->getProvinces();
+			
+			// Return the provinces array directly
+			return response()->json($provinces ?: []);
+		} catch (\Exception $e) {
+			Log::error('Error fetching provinces: ' . $e->getMessage());
+			return response()->json([], 500);
+		}
+	}
+
+	public function cities($provinceId)
+	{
+		try {
+			require_once base_path('rajaongkir_komerce.php');
+			$rajaOngkir = new \RajaOngkirKomerce();
+			$cities = $rajaOngkir->getCities($provinceId);
+			
+			// Return the cities array directly (not wrapped in 'cities' key)
+			return response()->json($cities ?: []);
+		} catch (\Exception $e) {
+			Log::error('Error fetching cities: ' . $e->getMessage());
+			return response()->json([], 500);
+		}
+	}
+
+	public function districts($cityId)
+	{
+		try {
+			require_once base_path('rajaongkir_komerce.php');
+			$rajaOngkir = new \RajaOngkirKomerce();
+			$districts = $rajaOngkir->getDistricts($cityId);
+			
+			// Return the districts array directly (not wrapped in 'districts' key)
+			return response()->json($districts ?: []);
+		} catch (\Exception $e) {
+			Log::error('Error fetching districts: ' . $e->getMessage());
+			return response()->json([], 500);
+		}
 	}
 
 	public function shippingCost(Request $request)
 	{
-		$destination = $request->input('city_id');
-
-		return $this->_getShippingCost($destination, $this->_getTotalWeight());
+		$destination = $request->input('district_id');
+		
+		// Debug logging
+		Log::info('Shipping cost request', [
+			'destination' => $destination,
+			'weight' => $this->_getTotalWeight(),
+			'user_id' => auth()->id()
+		]);
+		
+		try {
+			$result = $this->_getShippingCost($destination, $this->_getTotalWeight());
+			Log::info('Shipping cost result', ['result' => $result]);
+			return response()->json($result);
+		} catch (\Exception $e) {
+			Log::error('Shipping cost error: ' . $e->getMessage(), [
+				'destination' => $destination,
+				'exception' => $e->getTraceAsString()
+			]);
+			return response()->json([
+				'error' => 'Failed to get shipping costs: ' . $e->getMessage(),
+				'results' => []
+			], 500);
+		}
 	}
 
 	private function _getShippingCost($destination, $weight)
     {
         $results = [];
 
-        $resultsed = [];
-        // $includeSelf = true;
-
-        // // Optionally add SELF pickup if your system supports it
-        // if ($includeSelf == true) {
-        //     $results[] = [
-        //         'service' => 'SELF',
-        //         'cost' => 0,
-        //         'etd' => 'same day',
-        //         'courier' => 'SELF',
-        //     ];
-        // }
-
-        // Always get courier options from RajaOngkir API:
-        if (!empty($this->couriers)) {
-            try {
-
-                // Use a valid origin (default '290' if not set)
-                $origin = $this->rajaOngkirOrigin ?: '290';
-                $params = [
-                    'origin' => $origin,
-                    'destination' => $destination,
-                    'weight' => $weight,
-                ];
-
-                // Log the parameters we're using
-                // echo(Log::info('Shipping cost calculation parameters', $params));
-
-                foreach ($this->couriers as $code => $courier) {
-                    $courierParams = $params;
-                    $courierParams['courier'] = $code;
-
-                    try {
-                        $response = $this->rajaOngkirRequest('/cost', $courierParams, 'POST');
-                        // dd($response['rajaongkir']['results']);
-
-                        if (!empty($response['rajaongkir']['results'])) {
-                            foreach ($response['rajaongkir']['results'] as $cost) {
-                                if (!empty($cost['costs'])) {
-                                    foreach ($cost['costs'] as $costDetail) {
-                                        $serviceName = strtoupper($cost['code']) . ' - ' . $costDetail['service'];
-                                        $costAmount = $costDetail['cost'][0]['value'];
-                                        $etd = $costDetail['cost'][0]['etd'];
-
-                                        $results[] = [
-                                            'service' => $serviceName,
-                                            'cost' => $costAmount,
-                                            'etd' => $etd,
-                                            'courier' => $code,
-                                        ];
-                                    }
-                                }
-                            }
-                            $resultsed[] = $response;
+        try {
+            require_once base_path('rajaongkir_komerce.php');
+            $rajaOngkir = new \RajaOngkirKomerce();
+            
+            // Jombang District ID (origin)
+            $origin = 3852;
+            
+            // Define supported couriers
+            $couriers = ['jne', 'tiki', 'pos'];
+            
+            foreach ($couriers as $courier) {
+                try {
+                    $shippingOptions = $rajaOngkir->calculateShippingCost($origin, $destination, $weight, $courier);
+                    
+                    if (!empty($shippingOptions)) {
+                        foreach ($shippingOptions as $option) {
+                            $results[] = [
+                                'service' => strtoupper($courier) . ' - ' . $option['service'],
+                                'cost' => $option['cost'],
+                                'etd' => $option['etd'],
+                                'courier' => $courier,
+                            ];
                         }
-                    } catch (\Exception $e) {
-                        echo $e->getMessage();
-                        Log::error('Courier request failed for ' . $code . ': ' . $e->getMessage());
                     }
+                } catch (\Exception $e) {
+                    Log::error('Courier request failed for ' . $courier . ': ' . $e->getMessage());
                 }
-            } catch (\Exception $e) {
-                Log::error('Shipping cost calculation failed: ' . $e->getMessage());
             }
+        } catch (\Exception $e) {
+            Log::error('RajaOngkir shipping cost calculation failed: ' . $e->getMessage());
         }
 
-        // Set origin for response (using provided or default)
-        $origin = $params['origin'] ?? $this->rajaOngkirOrigin ?? '290';
-
-        $self = [
-            'service' => 'SELF',
-            'cost' => 0,
-            'etd' => "Same Day",
-            'courier' => 'SELF'
-        ];
-
-        // $resulted = array_merge($results, $self);
-        array_push($results, $self);
         $response = [
-            'origin' => $origin,
+            'origin' => 3852, // Jombang District ID
             'destination' => $destination,
             'weight' => $weight,
             'results' => $results,
         ];
-
-        // dd($resultsed);
-
-
-        // Log::info('Available shipping options', [
-        //     'count' => count($results),
-        //     'options' => $results,
-        // ]);
 
         return $response;
     }
@@ -334,9 +340,34 @@ view()->share('setting', $setting);
 
 		$totalWeight = $this->_getTotalWeight();
 
-		$provinces = $this->getProvinces();
+		// Use new RajaOngkir Komerce API
+		try {
+			require_once base_path('rajaongkir_komerce.php');
+			$rajaOngkir = new \RajaOngkirKomerce();
+			
+			$provinces = [];
+			$provincesData = $rajaOngkir->getProvinces();
+			if (!empty($provincesData)) {
+				foreach ($provincesData as $province) {
+					$provinces[$province['id']] = $province['name'];
+				}
+			}
 
-		$cities = isset(auth()->user()->province_id) ? $this->getCities(auth()->user()->province_id) : [];
+			$cities = [];
+			if (auth()->user()->province_id) {
+				$citiesData = $rajaOngkir->getCities(auth()->user()->province_id);
+				if (!empty($citiesData)) {
+					foreach ($citiesData as $city) {
+						$cities[$city['id']] = $city['name'];
+					}
+				}
+			}
+		} catch (\Exception $e) {
+			// Fallback to existing method if new API fails
+			Log::error('Failed to load RajaOngkir Komerce data: ' . $e->getMessage());
+			$provinces = $this->getProvinces();
+			$cities = isset(auth()->user()->province_id) ? $this->getCities(auth()->user()->province_id) : [];
+		}
 
 		return view('frontend.orders.checkout', compact('items', 'unique_code', 'totalWeight','provinces','cities'));
 	}
@@ -350,10 +381,12 @@ view()->share('setting', $setting);
 				'address1' => 'required|string|max:255',
 				'province_id' => 'required|numeric',
 				'shipping_city_id' => 'required|numeric',
+				'shipping_district_id' => 'required|numeric',
 				'phone' => 'required|string|max:15',
 				'email' => 'required|email|max:255',
 				'payment_method' => 'required|string|in:manual,automatic,qris,cod,toko',
-				'shipping_service' => 'required|string',
+				'delivery_method' => 'required|string|in:self,courier',
+				'shipping_service' => 'required_if:delivery_method,courier|string',
 			]);
 
 			$params = $request->except('_token');
@@ -447,7 +480,17 @@ view()->share('setting', $setting);
     private function _saveOrder($params)
 	{
 		$destination = !isset($params['ship_to']) ? $params['shipping_city_id'] : $params['customer_shipping_city_id'];
-		$selectedShipping = $this->_getSelectedShipping($destination, $this->_getTotalWeight(), $params['shipping_service']);
+		
+		if ($params['delivery_method'] == 'self') {
+			$selectedShipping = [
+				'service' => 'Self Pickup',
+				'cost' => 0,
+				'etd' => 'Same Day',
+				'courier' => 'SELF'
+			];
+		} else {
+			$selectedShipping = $this->_getSelectedShipping($destination, $this->_getTotalWeight(), $params['shipping_service']);
+		}
 
 		$baseTotalPrice = (int)Cart::subtotal(0,'','');
 		$taxAmount = 0;
@@ -996,6 +1039,75 @@ view()->share('setting', $setting);
 		$order = Order::where('code', $orderId)->firstOrFail();
 
 		return redirect('orders/received/'. $order->id)->with('error', 'There was a problem with your payment!');
+	}
+
+	/**
+	 * Send shipping cost request to komerce.id RajaOngkir API
+	 *
+	 * @param string $resource endpoint
+	 * @param array  $params   parameters
+	 * @param string $method   request method
+	 *
+	 * @return array
+	 */
+	private function shippingCostRequest($resource, $params = [], $method = 'GET')
+	{
+		$baseUrl = config('ongkir.shipping_base_url', 'https://rajaongkir.komerce.id/api/v1');
+		$apiKey = config('ongkir.shipping_api_key');
+		
+		if (empty($baseUrl)) {
+			Log::error('Shipping cost API base URL is not set');
+			throw new \Exception('Shipping cost API base URL is not configured properly.');
+		}
+
+		if (empty($apiKey)) {
+			Log::error('Shipping cost API key is not set');
+			throw new \Exception('Shipping cost API key is not configured properly.');
+		}
+
+		$client = new \GuzzleHttp\Client(['verify' => false]);
+
+		$headers = [
+			'key' => $apiKey,
+			'Content-Type' => 'application/x-www-form-urlencoded'
+		];
+		$requestParams = [
+			'headers' => $headers,
+		];
+
+		if (!str_starts_with($resource, '/')) {
+			$resource = '/' . $resource;
+		}
+
+		$url = $baseUrl . $resource;
+
+		if ($method == 'POST') {
+			$requestParams['form_params'] = $params;
+		} else if ($method == 'GET' && !empty($params)) {
+			$query = is_array($params) ? '?'.http_build_query($params) : '';
+			$url = $baseUrl . $resource . $query;
+		}
+
+		try {
+			$response = $client->request($method, $url, $requestParams);
+			$responseBody = $response->getBody()->getContents();
+			$data = json_decode($responseBody, true);
+
+			if (json_last_error() !== JSON_ERROR_NONE) {
+				throw new \Exception('Invalid JSON response from shipping cost API');
+			}
+
+			return $data;
+		} catch (\GuzzleHttp\Exception\RequestException $e) {
+			Log::error('Shipping cost API request failed', [
+				'url' => $url,
+				'method' => $method,
+				'params' => $params,
+				'error' => $e->getMessage(),
+				'response' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null
+			]);
+			throw $e;
+		}
 	}
 
 }

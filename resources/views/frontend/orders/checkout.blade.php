@@ -1,34 +1,13 @@
 @extends('frontend.layouts')
 @section('content')
-    <!-- Single Page Header start -->
     <div class="container-fluid page-header py-5">
         <h1 class="text-center text-white display-6">Checkout</h1>
-        <ol class="breadcrumb justif            $('.checkoption').click(function() {
-                 $('.checkoption').not(this).prop('checked', false);
-            });
-
-            $('input[name="payment_method"]').change(function(){
-                var paymentMethod = $('input[name="payment_method"]:checked').val();
-                
-                if (paymentMethod === 'manual' || paymentMethod === 'qris') {
-                    $('#payment-slip-section').show();
-                    
-                    if (paymentMethod === 'qris') {
-                        $('#qris-section').show();
-                    } else {
-                        $('#qris-section').hide();
-                    }
-                } else {
-                    $('#payment-slip-section').hide();
-                    $('#qris-section').hide();
-                }
-            });enter mb-0">
+        <ol class="breadcrumb justify-center mb-0">
             <li class="breadcrumb-item"><a href="#">Home</a></li>
             <li class="breadcrumb-item"><a href="#">Pages</a></li>
             <li class="breadcrumb-item active text-white">Checkout</li>
         </ol>
     </div>
-    <!-- Single Page Header End -->
 
 
     <!-- Checkout Page Start -->
@@ -71,6 +50,12 @@
                                         <option {{ auth()->user()->city_id == $id ? 'selected' : null }} value="{{ $id }}">{{ $city }}</option>
                                     @endforeach
                                 @endif
+                            </select>
+                        </div>
+                        <div class="form-item">
+                            <label>District<span class="required">*</span></label>
+                            <select name="shipping_district_id" class="form-control" id="shipping-district">
+                                <option value="">-- Pilih Kecamatan --</option>
                             </select>
                         </div>
                         <div class="form-item">
@@ -150,9 +135,30 @@
                                         <th scope="row">
                                         </th>
                                         <td class="py-5">
+                                            <p class="mb-0 text-dark py-4">Delivery Method</p>
+                                        </td>
+                                        <td>
+                                            <div class="form-check">
+                                                <input type="radio" class="form-check-input" id="delivery-self" name="delivery_method" value="self">
+                                                <label class="form-check-label" for="delivery-self">
+                                                    Self Pickup - Rp. 0 (Same Day)
+                                                </label>
+                                            </div>
+                                            <div class="form-check mt-2">
+                                                <input type="radio" class="form-check-input" id="delivery-courier" name="delivery_method" value="courier">
+                                                <label class="form-check-label" for="delivery-courier">
+                                                    Courier Delivery
+                                                </label>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr id="shipping-row" style="display: none;">
+                                        <th scope="row">
+                                        </th>
+                                        <td class="py-5">
                                             <p class="mb-0 text-dark py-4">Shipping</p>
                                         </td>
-                                        <td><select class="form-control" id="shipping-cost-option" required name="shipping_service">
+                                        <td><select class="form-control" id="shipping-cost-option" name="shipping_service">
 
 										</select></td>
                                     </tr>
@@ -252,13 +258,185 @@
 @endsection
 @push('script-alt')
     <script>
-        $(document).ready(function(){
-            console.log($("#shipping-city").val())
-            var city_id = $('#shipping-city').val();
-            if (city_id) {
-                getShippingCostOptions(city_id);
+        function getShippingCostOptions(district_id) {
+            console.log('Getting shipping costs for district_id:', district_id);
+            $('#shipping-cost-option').html('<option value="">Loading shipping costs...</option>');
+            
+            $.ajax({
+                url: "{{ route('orders.shippingCost') }}",
+                type: 'POST',
+                data: {
+                    district_id: district_id,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    console.log('Shipping API response:', response);
+                    var options = '<option value="">-- Select Shipping Service --</option>';
+                    
+                    if (response.results && response.results.length > 0) {
+                        $.each(response.results, function(index, result) {
+                            var displayName = result.service + ' - Rp. ' + number_format(result.cost) + ' (' + result.etd + ')';
+                            var value = JSON.stringify({
+                                service: result.service,
+                                cost: result.cost,
+                                etd: result.etd,
+                                courier: result.courier
+                            });
+                            options += '<option value="' + value + '">' + displayName + '</option>';
+                        });
+                    } else {
+                        console.warn('No shipping results found in response');
+                        options += '<option value="">No shipping options available</option>';
+                    }
+                    
+                    $('#shipping-cost-option').html(options);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Shipping API error:', {
+                        status: status,
+                        error: error,
+                        response: xhr.responseText,
+                        statusCode: xhr.status
+                    });
+                    $('#shipping-cost-option').html('<option value="">Error loading shipping costs</option>');
+                }
+            });
+        }
+
+        function number_format(number) {
+            return new Intl.NumberFormat('id-ID').format(number);
+        }
+
+        function updateTotalAmount() {
+            var subtotal = parseInt("{{ (int)Cart::subtotal(0,'','') }}");
+            var uniqueCode = parseInt($('.unique_code').val()) || 0;
+            var shippingCost = 0;
+            
+            var deliveryMethod = $('input[name="delivery_method"]:checked').val();
+            
+            if (deliveryMethod === 'self') {
+                shippingCost = 0;
+            } else if (deliveryMethod === 'courier') {
+                var selectedShipping = $('#shipping-cost-option').val();
+                if (selectedShipping) {
+                    try {
+                        var shippingData = JSON.parse(selectedShipping);
+                        shippingCost = parseInt(shippingData.cost) || 0;
+                    } catch (e) {
+                        console.error('Error parsing shipping data:', e);
+                    }
+                }
             }
-            $('#images').hide();
+            
+            var total = subtotal + uniqueCode + shippingCost;
+            $('.total-amount').text(number_format(total));
+        }
+
+        $(document).ready(function(){
+            $('#shipping-row').hide();
+            $('#shipping-cost-option').html('<option value="">-- Select Delivery Method First --</option>');
+            
+            $('#shipping-province').on('change', function() {
+                var province_id = $(this).val();
+                console.log('Province changed to:', province_id);
+                if (province_id) {
+                    var cityUrl = "{{ url('orders/cities') }}/" + province_id + '?t=' + Date.now();
+                    console.log('Fetching cities from:', cityUrl);
+                    $.ajax({
+                        url: cityUrl,
+                        type: 'GET',
+                        success: function(response) {
+                            console.log('Cities response:', response);
+                            var options = '<option value="">-- Pilih Kota --</option>';
+                            if (response && Array.isArray(response)) {
+                                $.each(response, function(index, city) {
+                                    options += '<option value="' + city.id + '">' + city.name + '</option>';
+                                });
+                            }
+                            $('#shipping-city').html(options);
+                            $('#shipping-district').html('<option value="">-- Pilih Kecamatan --</option>');
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Error loading cities:', error, xhr);
+                            $('#shipping-city').html('<option value="">Error loading cities</option>');
+                        }
+                    });
+                } else {
+                    $('#shipping-city').html('<option value="">-- Pilih Kota --</option>');
+                    $('#shipping-district').html('<option value="">-- Pilih Kecamatan --</option>');
+                }
+            });
+            
+            $('#shipping-city').on('change', function() {
+                var city_id = $(this).val();
+                console.log('City changed to:', city_id);
+                if (city_id) {
+                    var districtUrl = "{{ url('orders/districts') }}/" + city_id + '?t=' + Date.now();
+                    console.log('Fetching districts from:', districtUrl);
+                    $.ajax({
+                        url: districtUrl,
+                        type: 'GET',
+                        success: function(response) {
+                            console.log('Districts response:', response);
+                            var options = '<option value="">-- Pilih Kecamatan --</option>';
+                            if (response && Array.isArray(response)) {
+                                $.each(response, function(index, district) {
+                                    options += '<option value="' + district.id + '">' + district.name + '</option>';
+                                });
+                            }
+                            $('#shipping-district').html(options);
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Error loading districts:', error, xhr);
+                            $('#shipping-district').html('<option value="">Error loading districts</option>');
+                        }
+                    });
+                } else {
+                    $('#shipping-district').html('<option value="">-- Pilih Kecamatan --</option>');
+                }
+                
+                var deliveryMethod = $('input[name="delivery_method"]:checked').val();
+                if (deliveryMethod === 'courier') {
+                    $('#shipping-cost-option').html('<option value="">-- Select District First --</option>');
+                    updateTotalAmount();
+                }
+            });
+            
+            $('#shipping-district').on('change', function() {
+                var district_id = $(this).val();
+                var deliveryMethod = $('input[name="delivery_method"]:checked').val();
+                
+                if (deliveryMethod === 'courier' && district_id) {
+                    getShippingCostOptions(district_id);
+                } else if (deliveryMethod === 'courier') {
+                    $('#shipping-cost-option').html('<option value="">-- Select District First --</option>');
+                    updateTotalAmount();
+                }
+            });
+            
+            $('input[name="delivery_method"]').on('change', function() {
+                var method = $(this).val();
+                
+                if (method === 'self') {
+                    $('#shipping-row').hide();
+                    $('#shipping-cost-option').removeAttr('required');
+                    updateTotalAmount();
+                } else if (method === 'courier') {
+                    $('#shipping-row').show();
+                    $('#shipping-cost-option').attr('required', 'required');
+                    
+                    var district_id = $('#shipping-district').val();
+                    if (district_id) {
+                        getShippingCostOptions(district_id);
+                    } else {
+                        $('#shipping-cost-option').html('<option value="">-- Select District First --</option>');
+                    }
+                }
+            });
+
+            $('#shipping-cost-option').on('change', function() {
+                updateTotalAmount();
+            });
 
             $('.checkoption').click(function() {
                  $('.checkoption').not(this).prop('checked', false);

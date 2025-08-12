@@ -102,6 +102,12 @@
                         </div>
                     </div>
                     <div class="form-group row border-bottom pb-4">
+                        <label for="weight" class="col-sm-2 col-form-label">Berat (kg)</label>
+                        <div class="col-sm-10">
+                          <input type="number" step="0.01" class="form-control" name="weight" value="{{ old('weight', $product->weight) }}" id="weight" placeholder="Contoh: 1.5 (untuk 1.5 kg)">
+                        </div>
+                    </div>
+                    <div class="form-group row border-bottom pb-4">
                         <label for="name" class="col-sm-2 col-form-label">Link redirect Product</label>
                         <div class="col-sm-10">
                           <input type="text" class="form-control" name="link2" value="{{ $product->link2 }}" id="link2">

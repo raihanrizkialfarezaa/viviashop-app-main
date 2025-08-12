@@ -46,6 +46,12 @@
                           </select>
                         </div>
                     </div>
+                    <div class="form-group row border-bottom pb-4">
+                        <label for="weight" class="col-sm-2 col-form-label">Berat (kg)</label>
+                        <div class="col-sm-10">
+                          <input type="number" step="0.01" class="form-control" name="weight" value="{{ old('weight') }}" id="weight" placeholder="Contoh: 1.5 (untuk 1.5 kg)">
+                        </div>
+                    </div>
                     <div class="configurable-attributes">
                       @if(count($configurable_attributes) > 0)
                         <p class="text-primary mt-4">Konfigurasi Attribute Produk</p>

@@ -284,8 +284,10 @@ Route::get('/download-file/{id}', [OrderController::class, 'downloadFile'])->nam
     Route::put('orders/confirmPaymentManual/{id}', [\App\Http\Controllers\Frontend\OrderController::class, 'confirmPayment'])->name('orders.confirmPayment');
     Route::get('orders/checkout', [\App\Http\Controllers\Frontend\OrderController::class, 'checkout'])->middleware('auth');
     Route::post('orders/checkout', [\App\Http\Controllers\Frontend\OrderController::class, 'doCheckout'])->name('orders.checkout')->middleware('auth');
-    Route::get('orders/cities', [\App\Http\Controllers\Frontend\OrderController::class, 'cities'])->middleware('auth');
-    Route::post('orders/shipping-cost', [\App\Http\Controllers\Frontend\OrderController::class, 'shippingCost'])->middleware('auth');
+    Route::get('orders/provinces', [\App\Http\Controllers\Frontend\OrderController::class, 'provinces'])->middleware('auth');
+    Route::get('orders/cities/{province_id}', [\App\Http\Controllers\Frontend\OrderController::class, 'cities'])->middleware('auth');
+    Route::get('orders/districts/{city_id}', [\App\Http\Controllers\Frontend\OrderController::class, 'districts'])->middleware('auth');
+    Route::post('orders/shipping-cost', [\App\Http\Controllers\Frontend\OrderController::class, 'shippingCost'])->name('orders.shippingCost')->middleware('auth');
     Route::post('orders/set-shipping', [\App\Http\Controllers\Frontend\OrderController::class, 'setShipping'])->middleware('auth');
     Route::get('orders/received/{orderId}', [\App\Http\Controllers\Frontend\OrderController::class, 'received']);
     Route::get('orders/{orderId}', [\App\Http\Controllers\Frontend\OrderController::class, 'show'])->name('showUsersOrder');
