@@ -52,14 +52,18 @@
                         <hr/>
                         @foreach($configurable_attributes as $configurable_attribute)
                           <div class="form-group row border-bottom pb-4">
-                              <label for="{{ $configurable_attribute->code }}" class="col-sm-2 col-form-label">{{ $configurable_attribute->code }}</label>
+                              <label for="{{ $configurable_attribute->code }}" class="col-sm-2 col-form-label">{{ $configurable_attribute->name }}</label>
                               <div class="col-sm-10">
-                              <!-- sampai sini -->
-                                <select class="form-control select-multiple"  multiple="multiple" name="{{ $configurable_attribute->code }}[]" id="{{ $configurable_attribute->code }}">
-                                  @foreach($configurable_attribute->attribute_options as $attribute_option)
-                                    <option value="{{ $attribute_option->id }}"> {{ $attribute_option->name }}</option>
-                                  @endforeach
-                                </select>
+                                @foreach($configurable_attribute->attribute_variants as $variant)
+                                  <div class="variant-section mb-3">
+                                    <h6 class="text-info">{{ $variant->name }}</h6>
+                                    <select class="form-control select-multiple" multiple="multiple" name="{{ $configurable_attribute->code }}[]" id="{{ $configurable_attribute->code }}_{{ $variant->id }}">
+                                      @foreach($variant->attribute_options as $option)
+                                        <option value="{{ $option->id }}">{{ $option->name }}</option>
+                                      @endforeach
+                                    </select>
+                                  </div>
+                                @endforeach
                               </div>
                           </div>
                         @endforeach

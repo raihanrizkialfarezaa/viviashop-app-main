@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Cviebrock\EloquentSluggable\Sluggable;
+use Carbon\Carbon;
 
 class Product extends Model
 {
@@ -89,7 +90,7 @@ class Product extends Model
 
 	public function scopePopular($query, $limit = 10)
 	{
-		$month = now()->format('m');
+		$month = Carbon::now()->format('m');
 
 		return $query->selectRaw('products.*, COUNT(order_items.id) as total_sold')
 			->join('order_items', 'order_items.product_id', '=', 'products.id')
@@ -124,5 +125,10 @@ class Product extends Model
 	public function productAttributeValues()
 	{
 		return $this->hasMany(ProductAttributeValue::class, 'parent_product_id');
+	}
+
+	public function configurableAttributes()
+	{
+		return Attribute::where('is_configurable', true)->with(['attribute_variants.attribute_options'])->get();
 	}
 }

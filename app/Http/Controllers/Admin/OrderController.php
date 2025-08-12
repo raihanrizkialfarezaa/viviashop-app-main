@@ -15,12 +15,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use RealRashid\SweetAlert\Facades\Alert;
+use Carbon\Carbon;
+use Midtrans\Config as MidtransConfig;
+use Midtrans\Snap;
+use Midtrans\Notification;
 
 class OrderController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request)
     {
         $statuses = Order::STATUSES;
@@ -32,7 +33,6 @@ class OrderController extends Controller
 				->orWhere('customer_first_name', 'like', '%'. $q .'%')
 				->orWhere('customer_last_name', 'like', '%'. $q .'%');
 		}
-
 
 		if ($request->input('status') && in_array($request->input('status'), array_keys(Order::STATUSES))) {
 			$orders = $orders->where('status', '=', $request->input('status'));
@@ -66,64 +66,50 @@ class OrderController extends Controller
 		return view('admin.orders.index', compact('orders','statuses'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         //
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         //
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show($id)
 	{
-		$order = Order::withTrashed()->findOrFail($id);
-		// dd($order);
-
-		return view('admin.orders.show', compact('order'));
+		$order = Order::withTrashed()->with('shipment')->findOrFail($id);
+		
+		// Prepare payment data for Midtrans
+		$paymentData = [
+			'midtransClientKey' => config('midtrans.clientKey'),
+			'isProduction' => config('midtrans.isProduction'),
+			'snapUrl' => config('midtrans.isProduction')
+				? 'https://app.midtrans.com/snap/snap.js'
+				: 'https://app.sandbox.midtrans.com/snap/snap.js'
+		];
+		
+		return view('admin.orders.show', compact('order', 'paymentData'));
 	}
 
     public function invoices($id)
     {
         $order = Order::where('id', $id)->first();
-
         $pdf  = Pdf::loadView('admin.orders.invoices', compact('order'))->setOptions(['defaultFont' => 'sans-serif']);
         $pdf->setPaper('a4', 'potrait');
         return $pdf->stream('invoice.pdf');
     }
 
-
-
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(string $id)
     {
-		//
 		dd('ok');
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
         //
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy($id)
 	{
 		$order = Order::withTrashed()->findOrFail($id);
@@ -133,9 +119,10 @@ class OrderController extends Controller
 				function () use ($order) {
 					OrderItem::where('order_id', $order->id)->delete();
                     Payment::where('order_id', $order->id)->delete();
-					$order->shipment->delete();
+					if ($order->shipment) {
+						$order->shipment->delete();
+					}
 					$order->forceDelete();
-
 					return true;
 				}
 			);
@@ -148,13 +135,10 @@ class OrderController extends Controller
 							ProductInventory::increaseStock($item->product_id, $item->qty);
 						}
 					};
-
 					$order->delete();
-
 					return true;
 				}
 			);
-
 			return redirect('admin/orders');
 		}
 	}
@@ -163,29 +147,37 @@ class OrderController extends Controller
 	{
 		$provinces = [];
 		$products = Product::where('type', 'simple')->get();
-		return view('admin.order-admin.create', compact('provinces', 'products'));
+		$paymentMethods = [
+			'qris' => 'QRIS',
+			'midtrans' => 'Midtrans Gateway',
+			'toko' => 'Bayar di Toko',
+			'transfer' => 'Transfer Bank'
+		];
+		return view('admin.order-admin.create', compact('provinces', 'products', 'paymentMethods'));
 	}
 
 	public function storeAdmin(Request $request)
 	{
-		$validated = $request->validate([
-			'first_name' => 'required|string|max:255',
-			'last_name' => 'required|string|max:255',
-			'address1' => 'required|string|max:255',
-			'postcode' => 'required|string|max:10',
-			'phone' => 'required|string|max:20',
-			'email' => 'required|email|max:255',
-			'product_id' => 'required|array|min:1',
-			'product_id.*' => 'required|integer',
-			'qty' => 'required|array|min:1',
-			'qty.*' => 'required|integer|min:1',
-		]);
+		try {
+			$validated = $request->validate([
+				'first_name' => 'required|string|max:255',
+				'last_name' => 'required|string|max:255',
+				'address1' => 'required|string|max:255',
+				'postcode' => 'required|string|max:10',
+				'phone' => 'required|string|max:20',
+				'email' => 'required|email|max:255',
+				'product_id' => 'required|array|min:1',
+				'product_id.*' => 'required|integer',
+				'qty' => 'required|array|min:1',
+				'qty.*' => 'required|integer|min:1',
+				'payment_method' => 'nullable|string|in:qris,midtrans,toko,transfer',
+			]);
 
-		if (count($validated['product_id']) !== count($validated['qty'])) {
-			return redirect()->back()->withErrors(['error' => 'Product and quantity count mismatch'])->withInput();
-		}
+			if (count($validated['product_id']) !== count($validated['qty'])) {
+				return redirect()->back()->withErrors(['error' => 'Product and quantity count mismatch'])->withInput();
+			}
 
-		$order = DB::transaction(function () use ($request, $validated) {
+			$order = DB::transaction(function () use ($request, $validated) {
 			$totalPrice = 0;
 			$orderItems = [];
 
@@ -198,6 +190,8 @@ class OrderController extends Controller
 				$qty = $validated['qty'][$i];
 				$itemTotal = $product->price * $qty;
 				$totalPrice += $itemTotal;
+
+				$attributes = $this->_collectProductAttributes($product, $request);
 
 				$orderItems[] = [
 					'product_id' => $product->id,
@@ -213,21 +207,22 @@ class OrderController extends Controller
 					'type' => $product->type ?? 'simple',
 					'name' => $product->name,
 					'weight' => (string)($product->weight ?? 0),
-					'attributes' => '[]',
+					'attributes' => json_encode($attributes),
 				];
 			}
 
 			$uniqueCode = rand(1, 999);
 			$grandTotal = $totalPrice + $uniqueCode;
+			$paymentMethod = $validated['payment_method'] ?? 'toko';
 
 			$orderData = [
 				'user_id' => auth()->id(),
 				'code' => Order::generateCode(),
 				'status' => Order::CREATED,
-				'order_date' => now(),
-				'payment_due' => now()->addDays(7),
+				'order_date' => Carbon::now(),
+				'payment_due' => Carbon::now()->addDays(7),
 				'payment_status' => Order::UNPAID,
-				'payment_method' => 'toko',
+				'payment_method' => $paymentMethod,
 				'base_total_price' => $totalPrice,
 				'tax_amount' => 0,
 				'tax_percent' => 0,
@@ -239,9 +234,12 @@ class OrderController extends Controller
 				'customer_first_name' => $validated['first_name'],
 				'customer_last_name' => $validated['last_name'],
 				'customer_address1' => $validated['address1'],
+				'customer_address2' => '',
 				'customer_phone' => $validated['phone'],
 				'customer_email' => $validated['email'],
-				'customer_postcode' => (int)$validated['postcode'],
+				'customer_postcode' => $validated['postcode'],
+				'customer_city_id' => 1,
+				'customer_province_id' => 1,
 			];
 
 			if ($request->hasFile('attachments')) {
@@ -262,11 +260,361 @@ class OrderController extends Controller
 				}
 			}
 
+			if ($paymentMethod === 'qris' || $paymentMethod === 'midtrans') {
+				$paymentResponse = $this->_generatePaymentToken($order);
+				if ($paymentResponse['success']) {
+					$order->payment_token = $paymentResponse['token'];
+					$order->payment_url = $paymentResponse['redirect_url'];
+					$order->save();
+				}
+			}
+
 			return $order;
 		});
 
+		if ($request->ajax() || $request->expectsJson()) {
+			$response = [
+				'success' => true,
+				'order_id' => $order->id,
+				'order_code' => $order->code,
+				'message' => 'Order created successfully!'
+			];
+
+			if (in_array($order->payment_method, ['qris', 'midtrans']) && $order->payment_token) {
+				$response['payment_token'] = $order->payment_token;
+				$response['payment_url'] = $order->payment_url;
+			}
+
+			return response()->json($response);
+		}
+
 		Session::flash('success', 'Order has been created successfully!');
-		return redirect()->route('admin.orders.index');
+		return redirect()->route('admin.orders.show', $order->id);
+		
+		} catch (\Exception $e) {
+			Log::error('Order creation error: ' . $e->getMessage());
+			
+			if ($request->ajax() || $request->expectsJson()) {
+				return response()->json([
+					'success' => false,
+					'message' => 'Error creating order: ' . $e->getMessage()
+				], 500);
+			}
+			
+			return redirect()->back()->withErrors(['error' => 'Error creating order. Please try again.'])->withInput();
+		}
+	}
+
+	public function paymentNotification(Request $request)
+	{
+		try {
+			MidtransConfig::$serverKey = config('midtrans.serverKey');
+			MidtransConfig::$isProduction = config('midtrans.isProduction');
+			
+			// Disable SSL verification for localhost development (even in production mode)
+			$isLocalhost = in_array(request()->getHost(), ['localhost', '127.0.0.1', '::1']) || 
+						   str_contains(request()->getHost(), '.local') ||
+						   str_contains(request()->getHost(), 'laragon');
+			
+			if ($isLocalhost) {
+				MidtransConfig::$curlOptions = array_merge(
+					MidtransConfig::$curlOptions ?? [],
+					[
+						CURLOPT_SSL_VERIFYPEER => false,
+						CURLOPT_SSL_VERIFYHOST => false,
+					]
+				);
+				if (!isset(MidtransConfig::$curlOptions[CURLOPT_HTTPHEADER])) {
+					MidtransConfig::$curlOptions[CURLOPT_HTTPHEADER] = [];
+				}
+			}
+
+			$notification = new Notification();
+
+			$transactionStatus = $notification->transaction_status;
+			$orderCode = $notification->order_id;
+			
+			$order = Order::where('code', $orderCode)->first();
+			
+			if (!$order) {
+				return response()->json(['status' => 'error', 'message' => 'Order not found'], 404);
+			}
+
+			if ($transactionStatus == 'settlement' || $transactionStatus == 'capture') {
+				$order->payment_status = Order::PAID;
+				$order->status = Order::COMPLETED;
+				$order->approved_at = Carbon::now();
+				$order->save();
+			} elseif ($transactionStatus == 'pending') {
+				$order->payment_status = Order::WAITING;
+				$order->save();
+			} elseif ($transactionStatus == 'cancel' || $transactionStatus == 'expire') {
+				$order->payment_status = Order::UNPAID;
+				$order->save();
+			}
+
+			return response()->json(['status' => 'success']);
+		} catch (\Exception $e) {
+			Log::error('Payment notification error: ' . $e->getMessage());
+			return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+		}
+	}
+
+	public function generatePaymentToken(Order $order)
+	{
+		if (!in_array($order->payment_method, ['qris', 'midtrans'])) {
+			if (request()->expectsJson()) {
+				return response()->json(['success' => false, 'message' => 'Payment method not supported for token generation.']);
+			}
+			return redirect()->back()->with('error', 'Payment method not supported for token generation.');
+		}
+
+		if ($order->payment_status !== Order::UNPAID) {
+			if (request()->expectsJson()) {
+				return response()->json(['success' => false, 'message' => 'Payment token can only be generated for unpaid orders.']);
+			}
+			return redirect()->back()->with('error', 'Payment token can only be generated for unpaid orders.');
+		}
+
+		$paymentResponse = $this->_generatePaymentToken($order);
+		
+		if ($paymentResponse['success']) {
+			$order->payment_token = $paymentResponse['token'];
+			$order->payment_url = $paymentResponse['redirect_url'];
+			$order->save();
+			
+			if (request()->expectsJson()) {
+				return response()->json([
+					'success' => true,
+					'payment_token' => $paymentResponse['token'],
+					'payment_url' => $paymentResponse['redirect_url'],
+					'message' => 'Payment token generated successfully.'
+				]);
+			}
+			
+			return redirect()->back()->with('success', 'Payment token generated successfully. You can now process the payment.');
+		}
+		
+		if (request()->expectsJson()) {
+			return response()->json(['success' => false, 'message' => 'Failed to generate payment token: ' . $paymentResponse['message']]);
+		}
+		
+		return redirect()->back()->with('error', 'Failed to generate payment token: ' . $paymentResponse['message']);
+	}
+
+	public function paymentFinishRedirect(Request $request)
+	{
+		$orderId = $request->get('order_id');
+		$order = Order::where('code', $orderId)->first();
+		
+		if (!$order) {
+			return redirect()->route('admin.orders.index')->with('error', 'Order not found.');
+		}
+		
+		// Update payment status to paid
+		$order->payment_status = Order::PAID;
+		$order->status = Order::CONFIRMED;
+		$order->approved_at = now();
+		$order->notes = $order->notes . "\nPayment completed successfully via " . $order->payment_method;
+		$order->save();
+		
+		return redirect()->route('admin.orders.show', $order->id)->with('success', 'Payment successful! Order has been confirmed.');
+	}
+
+	public function paymentUnfinishRedirect(Request $request)
+	{
+		$orderId = $request->get('order_id');
+		$order = Order::where('code', $orderId)->first();
+		
+		if (!$order) {
+			return redirect()->route('admin.orders.index')->with('error', 'Order not found.');
+		}
+		
+		// Update payment status to waiting/pending
+		$order->payment_status = Order::WAITING;
+		$order->notes = $order->notes . "\nPayment pending via " . $order->payment_method;
+		$order->save();
+		
+		return redirect()->route('admin.orders.show', $order->id)->with('warning', 'Payment pending. Please complete your payment or wait for payment confirmation.');
+	}
+
+	public function paymentErrorRedirect(Request $request)
+	{
+		$orderId = $request->get('order_id');
+		$order = Order::where('code', $orderId)->first();
+		
+		if (!$order) {
+			return redirect()->route('admin.orders.index')->with('error', 'Order not found.');
+		}
+		
+		// Keep payment status as unpaid for error
+		$order->notes = $order->notes . "\nPayment failed via " . $order->payment_method;
+		$order->save();
+		
+		return redirect()->route('admin.orders.show', $order->id)->with('error', 'Payment failed. Please try again or contact support.');
+	}
+
+	private function _collectProductAttributes($product, $request)
+	{
+		$attributes = [];
+		
+		if ($product->configurable()) {
+			$configurableAttributes = $product->configurableAttributes();
+			
+			foreach ($configurableAttributes as $attribute) {
+				foreach ($attribute->attribute_variants as $variant) {
+					$fieldName = $attribute->code . '_' . $variant->id;
+					if ($request->has($fieldName)) {
+						$optionId = $request->get($fieldName);
+						if ($optionId) {
+							$option = \App\Models\AttributeOption::find($optionId);
+							if ($option) {
+								$attributes[] = [
+									'attribute' => $attribute->name,
+									'variant' => $variant->name,
+									'option' => $option->name,
+								];
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		return $attributes;
+	}
+
+	private function _generatePaymentToken($order)
+	{
+		try {
+			// Set Midtrans configuration
+			MidtransConfig::$serverKey = config('midtrans.serverKey');
+			MidtransConfig::$isProduction = config('midtrans.isProduction');
+			MidtransConfig::$isSanitized = config('midtrans.isSanitized');
+			MidtransConfig::$is3ds = config('midtrans.is3ds');
+			
+			// Disable SSL verification for localhost development (even in production mode)
+			$isLocalhost = in_array(request()->getHost(), ['localhost', '127.0.0.1', '::1']) || 
+						   str_contains(request()->getHost(), '.local') ||
+						   str_contains(request()->getHost(), 'laragon');
+			
+			if ($isLocalhost) {
+				// Reset curl options to prevent conflicts
+				MidtransConfig::$curlOptions = [];
+				MidtransConfig::$curlOptions[CURLOPT_SSL_VERIFYPEER] = false;
+				MidtransConfig::$curlOptions[CURLOPT_SSL_VERIFYHOST] = false;
+				MidtransConfig::$curlOptions[CURLOPT_HTTPHEADER] = [];
+			}
+
+			// Validate required fields
+			if (empty($order->customer_first_name) || empty($order->customer_email) || empty($order->code) || empty($order->grand_total)) {
+				return [
+					'success' => false,
+					'message' => 'Missing required order data (customer name, email, code, or total)',
+				];
+			}
+
+			// Validate email format
+			if (!filter_var($order->customer_email, FILTER_VALIDATE_EMAIL)) {
+				return [
+					'success' => false,
+					'message' => 'Invalid customer email format',
+				];
+			}
+
+			// Validate amount (must be positive integer)
+			$grossAmount = (int) $order->grand_total;
+			if ($grossAmount <= 0) {
+				return [
+					'success' => false,
+					'message' => 'Invalid order amount',
+				];
+			}
+
+			$customerDetails = [
+				'first_name' => trim($order->customer_first_name),
+				'last_name' => trim($order->customer_last_name ?? ''),
+				'email' => trim($order->customer_email),
+				'phone' => trim($order->customer_phone ?? ''),
+			];
+
+			$items = [
+				[
+					'id' => 'ORDER-' . $order->code,
+					'price' => $grossAmount,
+					'quantity' => 1,
+					'name' => 'Order #' . $order->code,
+					'category' => 'Order'
+				]
+			];
+
+			$params = [
+				'transaction_details' => [
+					'order_id' => $order->code,
+					'gross_amount' => $grossAmount,
+				],
+				'item_details' => $items,
+				'customer_details' => $customerDetails,
+			];
+
+			Log::info('Midtrans Payment Token Request', [
+				'order_id' => $order->id,
+				'order_code' => $order->code,
+				'params' => $params,
+				'config' => [
+					'serverKey' => MidtransConfig::$serverKey ? 'Set' : 'Not set',
+					'isProduction' => MidtransConfig::$isProduction,
+				]
+			]);
+
+			$snap = Snap::createTransaction($params);
+
+			Log::info('Midtrans Payment Token Response', [
+				'order_id' => $order->id,
+				'token_exists' => isset($snap->token),
+				'redirect_url_exists' => isset($snap->redirect_url)
+			]);
+
+			if (isset($snap->token) && $snap->token) {
+				$order->payment_token = $snap->token;
+				$order->payment_url = $snap->redirect_url ?? null;
+				$order->save();
+
+				return [
+					'success' => true,
+					'token' => $snap->token,
+					'redirect_url' => $snap->redirect_url ?? null,
+				];
+			}
+
+			return [
+				'success' => false,
+				'message' => 'Failed to generate payment token - No token received from Midtrans',
+			];
+		} catch (\Exception $e) {
+			Log::error('Midtrans Payment Token Error', [
+				'order_id' => $order->id ?? null,
+				'message' => $e->getMessage(),
+				'code' => $e->getCode(),
+				'file' => $e->getFile(),
+				'line' => $e->getLine()
+			]);
+			
+			// Check if it's a specific Midtrans error
+			$errorMessage = $e->getMessage();
+			if (strpos($errorMessage, 'Undefined array key') !== false) {
+				$errorMessage = 'Payment gateway configuration error. Please contact administrator.';
+			} elseif (strpos($errorMessage, 'CURL') !== false) {
+				$errorMessage = 'Network connection error. Please try again.';
+			} elseif (strpos($errorMessage, 'ServerKey') !== false || strpos($errorMessage, 'ClientKey') !== false) {
+				$errorMessage = 'Payment gateway authentication error. Please contact administrator.';
+			}
+			
+			return [
+				'success' => false,
+				'message' => $errorMessage,
+			];
+		}
 	}
 
     public function cancel(Order $order)
@@ -301,49 +649,75 @@ class OrderController extends Controller
 			}
 		);
 
-		// \Session::flash('success', 'The order has been cancelled');
-
 		return redirect('admin/orders');
 	}
 
     public function doComplete(Request $request,Order $order)
 	{
-		if (!$order->isDelivered() && $order->isPaid()) {
-			if ($order->shipping_service_name == 'SELF' && $order->isPaid()) {
-                $order->shipment->status = 'delivered';
-                $order->shipment->delivered_by = auth()->id();
-                $order->shipment->delivered_at = now();
-                $order->status = Order::COMPLETED;
-                $order->approved_by = auth()->id();
-                $order->approved_at = now();
+		// For offline store orders (toko) - can be completed directly after payment
+		if ($order->isOfflineStoreOrder() && $order->isPaid()) {
+			$order->status = Order::COMPLETED;
+			$order->approved_by = auth()->id();
+			$order->approved_at = now();
+			$order->notes = $order->notes . "\nOrder completed for offline store purchase";
 
-                if ($order->save()) {
-                    Alert::success('Success', 'Order has been completed successfully!');
-                    return redirect()->back();
-                }
-            }
-            Alert::error('Error', 'Order cannot be completed because it has not been delivered or paid yet.');
-            return redirect()->back();
+			if ($order->save()) {
+				Alert::success('Success', 'Offline store order has been completed successfully!');
+				return redirect()->back();
+			}
 		}
+		// For COD orders - complete after delivery confirmation
+		elseif ($order->payment_method == 'cod' && $order->isPaid()) {
+			$order->status = Order::COMPLETED;
+			$order->approved_by = auth()->id();
+			$order->approved_at = now();
+			$order->notes = $order->notes . "\nCOD order completed after payment confirmation";
 
-		if(!$order->isPaid()) {
-            Alert::error('Error', 'Order cannot be completed because it has not been paid yet.');
-            return redirect()->back();
-        } else {
-            $order->status = Order::COMPLETED;
-            $order->approved_by = auth()->id();
-            $order->approved_at = now();
-        }
+			if ($order->save()) {
+				Alert::success('Success', 'COD order has been completed successfully!');
+				return redirect()->back();
+			}
+		}
+		// For SELF pickup orders - need shipment handling
+		elseif (!$order->isDelivered() && $order->isPaid()) {
+			if ($order->shipping_service_name == 'SELF' && $order->isPaid()) {
+				if ($order->shipment) {
+					$order->shipment->status = 'delivered';
+					$order->shipment->delivered_by = auth()->id();
+					$order->shipment->delivered_at = now();
+				}
+				$order->status = Order::COMPLETED;
+				$order->approved_by = auth()->id();
+				$order->approved_at = now();
 
-		if ($order->save()) {
-			return redirect()->back()->with('success', 'Order has been completed successfully!');
+				if ($order->save()) {
+					Alert::success('Success', 'Self-pickup order has been completed successfully!');
+					return redirect()->back();
+				}
+			}
+			Alert::error('Error', 'Order cannot be completed because it has not been delivered or paid yet.');
+			return redirect()->back();
+		}
+		// General completion for paid orders
+		elseif($order->isPaid()) {
+			$order->status = Order::COMPLETED;
+			$order->approved_by = auth()->id();
+			$order->approved_at = now();
+
+			if ($order->save()) {
+				Alert::success('Success', 'Order has been completed successfully!');
+				return redirect()->back();
+			}
+		}
+		else {
+			Alert::error('Error', 'Order cannot be completed because it has not been paid yet.');
+			return redirect()->back();
 		}
 	}
 
     public function trashed()
 	{
 		$orders = Order::onlyTrashed()->latest()->get();
-
 		return view('admin.orders.trashed', compact('orders'));
 	}
 

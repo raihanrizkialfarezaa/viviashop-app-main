@@ -50,7 +50,7 @@ class ProductController extends Controller
 
     private function _getConfigurableAttributes()
 	{
-		return Attribute::where('is_configurable', true)->get();
+		return Attribute::where('is_configurable', true)->with(['attribute_variants.attribute_options'])->get();
     }
 
     private function _generateAttributeCombinations($arrays)
@@ -140,16 +140,19 @@ class ProductController extends Controller
             $attributeOption = AttributeOption::find($attributeOptionID);
 
 			if ($attributeOption != null) {
+                $attributeVariant = $attributeOption->attribute_variant;
+                $attribute = $attributeVariant->attribute;
+                
                 $attributeValueParams = [
                     'parent_product_id' => $parentProductID,
                     'product_id' => $product->id,
-                    'attribute_id' => $attributeOption->attribute_id,
+                    'attribute_id' => $attribute->id,
+                    'attribute_variant_id' => $attributeVariant->id,
+                    'attribute_option_id' => $attributeOption->id,
                     'text_value' => $attributeOption->name,
                 ];
                 ProductAttributeValue::create($attributeValueParams);
             }
-
-
 		}
 	}
 

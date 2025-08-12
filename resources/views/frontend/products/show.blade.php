@@ -91,28 +91,28 @@
                         <form action="{{ route('carts.store') }}" method="post">
 							@csrf
 							<input type="hidden" name="product_id" value="{{ $product->id }}">
-							@if ($product->type == 'configurable')
+							@if ($product->type == 'configurable' && isset($attributeHierarchy))
 								<div class="quick-view-select">
-									<div class="select-option-part">
-										<label>Size*</label>
-                                        <select name="size" class="select" id="">
-                                            @foreach($sizes as $size)
-                                                <option value="{{ $size }}">{{ $size }}</option>
-                                            @endforeach
-                                        </select>
-									</div>
-									<div class="select-option-part">
-										<label>Color*</label>
-										<select name="color" class="select" id="">
-                                            @foreach($colors as $color)
-                                                <option value="{{ $color }}">{{ $color }}</option>
-                                            @endforeach
-                                        </select>
-									</div>
+									@foreach($attributeHierarchy as $attributeCode => $variants)
+										<div class="select-option-part">
+											<label>{{ ucfirst($attributeCode) }}*</label>
+											@foreach($variants as $variantId => $options)
+												@if($options->isNotEmpty())
+													<div class="variant-group mb-2">
+														<small class="text-muted">{{ $options->first()->attribute_variant->name }}</small>
+														<select name="{{ $attributeCode }}_{{ $variantId }}" class="select">
+															<option value="">Choose {{ $options->first()->attribute_variant->name }}</option>
+															@foreach($options as $option)
+																<option value="{{ $option->attribute_option->id }}">{{ $option->attribute_option->name }}</option>
+															@endforeach
+														</select>
+													</div>
+												@endif
+											@endforeach
+										</div>
+									@endforeach
 								</div>
-							@endif
-
-							<div class="quickview-plus-minus">
+							@endif							<div class="quickview-plus-minus">
 								<div class="cart-plus-minus">
 									<input type="number" name="qty" value="1" class="cart-plus-minus-box" min="1">
 								</div>

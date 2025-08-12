@@ -3,7 +3,26 @@
     <!-- Single Page Header start -->
     <div class="container-fluid page-header py-5">
         <h1 class="text-center text-white display-6">Checkout</h1>
-        <ol class="breadcrumb justify-content-center mb-0">
+        <ol class="breadcrumb justif            $('.checkoption').click(function() {
+                 $('.checkoption').not(this).prop('checked', false);
+            });
+
+            $('input[name="payment_method"]').change(function(){
+                var paymentMethod = $('input[name="payment_method"]:checked').val();
+                
+                if (paymentMethod === 'manual' || paymentMethod === 'qris') {
+                    $('#payment-slip-section').show();
+                    
+                    if (paymentMethod === 'qris') {
+                        $('#qris-section').show();
+                    } else {
+                        $('#qris-section').hide();
+                    }
+                } else {
+                    $('#payment-slip-section').hide();
+                    $('#qris-section').hide();
+                }
+            });enter mb-0">
             <li class="breadcrumb-item"><a href="#">Home</a></li>
             <li class="breadcrumb-item"><a href="#">Pages</a></li>
             <li class="breadcrumb-item active text-white">Checkout</li>
@@ -175,27 +194,49 @@
                         <div class="row g-4 text-center align-items-center justify-content-center border-bottom py-3">
                             <div class="col-12">
                                 <div class="form-check text-start my-3">
-                                    <input type="checkbox" class="form-check-input checkoption bg-primary border-0" id="Paypal-1" name="payment_method" value="automatic">
-                                    <label class="form-check-label" for="Paypal-1">Midtrans</label>
+                                    <input type="checkbox" class="form-check-input checkoption bg-primary border-0" id="Automatic-1" name="payment_method" value="automatic">
+                                    <label class="form-check-label" for="Automatic-1">Automatic Payment (Midtrans)</label>
                                 </div>
+                                <p class="text-start text-dark">Pay automatically using Credit Card, E-Wallet, or Bank Transfer via Midtrans</p>
                             </div>
                         </div>
                         <div class="row g-4 text-center align-items-center justify-content-center border-bottom py-3">
                             <div class="col-12">
                                 <div class="form-check text-start my-3">
-                                    <input type="checkbox" class="form-check-input checkoption bg-primary border-0" id="Paypal-1" name="payment_method" value="toko">
-                                    <label class="form-check-label" for="Paypal-1">Bayar Di Toko</label>
+                                    <input type="checkbox" class="form-check-input checkoption bg-primary border-0" id="QRIS-1" name="payment_method" value="qris">
+                                    <label class="form-check-label" for="QRIS-1">QRIS Payment</label>
                                 </div>
+                                <p class="text-start text-dark">Scan QR Code to pay using any e-wallet or banking app</p>
                             </div>
                         </div>
                         <div class="row g-4 text-center align-items-center justify-content-center border-bottom py-3">
                             <div class="col-12">
                                 <div class="form-check text-start my-3">
-                                    <input type="checkbox" class="form-check-input checkoption qris bg-primary border-0" id="Paypal-1" name="payment_method" value="qris">
-                                    <label class="form-check-label" for="Paypal-1">QRIS</label>
+                                    <input type="checkbox" class="form-check-input checkoption bg-primary border-0" id="COD-1" name="payment_method" value="cod">
+                                    <label class="form-check-label" for="COD-1">Cash on Delivery (COD)</label>
                                 </div>
-                                <div class="col-12">
-                                    <img id="images" src="{{ asset('images/qr.jpg') }}" alt="">
+                                <p class="text-start text-dark">Pay cash when the product is delivered to your location</p>
+                            </div>
+                        </div>
+                        <div class="row g-4 text-center align-items-center justify-content-center border-bottom py-3">
+                            <div class="col-12">
+                                <div class="form-check text-start my-3">
+                                    <input type="checkbox" class="form-check-input checkoption bg-primary border-0" id="Store-1" name="payment_method" value="toko">
+                                    <label class="form-check-label" for="Store-1">Bayar Di Toko</label>
+                                </div>
+                                <p class="text-start text-dark">Datang langsung ke toko untuk melakukan pembayaran</p>
+                            </div>
+                        </div>
+                        <div class="row g-4 text-center align-items-center justify-content-center border-bottom py-3" id="payment-slip-section" style="display: none;">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="payment-slip" class="form-label">Upload Payment Slip / Screenshot:</label>
+                                    <input type="file" class="form-control" id="payment-slip" name="payment_slip" accept="image/*">
+                                    <small class="text-muted">Upload your payment slip or transfer screenshot</small>
+                                </div>
+                                <div class="mt-3" id="qris-section" style="display: none;">
+                                    <img id="images" src="{{ asset('images/qr.jpg') }}" alt="QRIS Code" class="img-fluid" style="max-width: 300px;">
+                                    <p class="text-center mt-2">Scan this QR code to pay with any e-wallet or banking app</p>
                                 </div>
                             </div>
                         </div>

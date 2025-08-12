@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class Order extends Model
 {
@@ -49,15 +51,13 @@ class Order extends Model
 		return $result;
 	}
 
-    public static function generateCode()
+	public static function generateCode()
 	{
 		$dateCode = self::ORDERCODE . '/' . date('Ymd') . '/' . self::integerToRoman(date('m')). '/' .self::integerToRoman(date('d')). '/';
 
-		$lastOrder = self::select([\DB::raw('MAX(orders.code) AS last_code')])
+		$lastOrder = self::select([DB::raw('MAX(orders.code) AS last_code')])
 			->where('code', 'like', $dateCode . '%')
-            ->first();
-
-        $lastOrderCode = !empty($lastOrder) ? $lastOrder['last_code'] : null;
+            ->first();        $lastOrderCode = !empty($lastOrder) ? $lastOrder['last_code'] : null;
 
 		$orderCode = $dateCode . '00001';
 		if ($lastOrderCode) {
@@ -69,7 +69,7 @@ class Order extends Model
         }
 
 		if (self::_isOrderCodeExists($orderCode)) {
-			return generateOrderCode();
+			return self::generateCode();
 		}
 
 		return $orderCode;
@@ -129,5 +129,24 @@ class Order extends Model
 	public function scopeForUser($query, $user)
 	{
 		return $query->where('user_id', $user->id);
+	}
+
+	public function isOfflineStoreOrder()
+	{
+		// Check if order was created by admin (offline store order)
+		// Admin orders always have customer_last_name = "Toko"
+		return $this->customer_last_name === 'Toko';
+	}
+
+	public function needsShipment()
+	{
+		// Offline store orders (created by admin) never need shipment
+		if ($this->isOfflineStoreOrder()) {
+			return false;
+		}
+
+		// Online orders need shipment unless they are COD or self pickup
+		return $this->payment_method !== 'cod' && 
+			   $this->shipping_service_name !== 'SELF';
 	}
 }

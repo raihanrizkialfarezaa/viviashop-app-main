@@ -27,7 +27,7 @@
     <div class="container">
         <div class="row">
             <div class="col-md-12">
-                <form action="{{ route('admin.orders.storeAdmin') }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('admin.orders.storeAdmin') }}" method="POST" enctype="multipart/form-data" id="order-form" onsubmit="return handleFormSubmit(event)">
                     @csrf
                     <div class="box box-primary">
                         <div class="box-header with-border">
@@ -36,16 +36,15 @@
                         <div class="box-body">
                             <div class="form-group">
                                 <label for="first_name">First Name</label>
-                                <input type="text" readonly name="first_name" value="Admin" class="form-control" value="{{ old('first_name') }}" required>
+                                <input type="text" readonly name="first_name" value="Admin" class="form-control" required>
                             </div>
                             <div class="form-group">
-
                                  <label for="last_name">Last Name</label>
-                                <input type="text" readonly name="last_name" value="Toko" class="form-control" value="{{ old('last_name') }}" required>
+                                <input type="text" readonly name="last_name" value="Toko" class="form-control" required>
                             </div>
                             <div class="form-group">
                                 <label for="address1">Address Line 1</label>
-                                <input type="text" readonly name="address1" value="Cukir, Jombang" class="form-control" value="{{ old('address1') }}" required>
+                                <input type="text" readonly name="address1" value="Cukir, Jombang" class="form-control" required>
                             </div>
                             {{--  <div class="form-group">
                                 <label for="province_id">Province</label>
@@ -65,15 +64,15 @@
                             </div>  --}}
                             <div class="form-group">
                                 <label for="postcode">Postcode</label>
-                                <input type="text" readonly name="postcode" value="102112" class="form-control" value="{{ old('postcode') }}" required>
+                                <input type="text" readonly name="postcode" value="102112" class="form-control" required>
                             </div>
                             <div class="form-group">
                                 <label for="phone">Phone</label>
-                                <input type="text" readonly name="phone" value="9121240210" class="form-control" value="{{ old('phone') }}" required>
+                                <input type="text" readonly name="phone" value="9121240210" class="form-control" required>
                             </div>
                             <div class="form-group">
                                 <label for="email">Email</label>
-                                <input type="email" readonly name="email" value="admin@gmail.com" class="form-control" value="{{ old('email') }}" required>
+                                <input type="email" readonly name="email" value="admin@gmail.com" class="form-control" required>
                             </div>
                         </div>
                     </div>
@@ -108,6 +107,18 @@
                             <div id="order-items"></div>
                             <div class="form-group">
                                 <input type="text" name="note" class="form-control" placeholder="Notes if exist">
+                            </div>
+                            <div class="form-group">
+                                <label for="payment_method">Payment Method</label>
+                                <select name="payment_method" class="form-control" id="payment_method">
+                                    <option value="toko">Bayar di Toko</option>
+                                    <option value="qris">QRIS</option>
+                                    <option value="midtrans">Midtrans Gateway</option>
+                                    <option value="transfer">Transfer Bank</option>
+                                </select>
+                            </div>
+                            <div id="payment-gateway-section" style="display: none;">
+                                <button type="button" id="pay-button" class="btn btn-success btn-lg">Process Payment</button>
                             </div>
                             <div class="form-group">
                                 <input type="file" name="attachments" id="image" class="form-control">
@@ -145,7 +156,7 @@
                     </div>
 
                     <div class="box-footer">
-                        <button type="submit" class="btn btn-success" onclick="return validateForm()">Create Order</button>
+                        <button type="submit" class="btn btn-success">Create Order</button>
                     </div>
                     <!-- Barcode Scanner Modal -->
                     <div class="modal fade" id="barcodeModal" tabindex="-1">
@@ -177,6 +188,7 @@
 @push('scripts')
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script>
 
 <script>
 let isScanning = false;
@@ -477,6 +489,18 @@ $(document).ready(function() {
     });
 });
 
+function handleFormSubmit(event) {
+    const paymentMethod = $('#payment_method').val();
+    
+    if (paymentMethod === 'qris' || paymentMethod === 'midtrans') {
+        event.preventDefault();
+        processPaymentGateway();
+        return false;
+    }
+    
+    return validateForm();
+}
+
 function validateForm() {
     const orderItems = document.getElementById('order-items');
     if (orderItems.children.length === 0) {
@@ -484,6 +508,86 @@ function validateForm() {
         return false;
     }
     return true;
+}
+
+$('#payment_method').change(function() {
+    const paymentMethod = $(this).val();
+    if (paymentMethod === 'qris' || paymentMethod === 'midtrans') {
+        $('#payment-gateway-section').show();
+    } else {
+        $('#payment-gateway-section').hide();
+    }
+});
+
+$('#pay-button').click(function() {
+    const paymentMethod = $('#payment_method').val();
+    
+    if (paymentMethod === 'qris' || paymentMethod === 'midtrans') {
+        processPaymentGateway();
+    }
+});
+
+function processPaymentGateway() {
+    const orderItems = document.getElementById('order-items');
+    if (orderItems.children.length === 0) {
+        alert('Please add at least one product to the order');
+        return;
+    }
+    
+    const formData = new FormData($('#order-form')[0]);
+    
+    console.log('Form data being sent:');
+    for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+    }
+    
+    $.ajax({
+        url: '{{ route("admin.orders.storeAdmin") }}',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            if (response.success && response.payment_token) {
+                // First, let's get the order code from the response or generate it from order_id
+                let orderCode = response.order_code || 'ORD-' + response.order_id;
+                
+                snap.pay(response.payment_token, {
+                    onSuccess: function(result) {
+                        alert('Payment successful!');
+                        window.location.href = '{{ route("admin.admin.payment.finish") }}?order_id=' + orderCode;
+                    },
+                    onPending: function(result) {
+                        alert('Payment pending. Please complete your payment.');
+                        window.location.href = '{{ route("admin.admin.payment.unfinish") }}?order_id=' + orderCode;
+                    },
+                    onError: function(result) {
+                        alert('Payment failed. Please try again.');
+                        window.location.href = '{{ route("admin.admin.payment.error") }}?order_id=' + orderCode;
+                    },
+                    onClose: function() {
+                        console.log('Payment window closed');
+                        // Redirect to order page even if closed
+                        window.location.href = '{{ route("admin.orders.show", ":id") }}'.replace(':id', response.order_id);
+                    }
+                });
+            } else {
+                alert('Order created successfully!');
+                window.location.href = '{{ route("admin.orders.show", ":id") }}'.replace(':id', response.order_id);
+            }
+        },
+        error: function(xhr) {
+            let errorMessage = 'Error creating order. Please try again.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            }
+            alert(errorMessage);
+            console.log(xhr.responseText);
+        }
+    });
 }
 </script>
 @endpush

@@ -155,9 +155,15 @@ class ProductController extends Controller
             return view('frontend.products.show', compact('product'));
         }
 
-        $colors = ProductAttributeValue::getAttributeOptions($product, 'color')->pluck('text_value', 'text_value');
-        $sizes = ProductAttributeValue::getAttributeOptions($product, 'size')->pluck('text_value', 'text_value');
-        return view('frontend.products.show', compact('product', 'sizes', 'colors'));
+        $attributeHierarchy = [];
+        $configurableAttributes = $product->configurableAttributes();
+        
+        foreach ($configurableAttributes as $attribute) {
+            $hierarchy = ProductAttributeValue::getAttributeHierarchy($product, $attribute->code);
+            $attributeHierarchy[$attribute->code] = $hierarchy;
+        }
+
+        return view('frontend.products.show', compact('product', 'attributeHierarchy'));
     }
 
     public function quickView(Product $product)

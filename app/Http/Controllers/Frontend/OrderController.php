@@ -66,6 +66,19 @@ class OrderController extends Controller
         \Midtrans\Config::$isSanitized = $this->isSanitized;
         // Set 3DS transaction for credit card to true
         \Midtrans\Config::$is3ds = $this->is3ds;
+        
+        // Disable SSL verification for localhost development (even in production mode)
+        $isLocalhost = in_array(request()->getHost(), ['localhost', '127.0.0.1', '::1']) || 
+                       str_contains(request()->getHost(), '.local') ||
+                       str_contains(request()->getHost(), 'laragon');
+        
+        if ($isLocalhost) {
+            \Midtrans\Config::$curlOptions = [
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_HTTPHEADER => []
+            ];
+        }
     }
 	public function index()
 	{
@@ -449,8 +462,12 @@ view()->share('setting', $setting);
 			$paymentMethod = 'automatic';
 		} elseif($params['payment_method'] == 'qris') {
 			$paymentMethod = 'qris';
-		} else {
+		} elseif($params['payment_method'] == 'cod') {
 			$paymentMethod = 'cod';
+		} elseif($params['payment_method'] == 'toko') {
+			$paymentMethod = 'toko';
+		} else {
+			$paymentMethod = 'manual';
 		}
 		$unique_code = $params['unique_code'];
 		$discountPercent = 0;
@@ -472,7 +489,7 @@ view()->share('setting', $setting);
 
 		auth()->user()->update($user_profile);
 
-		if ($params['attachments'] != null) {
+		if ($params['attachments'] != null || isset($params['payment_slip'])) {
 			$orderParams = [
 				'user_id' => auth()->id(),
 				'code' => Order::generateCode(),
@@ -480,7 +497,8 @@ view()->share('setting', $setting);
 				'order_date' => $orderDate,
 				'payment_due' => $paymentDue,
 				'payment_status' => Order::UNPAID,
-				'attachments' => $params['attachments']->store('assets/slides', 'public'),
+				'attachments' => $params['attachments'] ? $params['attachments']->store('assets/slides', 'public') : null,
+				'payment_slip' => isset($params['payment_slip']) ? $params['payment_slip']->store('assets/payment_slips', 'public') : null,
 				'base_total_price' => $baseTotalPrice,
 				'tax_amount' => $taxAmount,
 				'tax_percent' => $taxPercent,
@@ -510,6 +528,7 @@ view()->share('setting', $setting);
 				'order_date' => $orderDate,
 				'payment_due' => $paymentDue,
 				'payment_status' => Order::UNPAID,
+				'payment_slip' => isset($params['payment_slip']) ? $params['payment_slip']->store('assets/payment_slips', 'public') : null,
 				'base_total_price' => $baseTotalPrice,
 				'tax_amount' => $taxAmount,
 				'tax_percent' => $taxPercent,

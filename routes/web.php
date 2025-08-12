@@ -32,6 +32,112 @@ Auth::routes();
 
 // Route::get('/debug-midtrans', [OrderController::class, 'debug']);
 
+Route::get('/debug-midtrans', function() {
+    $midtransTest = 'Unknown';
+    try {
+        \Midtrans\Config::$serverKey = config('midtrans.serverKey');
+        $midtransTest = 'Midtrans Config set successfully';
+    } catch (Exception $e) {
+        $midtransTest = 'Error: ' . $e->getMessage();
+    }
+    
+    return [
+        'config' => [
+            'serverKey' => config('midtrans.serverKey') ? 'Set (hidden)' : 'Not set',
+            'clientKey' => config('midtrans.clientKey'),
+            'isProduction' => config('midtrans.isProduction'),
+            'isSanitized' => config('midtrans.isSanitized'),
+            'is3ds' => config('midtrans.is3ds'),
+        ],
+        'midtrans_test' => $midtransTest,
+    ];
+});
+
+Route::get('/debug-order/{id}', function($id) {
+    $order = App\Models\Order::find($id);
+    if (!$order) {
+        return ['error' => 'Order not found'];
+    }
+    
+    return [
+        'order' => [
+            'id' => $order->id,
+            'code' => $order->code,
+            'customer_first_name' => $order->customer_first_name,
+            'customer_last_name' => $order->customer_last_name,
+            'customer_email' => $order->customer_email,
+            'customer_phone' => $order->customer_phone,
+            'grand_total' => $order->grand_total,
+            'payment_method' => $order->payment_method,
+            'payment_status' => $order->payment_status,
+        ]
+    ];
+});
+
+Route::get('/test-midtrans-token/{id}', function($id) {
+    $order = App\Models\Order::find($id);
+    if (!$order) {
+        return ['error' => 'Order not found'];
+    }
+    
+    try {
+        \Midtrans\Config::$serverKey = config('midtrans.serverKey');
+        \Midtrans\Config::$isProduction = config('midtrans.isProduction');
+        \Midtrans\Config::$isSanitized = config('midtrans.isSanitized');
+        \Midtrans\Config::$is3ds = config('midtrans.is3ds');
+        
+        // Disable SSL for testing
+        \Midtrans\Config::$curlOptions = [
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_HTTPHEADER => []
+        ];
+        
+        $params = [
+            'transaction_details' => [
+                'order_id' => 'TEST-' . time(),
+                'gross_amount' => 10000,
+            ],
+            'customer_details' => [
+                'first_name' => 'Test',
+                'last_name' => 'Customer',
+                'email' => 'test@example.com',
+                'phone' => '08123456789',
+            ],
+            'item_details' => [
+                [
+                    'id' => 'TEST-ITEM',
+                    'price' => 10000,
+                    'quantity' => 1,
+                    'name' => 'Test Item'
+                ]
+            ]
+        ];
+        
+        $snap = \Midtrans\Snap::createTransaction($params);
+        
+        return [
+            'success' => true,
+            'token' => $snap->token ?? 'No token',
+            'redirect_url' => $snap->redirect_url ?? 'No redirect URL',
+            'config' => [
+                'serverKey' => config('midtrans.serverKey') ? 'Set' : 'Not set',
+                'isProduction' => config('midtrans.isProduction'),
+            ]
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'config' => [
+                'serverKey' => config('midtrans.serverKey') ? 'Set' : 'Not set',
+                'isProduction' => config('midtrans.isProduction'),
+            ]
+        ];
+    }
+});
+
 Route::post('payments/notification', [App\Http\Controllers\Frontend\OrderController::class, 'notificationHandler'])
     ->name('payment.notification')
     ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
@@ -135,7 +241,14 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
      ->name('products.data');
     Route::post('ordersAdmin', [\App\Http\Controllers\Admin\OrderController::class , 'storeAdmin'])->name('orders.storeAdmin');
     Route::get('ordersAdmin', [\App\Http\Controllers\Admin\OrderController::class , 'checkPage'])->name('orders.checkPage');
+    Route::post('orders/payment-notification', [\App\Http\Controllers\Admin\OrderController::class , 'paymentNotification'])->name('orders.payment-notification');
+    Route::post('orders/{order}/generate-payment-token', [\App\Http\Controllers\Admin\OrderController::class , 'generatePaymentToken'])->name('orders.generate-payment-token');
     Route::post('orders/complete/{order}', [\App\Http\Controllers\Admin\OrderController::class , 'doComplete'])->name('orders.complete');
+    
+    // Admin payment callback routes
+    Route::get('orders/payment/finish', [\App\Http\Controllers\Admin\OrderController::class, 'paymentFinishRedirect'])->name('admin.payment.finish');
+    Route::get('orders/payment/unfinish', [\App\Http\Controllers\Admin\OrderController::class, 'paymentUnfinishRedirect'])->name('admin.payment.unfinish');
+    Route::get('orders/payment/error', [\App\Http\Controllers\Admin\OrderController::class, 'paymentErrorRedirect'])->name('admin.payment.error');
     Route::get('orders/{order:id}/cancel', [\App\Http\Controllers\Admin\OrderController::class , 'cancel'])->name('orders.cancels');
 	Route::put('orders/cancel/{order:id}', [\App\Http\Controllers\Admin\OrderController::class , 'doCancel'])->name('orders.cancel');
 	Route::put('orders/confirm/{id}', [\App\Http\Controllers\Frontend\OrderController::class , 'confirmPaymentAdmin'])->name('orders.confirmAdmin');
