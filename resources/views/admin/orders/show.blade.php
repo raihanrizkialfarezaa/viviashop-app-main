@@ -138,7 +138,7 @@
                                     <span class="d-inline-block float-right text-default">Rp{{ number_format($order->shipping_cost,0,",",".") }}</span>
                                 </li>
                                 <li class="pb-3 text-dark">Unique Code
-                                    <span class="d-inline-block float-right">Rp{{ number_format(($order->grand_total - ($order->base_total_price + $order->shipping_cost)),0,",",".") }}</span>
+                                    <span class="d-inline-block float-right">Rp{{ number_format(0,0,",",".") }}</span>
                                 </li>
                                 <li class="pb-3 text-dark">Total
                                     <span class="d-inline-block float-right">Rp{{ number_format($order->grand_total,0,",",".") }}</span>
@@ -347,15 +347,15 @@
                             snap.pay('{{ $order->payment_token }}', {
                                 onSuccess: function(result) {
                                     console.log('Payment success:', result);
-                                    window.location.href = '{{ route("admin.admin.payment.finish") }}?order_id={{ $order->code }}';
+                                    window.location.href = '{{ route("admin.payment.finish") }}?order_id={{ $order->code }}';
                                 },
                                 onPending: function(result) {
                                     console.log('Payment pending:', result);
-                                    window.location.href = '{{ route("admin.admin.payment.unfinish") }}?order_id={{ $order->code }}';
+                                    window.location.href = '{{ route("admin.payment.unfinish") }}?order_id={{ $order->code }}';
                                 },
                                 onError: function(result) {
                                     console.log('Payment error:', result);
-                                    window.location.href = '{{ route("admin.admin.payment.error") }}?order_id={{ $order->code }}';
+                                    window.location.href = '{{ route("admin.payment.error") }}?order_id={{ $order->code }}';
                                 },
                                 onClose: function() {
                                     console.log('Payment window closed');

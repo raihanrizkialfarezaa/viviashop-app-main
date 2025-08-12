@@ -330,8 +330,7 @@ view()->share('setting', $setting);
 
 		$items = Cart::content();
 
-		$unique_code = random_int('1', '999');
-		// dd($unique_code);
+		$unique_code = 0;
 
 		$totalWeight = $this->_getTotalWeight();
 
@@ -683,15 +682,6 @@ view()->share('setting', $setting);
 					'category' => 'Shipping'
 				];
 			}
-
-			// Add unique code as an item if used
-				$items[] = [
-					'id' => 'UNIQUE-CODE',
-					'price' => $order->grand_total - $order->base_total_price - $order->shipping_cost,
-					'quantity' => 1,
-					'name' => 'Unique Payment Code',
-					'category' => 'Fee'
-				];
 
 			// Define the transaction parameters
 			$params = [

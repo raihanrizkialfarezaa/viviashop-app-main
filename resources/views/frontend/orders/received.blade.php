@@ -131,7 +131,7 @@
 										<span>Rp{{ number_format($order->shipping_cost,0,",",".") }}</span>
 									</li>
 									<li>Unique Code
-										<span>Rp{{ number_format(($order->grand_total - ($order->base_total_price + $order->shipping_cost)),0,",",".") }}</span>
+										<span>Rp{{ number_format(0,0,",",".") }}</span>
 									</li>
 									<li>Total
 										<span>Rp{{ number_format($order->grand_total, 0,",", ".") }}</span>

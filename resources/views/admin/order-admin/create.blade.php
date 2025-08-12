@@ -156,7 +156,7 @@
                     </div>
 
                     <div class="box-footer">
-                        <button type="submit" class="btn btn-success">Create Order</button>
+                        <button type="submit" class="btn btn-success" id="create-order-btn">Create Order</button>
                     </div>
                     <!-- Barcode Scanner Modal -->
                     <div class="modal fade" id="barcodeModal" tabindex="-1">
@@ -188,7 +188,14 @@
 @push('scripts')
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-<script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script>
+<script type="text/javascript" 
+    @if(config('midtrans.isProduction'))
+        src="https://app.midtrans.com/snap/snap.js"
+    @else
+        src="https://app.sandbox.midtrans.com/snap/snap.js"
+    @endif
+    data-client-key="{{ config('midtrans.clientKey') }}">
+</script>
 
 <script>
 let isScanning = false;
@@ -455,6 +462,16 @@ $("#image").on("change", function () {
 $(document).ready(function() {
     let productIndex = 1;
 
+    // Initialize button visibility based on default payment method
+    const initialPaymentMethod = $('#payment_method').val();
+    if (initialPaymentMethod === 'qris' || initialPaymentMethod === 'midtrans') {
+        $('#payment-gateway-section').show();
+        $('#create-order-btn').hide();
+    } else {
+        $('#payment-gateway-section').hide();
+        $('#create-order-btn').show();
+    }
+
     $('.add-item').click(function() {
         const newItem = `
             <div class="form-group">
@@ -514,8 +531,10 @@ $('#payment_method').change(function() {
     const paymentMethod = $(this).val();
     if (paymentMethod === 'qris' || paymentMethod === 'midtrans') {
         $('#payment-gateway-section').show();
+        $('#create-order-btn').hide();
     } else {
         $('#payment-gateway-section').hide();
+        $('#create-order-btn').show();
     }
 });
 
@@ -528,11 +547,17 @@ $('#pay-button').click(function() {
 });
 
 function processPaymentGateway() {
+    // Validate that products are added
     const orderItems = document.getElementById('order-items');
     if (orderItems.children.length === 0) {
         alert('Please add at least one product to the order');
         return;
     }
+    
+    // Show loading state
+    const payButton = $('#pay-button');
+    const originalText = payButton.text();
+    payButton.prop('disabled', true).text('Processing...');
     
     const formData = new FormData($('#order-form')[0]);
     
@@ -540,6 +565,8 @@ function processPaymentGateway() {
     for (let pair of formData.entries()) {
         console.log(pair[0] + ': ' + pair[1]);
     }
+    
+    console.log('Making AJAX request to:', '{{ route("admin.orders.storeAdmin") }}');
     
     $.ajax({
         url: '{{ route("admin.orders.storeAdmin") }}',
@@ -551,41 +578,81 @@ function processPaymentGateway() {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         },
         success: function(response) {
-            if (response.success && response.payment_token) {
-                // First, let's get the order code from the response or generate it from order_id
-                let orderCode = response.order_code || 'ORD-' + response.order_id;
-                
-                snap.pay(response.payment_token, {
-                    onSuccess: function(result) {
-                        alert('Payment successful!');
-                        window.location.href = '{{ route("admin.admin.payment.finish") }}?order_id=' + orderCode;
-                    },
-                    onPending: function(result) {
-                        alert('Payment pending. Please complete your payment.');
-                        window.location.href = '{{ route("admin.admin.payment.unfinish") }}?order_id=' + orderCode;
-                    },
-                    onError: function(result) {
-                        alert('Payment failed. Please try again.');
-                        window.location.href = '{{ route("admin.admin.payment.error") }}?order_id=' + orderCode;
-                    },
-                    onClose: function() {
-                        console.log('Payment window closed');
-                        // Redirect to order page even if closed
-                        window.location.href = '{{ route("admin.orders.show", ":id") }}'.replace(':id', response.order_id);
-                    }
-                });
+            console.log('AJAX Response:', response);
+            
+            // Reset button state
+            const payButton = $('#pay-button');
+            payButton.prop('disabled', false).text('Process Payment');
+            
+            if (response.success) {
+                if (response.payment_token) {
+                    // Payment gateway order created, process payment immediately
+                    let orderCode = response.order_code || 'ORD-' + response.order_id;
+                    
+                    // Add a small delay to ensure the page is ready
+                    setTimeout(function() {
+                        if (typeof snap === 'undefined') {
+                            alert('Payment gateway not loaded. Please refresh the page and try again.');
+                            window.location.reload();
+                            return;
+                        }
+                        
+                        snap.pay(response.payment_token, {
+                            onSuccess: function(result) {
+                                alert('Payment successful!');
+                                window.location.href = '{{ route("admin.payment.finish") }}?order_id=' + orderCode;
+                            },
+                            onPending: function(result) {
+                                alert('Payment pending. Please complete your payment.');
+                                window.location.href = '{{ route("admin.payment.unfinish") }}?order_id=' + orderCode;
+                            },
+                            onError: function(result) {
+                                alert('Payment failed. Please try again.');
+                                window.location.href = '{{ route("admin.payment.error") }}?order_id=' + orderCode;
+                            },
+                            onClose: function() {
+                                console.log('Payment window closed');
+                                window.location.href = '{{ route("admin.orders.show", ":id") }}'.replace(':id', response.order_id);
+                            }
+                        });
+                    }, 100);
+                } else {
+                    // Regular order created without payment
+                    alert('Order created successfully!');
+                    window.location.href = '{{ route("admin.orders.show", ":id") }}'.replace(':id', response.order_id);
+                }
             } else {
-                alert('Order created successfully!');
-                window.location.href = '{{ route("admin.orders.show", ":id") }}'.replace(':id', response.order_id);
+                alert('Error: ' + (response.message || 'Unknown error occurred'));
             }
         },
         error: function(xhr) {
+            console.error('AJAX Error:', xhr);
+            
+            // Reset button state
+            const payButton = $('#pay-button');
+            payButton.prop('disabled', false).text('Process Payment');
+            
             let errorMessage = 'Error creating order. Please try again.';
-            if (xhr.responseJSON && xhr.responseJSON.message) {
-                errorMessage = xhr.responseJSON.message;
+            
+            if (xhr.responseJSON) {
+                if (xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.responseJSON.errors) {
+                    const errors = Object.values(xhr.responseJSON.errors).flat();
+                    errorMessage = errors.join(', ');
+                }
+            } else if (xhr.responseText) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.message) {
+                        errorMessage = response.message;
+                    }
+                } catch (e) {
+                    console.log('Could not parse error response');
+                }
             }
+            
             alert(errorMessage);
-            console.log(xhr.responseText);
         }
     });
 }

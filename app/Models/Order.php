@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class Order extends Model
 {
@@ -53,27 +54,16 @@ class Order extends Model
 
 	public static function generateCode()
 	{
-		$dateCode = self::ORDERCODE . '/' . date('Ymd') . '/' . self::integerToRoman(date('m')). '/' .self::integerToRoman(date('d')). '/';
+		$now = Carbon::now();
+		$dateCode = self::ORDERCODE . '-' . $now->format('d') . '-' . $now->format('m') . '-' . $now->format('Y') . '-' . $now->format('H') . '-' . $now->format('i') . '-' . $now->format('s');
 
-		$lastOrder = self::select([DB::raw('MAX(orders.code) AS last_code')])
-			->where('code', 'like', $dateCode . '%')
-            ->first();        $lastOrderCode = !empty($lastOrder) ? $lastOrder['last_code'] : null;
-
-		$orderCode = $dateCode . '00001';
-		if ($lastOrderCode) {
-            $lastOrderNumber = str_replace($dateCode, '', $lastOrderCode);
-
-			$nextOrderNumber = sprintf('%05d', (int)$lastOrderNumber + 1);
-
-			$orderCode = $dateCode . $nextOrderNumber;
-        }
-
-		if (self::_isOrderCodeExists($orderCode)) {
+		if (self::_isOrderCodeExists($dateCode)) {
+			sleep(1);
 			return self::generateCode();
 		}
 
-		return $orderCode;
-    }
+		return $dateCode;
+	}
 
     private static function _isOrderCodeExists($orderCode)
 	{

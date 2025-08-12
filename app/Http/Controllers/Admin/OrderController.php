@@ -22,6 +22,41 @@ use Midtrans\Notification;
 
 class OrderController extends Controller
 {
+    protected $midtransServerKey;
+    protected $midtransClientKey;
+    protected $isProduction;
+    protected $isSanitized;
+    protected $is3ds;
+
+    public function __construct()
+    {
+        $this->midtransServerKey = config('midtrans.serverKey');
+        $this->midtransClientKey = config('midtrans.clientKey');
+        $this->isProduction = config('midtrans.isProduction');
+        $this->isSanitized = config('midtrans.isSanitized');
+        $this->is3ds = config('midtrans.is3ds');
+    }
+
+    private function initPaymentGateway()
+    {
+        MidtransConfig::$serverKey = $this->midtransServerKey;
+        MidtransConfig::$isProduction = $this->isProduction;
+        MidtransConfig::$isSanitized = $this->isSanitized;
+        MidtransConfig::$is3ds = $this->is3ds;
+        
+        $isLocalhost = in_array(request()->getHost(), ['localhost', '127.0.0.1', '::1']) || 
+                       str_contains(request()->getHost(), '.local') ||
+                       str_contains(request()->getHost(), 'laragon');
+        
+        if ($isLocalhost) {
+            MidtransConfig::$curlOptions = [
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_HTTPHEADER => []
+            ];
+        }
+    }
+
     public function index(Request $request)
     {
         $statuses = Order::STATUSES;
@@ -211,7 +246,7 @@ class OrderController extends Controller
 				];
 			}
 
-			$uniqueCode = rand(1, 999);
+			$uniqueCode = 0;
 			$grandTotal = $totalPrice + $uniqueCode;
 			$paymentMethod = $validated['payment_method'] ?? 'toko';
 
@@ -266,6 +301,18 @@ class OrderController extends Controller
 					$order->payment_token = $paymentResponse['token'];
 					$order->payment_url = $paymentResponse['redirect_url'];
 					$order->save();
+				} else {
+					Log::error('Payment token generation failed for order', [
+						'order_id' => $order->id,
+						'error' => $paymentResponse['message']
+					]);
+					if ($request->ajax() || $request->expectsJson()) {
+						return response()->json([
+							'success' => false,
+							'message' => 'Failed to generate payment token: ' . $paymentResponse['message']
+						], 400);
+					}
+					throw new \Exception('Failed to generate payment token: ' . $paymentResponse['message']);
 				}
 			}
 
@@ -280,9 +327,16 @@ class OrderController extends Controller
 				'message' => 'Order created successfully!'
 			];
 
-			if (in_array($order->payment_method, ['qris', 'midtrans']) && $order->payment_token) {
-				$response['payment_token'] = $order->payment_token;
-				$response['payment_url'] = $order->payment_url;
+			if (in_array($order->payment_method, ['qris', 'midtrans'])) {
+				if ($order->payment_token) {
+					$response['payment_token'] = $order->payment_token;
+					$response['payment_url'] = $order->payment_url;
+				} else {
+					return response()->json([
+						'success' => false,
+						'message' => 'Order created but payment token generation failed. Please contact administrator.'
+					], 500);
+				}
 			}
 
 			return response()->json($response);
@@ -308,26 +362,7 @@ class OrderController extends Controller
 	public function paymentNotification(Request $request)
 	{
 		try {
-			MidtransConfig::$serverKey = config('midtrans.serverKey');
-			MidtransConfig::$isProduction = config('midtrans.isProduction');
-			
-			// Disable SSL verification for localhost development (even in production mode)
-			$isLocalhost = in_array(request()->getHost(), ['localhost', '127.0.0.1', '::1']) || 
-						   str_contains(request()->getHost(), '.local') ||
-						   str_contains(request()->getHost(), 'laragon');
-			
-			if ($isLocalhost) {
-				MidtransConfig::$curlOptions = array_merge(
-					MidtransConfig::$curlOptions ?? [],
-					[
-						CURLOPT_SSL_VERIFYPEER => false,
-						CURLOPT_SSL_VERIFYHOST => false,
-					]
-				);
-				if (!isset(MidtransConfig::$curlOptions[CURLOPT_HTTPHEADER])) {
-					MidtransConfig::$curlOptions[CURLOPT_HTTPHEADER] = [];
-				}
-			}
+			$this->initPaymentGateway();
 
 			$notification = new Notification();
 
@@ -487,24 +522,7 @@ class OrderController extends Controller
 	private function _generatePaymentToken($order)
 	{
 		try {
-			// Set Midtrans configuration
-			MidtransConfig::$serverKey = config('midtrans.serverKey');
-			MidtransConfig::$isProduction = config('midtrans.isProduction');
-			MidtransConfig::$isSanitized = config('midtrans.isSanitized');
-			MidtransConfig::$is3ds = config('midtrans.is3ds');
-			
-			// Disable SSL verification for localhost development (even in production mode)
-			$isLocalhost = in_array(request()->getHost(), ['localhost', '127.0.0.1', '::1']) || 
-						   str_contains(request()->getHost(), '.local') ||
-						   str_contains(request()->getHost(), 'laragon');
-			
-			if ($isLocalhost) {
-				// Reset curl options to prevent conflicts
-				MidtransConfig::$curlOptions = [];
-				MidtransConfig::$curlOptions[CURLOPT_SSL_VERIFYPEER] = false;
-				MidtransConfig::$curlOptions[CURLOPT_SSL_VERIFYHOST] = false;
-				MidtransConfig::$curlOptions[CURLOPT_HTTPHEADER] = [];
-			}
+			$this->initPaymentGateway();
 
 			// Validate required fields
 			if (empty($order->customer_first_name) || empty($order->customer_email) || empty($order->code) || empty($order->grand_total)) {
