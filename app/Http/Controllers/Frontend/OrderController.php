@@ -144,8 +144,16 @@ view()->share('setting', $setting);
 			$rajaOngkir = new \RajaOngkirKomerce();
 			$cities = $rajaOngkir->getCities($provinceId);
 			
-			// Return the cities array directly (not wrapped in 'cities' key)
-			return response()->json($cities ?: []);
+			// Convert key-value pairs to array of objects for JavaScript
+			$cityArray = [];
+			foreach($cities as $id => $name) {
+				$cityArray[] = [
+					'id' => $id,
+					'name' => $name
+				];
+			}
+			
+			return response()->json($cityArray);
 		} catch (\Exception $e) {
 			Log::error('Error fetching cities: ' . $e->getMessage());
 			return response()->json([], 500);
@@ -159,8 +167,16 @@ view()->share('setting', $setting);
 			$rajaOngkir = new \RajaOngkirKomerce();
 			$districts = $rajaOngkir->getDistricts($cityId);
 			
-			// Return the districts array directly (not wrapped in 'districts' key)
-			return response()->json($districts ?: []);
+			// Convert key-value pairs to array of objects for JavaScript
+			$districtArray = [];
+			foreach($districts as $id => $name) {
+				$districtArray[] = [
+					'id' => $id,
+					'name' => $name
+				];
+			}
+			
+			return response()->json($districtArray);
 		} catch (\Exception $e) {
 			Log::error('Error fetching districts: ' . $e->getMessage());
 			return response()->json([], 500);
@@ -345,21 +361,18 @@ view()->share('setting', $setting);
 			require_once base_path('rajaongkir_komerce.php');
 			$rajaOngkir = new \RajaOngkirKomerce();
 			
-			$provinces = [];
-			$provincesData = $rajaOngkir->getProvinces();
-			if (!empty($provincesData)) {
-				foreach ($provincesData as $province) {
-					$provinces[$province['id']] = $province['name'];
-				}
-			}
+			// getProvinces() already returns [id => name] format
+			$provinces = $rajaOngkir->getProvinces();
 
 			$cities = [];
+			$districts = [];
 			if (auth()->user()->province_id) {
-				$citiesData = $rajaOngkir->getCities(auth()->user()->province_id);
-				if (!empty($citiesData)) {
-					foreach ($citiesData as $city) {
-						$cities[$city['id']] = $city['name'];
-					}
+				// getCities() already returns [id => name] format
+				$cities = $rajaOngkir->getCities(auth()->user()->province_id);
+
+				if (auth()->user()->city_id) {
+					// getDistricts() already returns [id => name] format
+					$districts = $rajaOngkir->getDistricts(auth()->user()->city_id);
 				}
 			}
 		} catch (\Exception $e) {
@@ -367,9 +380,10 @@ view()->share('setting', $setting);
 			Log::error('Failed to load RajaOngkir Komerce data: ' . $e->getMessage());
 			$provinces = $this->getProvinces();
 			$cities = isset(auth()->user()->province_id) ? $this->getCities(auth()->user()->province_id) : [];
+			$districts = [];
 		}
 
-		return view('frontend.orders.checkout', compact('items', 'unique_code', 'totalWeight','provinces','cities'));
+		return view('frontend.orders.checkout', compact('items', 'unique_code', 'totalWeight','provinces','cities','districts'));
 	}
 
 	public function doCheckout(Request $request)

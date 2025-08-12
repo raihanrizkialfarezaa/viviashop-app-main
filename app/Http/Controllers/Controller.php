@@ -201,6 +201,37 @@ class Controller extends BaseController
         return $cities;
 	}
 
+	/**
+	 * Get districts by city ID
+	 *
+	 * @param int $cityId city id
+	 *
+	 * @return array
+	 */
+	protected function getDistricts($cityId)
+	{
+		try {
+			require_once base_path('rajaongkir_komerce.php');
+			$rajaOngkir = new \RajaOngkirKomerce();
+			$response = $rajaOngkir->getDistricts($cityId);
+			
+			$districts = [];
+			if (is_array($response)) {
+				foreach ($response as $district) {
+					// Handle different field names from API
+					$districtId = $district['subdistrict_id'] ?? $district['id'] ?? $district['kode'];
+					$districtName = $district['subdistrict_name'] ?? $district['nama'] ?? $district['name'];
+					$districts[$districtId] = $districtName;
+				}
+			}
+			
+			return $districts;
+		} catch (\Exception $e) {
+			Log::error('Error fetching districts: ' . $e->getMessage());
+			return [];
+		}
+	}
+
 		/**
 	 * Get shipping cost - DEPRECATED: Use OrderController's shippingCostRequest instead
 	 * This method was for RajaOngkir's shipping costs, but Binderbyte only provides address data

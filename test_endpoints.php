@@ -1,7 +1,7 @@
 <?php
 // Test different endpoint variations
 
-$apiKey = 'mX8UOUC63dc7a4d50f35001eVcaMa8te';
+$apiKey = 'Ho0D8T1Ebf59683c23db234aV2uzrSn6';
 $baseUrl = 'https://rajaongkir.komerce.id/api/v1/';
 
 function testEndpoint($url, $apiKey) {

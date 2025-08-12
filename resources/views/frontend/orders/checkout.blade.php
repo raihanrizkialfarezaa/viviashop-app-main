@@ -56,6 +56,11 @@
                             <label>District<span class="required">*</span></label>
                             <select name="shipping_district_id" class="form-control" id="shipping-district">
                                 <option value="">-- Pilih Kecamatan --</option>
+                                @if($districts)
+                                    @foreach($districts as $id => $district)
+                                        <option {{ auth()->user()->district_id == $id ? 'selected' : null }} value="{{ $id }}">{{ $district }}</option>
+                                    @endforeach
+                                @endif
                             </select>
                         </div>
                         <div class="form-item">
@@ -333,6 +338,13 @@
         }
 
         $(document).ready(function(){
+            // Setup CSRF token for all AJAX requests
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+            
             $('#shipping-row').hide();
             $('#shipping-cost-option').html('<option value="">-- Select Delivery Method First --</option>');
             
@@ -340,7 +352,7 @@
                 var province_id = $(this).val();
                 console.log('Province changed to:', province_id);
                 if (province_id) {
-                    var cityUrl = "{{ url('orders/cities') }}/" + province_id + '?t=' + Date.now();
+                    var cityUrl = "{{ url('api/cities') }}/" + province_id + '?t=' + Date.now();
                     console.log('Fetching cities from:', cityUrl);
                     $.ajax({
                         url: cityUrl,
@@ -350,11 +362,39 @@
                             var options = '<option value="">-- Pilih Kota --</option>';
                             if (response && Array.isArray(response)) {
                                 $.each(response, function(index, city) {
-                                    options += '<option value="' + city.id + '">' + city.name + '</option>';
+                                    var selected = city.id == '{{ auth()->user()->city_id }}' ? 'selected' : '';
+                                    options += '<option value="' + city.id + '" ' + selected + '>' + city.name + '</option>';
                                 });
                             }
                             $('#shipping-city').html(options);
                             $('#shipping-district').html('<option value="">-- Pilih Kecamatan --</option>');
+                            
+                            var selectedCityId = $('#shipping-city').val();
+                            if (selectedCityId) {
+                                var districtUrl = "{{ url('api/districts') }}/" + selectedCityId + '?t=' + Date.now();
+                                console.log('Auto-loading districts for city:', selectedCityId);
+                                $.ajax({
+                                    url: districtUrl,
+                                    type: 'GET',
+                                    success: function(districtResponse) {
+                                        var districtOptions = '<option value="">-- Pilih Kecamatan --</option>';
+                                        if (districtResponse && Array.isArray(districtResponse)) {
+                                            $.each(districtResponse, function(index, district) {
+                                                var selected = district.id == '{{ auth()->user()->district_id }}' ? 'selected' : '';
+                                                districtOptions += '<option value="' + district.id + '" ' + selected + '>' + district.name + '</option>';
+                                            });
+                                        }
+                                        $('#shipping-district').html(districtOptions);
+                                        
+                                        var selectedDistrictId = $('#shipping-district').val();
+                                        var courierDeliveryChecked = $('input[name="delivery_method"][value="courier"]').is(':checked');
+                                        
+                                        if (selectedDistrictId && courierDeliveryChecked) {
+                                            getShippingCostOptions(selectedDistrictId);
+                                        }
+                                    }
+                                });
+                            }
                         },
                         error: function(xhr, status, error) {
                             console.error('Error loading cities:', error, xhr);
@@ -371,7 +411,7 @@
                 var city_id = $(this).val();
                 console.log('City changed to:', city_id);
                 if (city_id) {
-                    var districtUrl = "{{ url('orders/districts') }}/" + city_id + '?t=' + Date.now();
+                    var districtUrl = "{{ url('api/districts') }}/" + city_id + '?t=' + Date.now();
                     console.log('Fetching districts from:', districtUrl);
                     $.ajax({
                         url: districtUrl,
@@ -381,10 +421,18 @@
                             var options = '<option value="">-- Pilih Kecamatan --</option>';
                             if (response && Array.isArray(response)) {
                                 $.each(response, function(index, district) {
-                                    options += '<option value="' + district.id + '">' + district.name + '</option>';
+                                    var selected = district.id == '{{ auth()->user()->district_id }}' ? 'selected' : '';
+                                    options += '<option value="' + district.id + '" ' + selected + '>' + district.name + '</option>';
                                 });
                             }
                             $('#shipping-district').html(options);
+                            
+                            var selectedDistrictId = $('#shipping-district').val();
+                            var courierDeliveryChecked = $('input[name="delivery_method"][value="courier"]').is(':checked');
+                            
+                            if (selectedDistrictId && courierDeliveryChecked) {
+                                getShippingCostOptions(selectedDistrictId);
+                            }
                         },
                         error: function(xhr, status, error) {
                             console.error('Error loading districts:', error, xhr);
@@ -431,6 +479,16 @@
                     } else {
                         $('#shipping-cost-option').html('<option value="">-- Select District First --</option>');
                     }
+                }
+            });
+
+            $(document).ready(function() {
+                var selectedDistrictId = $('#shipping-district').val();
+                var courierDeliveryChecked = $('input[name="delivery_method"][value="courier"]').is(':checked');
+                
+                if (selectedDistrictId && courierDeliveryChecked) {
+                    $('#shipping-row').show();
+                    getShippingCostOptions(selectedDistrictId);
                 }
             });
 

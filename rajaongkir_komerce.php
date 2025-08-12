@@ -2,7 +2,7 @@
 
 class RajaOngkirKomerce
 {
-    private $apiKey = 'mX8UOUC63dc7a4d50f35001eVcaMa8te';
+    private $apiKey = 'Ho0D8T1Ebf59683c23db234aV2uzrSn6';
     private $baseUrl = 'https://rajaongkir.komerce.id/api/v1/';
     
     public function getProvinces()
@@ -15,8 +15,15 @@ class RajaOngkirKomerce
             return [];
         }
         
-        // Return the data array directly for easier processing
-        return isset($response['data']) ? $response['data'] : [];
+        $data = isset($response['data']) ? $response['data'] : [];
+        
+        // Convert to key-value pairs for dropdown compatibility
+        $provinces = [];
+        foreach ($data as $province) {
+            $provinces[$province['id']] = strtoupper($province['name']);
+        }
+        
+        return $provinces;
     }
     
     public function getCities($provinceId)
@@ -29,8 +36,15 @@ class RajaOngkirKomerce
             return [];
         }
         
-        // Return the data array directly for easier processing
-        return isset($response['data']) ? $response['data'] : [];
+        $data = isset($response['data']) ? $response['data'] : [];
+        
+        // Convert to key-value pairs for dropdown compatibility
+        $cities = [];
+        foreach ($data as $city) {
+            $cities[$city['id']] = strtoupper($city['name']);
+        }
+        
+        return $cities;
     }
     
     public function getDistricts($cityId)
@@ -43,8 +57,15 @@ class RajaOngkirKomerce
             return [];
         }
         
-        // Return the data array directly for easier processing
-        return isset($response['data']) ? $response['data'] : [];
+        $data = isset($response['data']) ? $response['data'] : [];
+        
+        // Convert to key-value pairs for dropdown compatibility
+        $districts = [];
+        foreach ($data as $district) {
+            $districts[$district['id']] = strtoupper($district['name']);
+        }
+        
+        return $districts;
     }
     
     public function getSubdistricts($districtId)
@@ -286,3 +307,4 @@ if (basename(__FILE__) == basename($_SERVER['SCRIPT_NAME'])) {
         print_r($provinces);
     }
 }
+?>
