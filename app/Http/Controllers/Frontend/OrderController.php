@@ -356,32 +356,9 @@ view()->share('setting', $setting);
 
 		$totalWeight = $this->_getTotalWeight();
 
-		// Use new RajaOngkir Komerce API
-		try {
-			require_once base_path('rajaongkir_komerce.php');
-			$rajaOngkir = new \RajaOngkirKomerce();
-			
-			// getProvinces() already returns [id => name] format
-			$provinces = $rajaOngkir->getProvinces();
-
-			$cities = [];
-			$districts = [];
-			if (auth()->user()->province_id) {
-				// getCities() already returns [id => name] format
-				$cities = $rajaOngkir->getCities(auth()->user()->province_id);
-
-				if (auth()->user()->city_id) {
-					// getDistricts() already returns [id => name] format
-					$districts = $rajaOngkir->getDistricts(auth()->user()->city_id);
-				}
-			}
-		} catch (\Exception $e) {
-			// Fallback to existing method if new API fails
-			Log::error('Failed to load RajaOngkir Komerce data: ' . $e->getMessage());
-			$provinces = $this->getProvinces();
-			$cities = isset(auth()->user()->province_id) ? $this->getCities(auth()->user()->province_id) : [];
-			$districts = [];
-		}
+		$provinces = [];
+		$cities = [];
+		$districts = [];
 
 		return view('frontend.orders.checkout', compact('items', 'unique_code', 'totalWeight','provinces','cities','districts'));
 	}

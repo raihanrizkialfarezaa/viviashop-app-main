@@ -33,37 +33,6 @@
 							<input type="text" class="form-control" name="address2" value="{{ old('address2', auth()->user()->address2) }}">
                         </div>
                         <div class="form-item">
-                            <label>Provinsi<span class="required">*</span></label>
-                            <select name="province_id" class="form-control" id="shipping-province">
-                                <option value="">-- Pilih Provinsi --</option>
-                                @foreach($provinces as $id => $province)
-                                    <option {{ auth()->user()->province_id == $id ? 'selected' : null }} value="{{ $id }}">{{ $province }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-item">
-                            <label>City<span class="required">*</span></label>
-                            <select name="shipping_city_id" class="form-control" id="shipping-city">
-                                <option value="">-- Pilih Kota --</option>
-                                @if($cities)
-                                    @foreach($cities as $id => $city)
-                                        <option {{ auth()->user()->city_id == $id ? 'selected' : null }} value="{{ $id }}">{{ $city }}</option>
-                                    @endforeach
-                                @endif
-                            </select>
-                        </div>
-                        <div class="form-item">
-                            <label>District<span class="required">*</span></label>
-                            <select name="shipping_district_id" class="form-control" id="shipping-district">
-                                <option value="">-- Pilih Kecamatan --</option>
-                                @if($districts)
-                                    @foreach($districts as $id => $district)
-                                        <option {{ auth()->user()->district_id == $id ? 'selected' : null }} value="{{ $id }}">{{ $district }}</option>
-                                    @endforeach
-                                @endif
-                            </select>
-                        </div>
-                        <div class="form-item">
                             <label>Postcode / Zip <span class="required">*</span></label>
 							<input type="text" class="form-control" name="postcode" value="{{ old('postcode', auth()->user()->postcode) }}">
                         </div>
@@ -91,31 +60,18 @@
                             <label>Provinsi<span class="required">*</span></label>
                             <select name="province_id" class="form-control" id="shipping-province">
                                 <option value="">-- Pilih Provinsi --</option>
-                                @foreach($provinces as $id => $province)
-                                    <option {{ auth()->user()->province_id == $id ? 'selected' : null }} value="{{ $id }}">{{ $province }}</option>
-                                @endforeach
                             </select>
                         </div>
                         <div class="form-item address-fields" style="display: none;">
                             <label>City<span class="required">*</span></label>
                             <select name="shipping_city_id" class="form-control" id="shipping-city">
                                 <option value="">-- Pilih Kota --</option>
-                                @if($cities)
-                                    @foreach($cities as $id => $city)
-                                        <option {{ auth()->user()->city_id == $id ? 'selected' : null }} value="{{ $id }}">{{ $city }}</option>
-                                    @endforeach
-                                @endif
                             </select>
                         </div>
                         <div class="form-item address-fields" style="display: none;">
                             <label>District<span class="required">*</span></label>
                             <select name="shipping_district_id" class="form-control" id="shipping-district">
                                 <option value="">-- Pilih Kecamatan --</option>
-                                @if($districts)
-                                    @foreach($districts as $id => $district)
-                                        <option {{ auth()->user()->district_id == $id ? 'selected' : null }} value="{{ $id }}">{{ $district }}</option>
-                                    @endforeach
-                                @endif
                             </select>
                         </div>
                     </div>
@@ -286,6 +242,152 @@
 @endsection
 @push('script-alt')
     <script>
+        function loadProvinces() {
+            console.log('Loading provinces...');
+            console.log('jQuery available:', typeof $ !== 'undefined');
+            console.log('CSRF token:', $('meta[name="csrf-token"]').attr('content'));
+            
+            var apiUrl = "{{ url('api/provinces') }}" + '?t=' + Date.now();
+            console.log('API URL:', apiUrl);
+            
+            $.ajax({
+                url: apiUrl,
+                type: 'GET',
+                dataType: 'json',
+                beforeSend: function(xhr) {
+                    console.log('Making request to:', apiUrl);
+                    console.log('Request headers will include CSRF token');
+                    $('#shipping-province').html('<option value="">Loading provinces...</option>');
+                },
+                success: function(response) {
+                    console.log('Provinces response received:', response);
+                    console.log('Response type:', typeof response);
+                    console.log('Is array:', Array.isArray(response));
+                    
+                    var options = '<option value="">-- Pilih Provinsi --</option>';
+                    if (response && Array.isArray(response)) {
+                        console.log('Processing array response with', response.length, 'items');
+                        $.each(response, function(index, province) {
+                            var selected = province.id == '{{ auth()->user()->province_id }}' ? 'selected' : '';
+                            options += '<option value="' + province.id + '" ' + selected + '>' + province.name + '</option>';
+                        });
+                    } else if (response && typeof response === 'object') {
+                        console.log('Processing object response');
+                        $.each(response, function(id, name) {
+                            var selected = id == '{{ auth()->user()->province_id }}' ? 'selected' : '';
+                            options += '<option value="' + id + '" ' + selected + '>' + name + '</option>';
+                        });
+                    } else {
+                        console.error('Unexpected response format:', response);
+                    }
+                    
+                    $('#shipping-province').html(options);
+                    console.log('Province options updated, total options:', $('#shipping-province option').length);
+                    
+                    var selectedProvinceId = $('#shipping-province').val();
+                    if (selectedProvinceId) {
+                        console.log('Auto-loading cities for selected province:', selectedProvinceId);
+                        loadCities(selectedProvinceId);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error loading provinces:');
+                    console.error('Status:', status);
+                    console.error('Error:', error);
+                    console.error('Response Text:', xhr.responseText);
+                    console.error('Status Code:', xhr.status);
+                    console.error('Ready State:', xhr.readyState);
+                    $('#shipping-province').html('<option value="">Error loading provinces</option>');
+                },
+                complete: function(xhr, status) {
+                    console.log('AJAX request completed with status:', status);
+                }
+            });
+        }
+
+        function loadCities(provinceId) {
+            console.log('Loading cities for province:', provinceId);
+            var cityUrl = "{{ url('api/cities') }}/" + provinceId + '?t=' + Date.now();
+            $.ajax({
+                url: cityUrl,
+                type: 'GET',
+                dataType: 'json',
+                beforeSend: function() {
+                    console.log('Making request to:', cityUrl);
+                    $('#shipping-city').html('<option value="">Loading cities...</option>');
+                },
+                success: function(response) {
+                    console.log('Cities response received:', response);
+                    var options = '<option value="">-- Pilih Kota --</option>';
+                    if (response && Array.isArray(response)) {
+                        console.log('Processing cities array with', response.length, 'items');
+                        $.each(response, function(index, city) {
+                            var selected = city.id == '{{ auth()->user()->city_id }}' ? 'selected' : '';
+                            options += '<option value="' + city.id + '" ' + selected + '>' + city.name + '</option>';
+                        });
+                    }
+                    $('#shipping-city').html(options);
+                    console.log('City options updated, total options:', $('#shipping-city option').length);
+                    
+                    var selectedCityId = $('#shipping-city').val();
+                    if (selectedCityId) {
+                        console.log('Auto-loading districts for selected city:', selectedCityId);
+                        loadDistricts(selectedCityId);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error loading cities:');
+                    console.error('Status:', status);
+                    console.error('Error:', error);
+                    console.error('Response Text:', xhr.responseText);
+                    $('#shipping-city').html('<option value="">Error loading cities</option>');
+                }
+            });
+        }
+
+        function loadDistricts(cityId) {
+            console.log('Loading districts for city:', cityId);
+            var districtUrl = "{{ url('api/districts') }}/" + cityId + '?t=' + Date.now();
+            $.ajax({
+                url: districtUrl,
+                type: 'GET',
+                dataType: 'json',
+                beforeSend: function() {
+                    console.log('Making request to:', districtUrl);
+                    $('#shipping-district').html('<option value="">Loading districts...</option>');
+                },
+                success: function(response) {
+                    console.log('Districts response received:', response);
+                    var options = '<option value="">-- Pilih Kecamatan --</option>';
+                    if (response && Array.isArray(response)) {
+                        console.log('Processing districts array with', response.length, 'items');
+                        $.each(response, function(index, district) {
+                            var selected = district.id == '{{ auth()->user()->district_id }}' ? 'selected' : '';
+                            options += '<option value="' + district.id + '" ' + selected + '>' + district.name + '</option>';
+                        });
+                    }
+                    $('#shipping-district').html(options);
+                    console.log('District options updated, total options:', $('#shipping-district option').length);
+                    
+                    var selectedDistrictId = $('#shipping-district').val();
+                    if (selectedDistrictId) {
+                        console.log('Auto-loading shipping costs for selected district:', selectedDistrictId);
+                        var deliveryMethod = $('input[name="delivery_method"]:checked').val();
+                        if (deliveryMethod === 'courier') {
+                            getShippingCostOptions(selectedDistrictId);
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error loading districts:');
+                    console.error('Status:', status);
+                    console.error('Error:', error);
+                    console.error('Response Text:', xhr.responseText);
+                    $('#shipping-district').html('<option value="">Error loading districts</option>');
+                }
+            });
+        }
+
         function getShippingCostOptions(district_id) {
             console.log('Getting shipping costs for district_id:', district_id);
             $('#shipping-cost-option').html('<option value="">Loading shipping costs...</option>');
@@ -304,12 +406,13 @@
                     if (response.results && response.results.length > 0) {
                         $.each(response.results, function(index, result) {
                             var displayName = result.service + ' - Rp. ' + number_format(result.cost) + ' (' + result.etd + ')';
-                            var value = JSON.stringify({
+                            var valueData = {
                                 service: result.service,
                                 cost: result.cost,
                                 etd: result.etd,
                                 courier: result.courier
-                            });
+                            };
+                            var value = JSON.stringify(valueData).replace(/"/g, '&quot;');
                             options += '<option value="' + value + '">' + displayName + '</option>';
                         });
                     } else {
@@ -365,13 +468,16 @@
                 
                 if (selectedShipping) {
                     try {
-                        var shippingData = JSON.parse(selectedShipping);
+                        var unescapedShipping = selectedShipping.replace(/&quot;/g, '"');
+                        console.log('Unescaped shipping value:', unescapedShipping);
+                        var shippingData = JSON.parse(unescapedShipping);
                         shippingCost = parseInt(shippingData.cost) || 0;
                         console.log('Parsed shipping cost:', shippingCost);
                         console.log('Shipping data:', shippingData);
                     } catch (e) {
                         console.error('Error parsing shipping data:', e);
                         console.log('Raw shipping value:', selectedShipping);
+                        shippingCost = 0;
                     }
                 } else {
                     console.log('No shipping option selected');
@@ -397,6 +503,17 @@
             $('.address-fields').hide();
             $('#shipping-cost-option').html('<option value="">-- Select Delivery Method First --</option>');
             
+            // Disable address dropdowns for self pickup (default)
+            $('#shipping-province').prop('disabled', true);
+            $('#shipping-city').prop('disabled', true);
+            $('#shipping-district').prop('disabled', true);
+            
+            // Always load provinces on page load if not already loaded
+            if ($('#shipping-province option').length <= 1) {
+                console.log('Loading provinces on page initialization...');
+                loadProvinces();
+            }
+            
             // Initialize total amount calculation
             updateTotalAmount();
             
@@ -415,55 +532,7 @@
                 var province_id = $(this).val();
                 console.log('Province changed to:', province_id);
                 if (province_id) {
-                    var cityUrl = "{{ url('api/cities') }}/" + province_id + '?t=' + Date.now();
-                    console.log('Fetching cities from:', cityUrl);
-                    $.ajax({
-                        url: cityUrl,
-                        type: 'GET',
-                        success: function(response) {
-                            console.log('Cities response:', response);
-                            var options = '<option value="">-- Pilih Kota --</option>';
-                            if (response && Array.isArray(response)) {
-                                $.each(response, function(index, city) {
-                                    var selected = city.id == '{{ auth()->user()->city_id }}' ? 'selected' : '';
-                                    options += '<option value="' + city.id + '" ' + selected + '>' + city.name + '</option>';
-                                });
-                            }
-                            $('#shipping-city').html(options);
-                            $('#shipping-district').html('<option value="">-- Pilih Kecamatan --</option>');
-                            
-                            var selectedCityId = $('#shipping-city').val();
-                            if (selectedCityId) {
-                                var districtUrl = "{{ url('api/districts') }}/" + selectedCityId + '?t=' + Date.now();
-                                console.log('Auto-loading districts for city:', selectedCityId);
-                                $.ajax({
-                                    url: districtUrl,
-                                    type: 'GET',
-                                    success: function(districtResponse) {
-                                        var districtOptions = '<option value="">-- Pilih Kecamatan --</option>';
-                                        if (districtResponse && Array.isArray(districtResponse)) {
-                                            $.each(districtResponse, function(index, district) {
-                                                var selected = district.id == '{{ auth()->user()->district_id }}' ? 'selected' : '';
-                                                districtOptions += '<option value="' + district.id + '" ' + selected + '>' + district.name + '</option>';
-                                            });
-                                        }
-                                        $('#shipping-district').html(districtOptions);
-                                        
-                                        var selectedDistrictId = $('#shipping-district').val();
-                                        var courierDeliveryChecked = $('input[name="delivery_method"][value="courier"]').is(':checked');
-                                        
-                                        if (selectedDistrictId && courierDeliveryChecked) {
-                                            getShippingCostOptions(selectedDistrictId);
-                                        }
-                                    }
-                                });
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('Error loading cities:', error, xhr);
-                            $('#shipping-city').html('<option value="">Error loading cities</option>');
-                        }
-                    });
+                    loadCities(province_id);
                 } else {
                     $('#shipping-city').html('<option value="">-- Pilih Kota --</option>');
                     $('#shipping-district').html('<option value="">-- Pilih Kecamatan --</option>');
@@ -474,34 +543,7 @@
                 var city_id = $(this).val();
                 console.log('City changed to:', city_id);
                 if (city_id) {
-                    var districtUrl = "{{ url('api/districts') }}/" + city_id + '?t=' + Date.now();
-                    console.log('Fetching districts from:', districtUrl);
-                    $.ajax({
-                        url: districtUrl,
-                        type: 'GET',
-                        success: function(response) {
-                            console.log('Districts response:', response);
-                            var options = '<option value="">-- Pilih Kecamatan --</option>';
-                            if (response && Array.isArray(response)) {
-                                $.each(response, function(index, district) {
-                                    var selected = district.id == '{{ auth()->user()->district_id }}' ? 'selected' : '';
-                                    options += '<option value="' + district.id + '" ' + selected + '>' + district.name + '</option>';
-                                });
-                            }
-                            $('#shipping-district').html(options);
-                            
-                            var selectedDistrictId = $('#shipping-district').val();
-                            var courierDeliveryChecked = $('input[name="delivery_method"][value="courier"]').is(':checked');
-                            
-                            if (selectedDistrictId && courierDeliveryChecked) {
-                                getShippingCostOptions(selectedDistrictId);
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('Error loading districts:', error, xhr);
-                            $('#shipping-district').html('<option value="">Error loading districts</option>');
-                        }
-                    });
+                    loadDistricts(city_id);
                 } else {
                     $('#shipping-district').html('<option value="">-- Pilih Kecamatan --</option>');
                 }
@@ -534,39 +576,44 @@
                     $('#shipping-row').hide();
                     $('#shipping-cost-option').removeAttr('required');
                     
-                    $('#shipping-province').removeAttr('required');
-                    $('#shipping-city').removeAttr('required');
-                    $('#shipping-district').removeAttr('required');
+                    $('#shipping-province').removeAttr('required').prop('disabled', true);
+                    $('#shipping-city').removeAttr('required').prop('disabled', true);
+                    $('#shipping-district').removeAttr('required').prop('disabled', true);
                     
                     updateTotalAmount();
                 } else if (method === 'courier') {
+                    console.log('Switching to courier delivery mode...');
                     $('.address-fields').show();
                     $('#shipping-row').show();
                     $('#shipping-cost-option').attr('required', 'required');
                     
-                    $('#shipping-province').attr('required', 'required');
-                    $('#shipping-city').attr('required', 'required');
-                    $('#shipping-district').attr('required', 'required');
+                    $('#shipping-province').attr('required', 'required').prop('disabled', false);
+                    $('#shipping-city').attr('required', 'required').prop('disabled', false);
+                    $('#shipping-district').attr('required', 'required').prop('disabled', false);
                     
-                    var district_id = $('#shipping-district').val();
-                    if (district_id) {
-                        getShippingCostOptions(district_id);
+                    console.log('Checking province options count:', $('#shipping-province option').length);
+                    console.log('Loading provinces for courier delivery...');
+                    
+                    if ($('#shipping-province option').length <= 1) {
+                        console.log('Province options <= 1, calling loadProvinces()');
+                        loadProvinces();
                     } else {
-                        $('#shipping-cost-option').html('<option value="">-- Select District First --</option>');
+                        console.log('Provinces already loaded, checking selected province');
+                        var selectedProvinceId = $('#shipping-province').val();
+                        console.log('Selected province ID:', selectedProvinceId);
+                        if (selectedProvinceId) {
+                            console.log('Loading cities for existing province:', selectedProvinceId);
+                            loadCities(selectedProvinceId);
+                        } else {
+                            console.log('No province selected, calling loadProvinces() anyway');
+                            loadProvinces();
+                        }
                     }
                     
+                    $('#shipping-cost-option').html('<option value="">-- Select District First --</option>');
                     updateTotalAmount();
                 }
             });
-
-            // Check initial state for districts and courier delivery
-            var selectedDistrictId = $('#shipping-district').val();
-            var courierDeliveryChecked = $('input[name="delivery_method"][value="courier"]').is(':checked');
-            
-            if (selectedDistrictId && courierDeliveryChecked) {
-                $('#shipping-row').show();
-                getShippingCostOptions(selectedDistrictId);
-            }
 
             $('#shipping-cost-option').on('change', function() {
                 console.log('🚢 SHIPPING COST CHANGED!');
