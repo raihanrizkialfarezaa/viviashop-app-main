@@ -141,9 +141,10 @@
 									<button class="btn btn-success mt-3 d-none" id="pay-button">Proceed to payment</button>
 								@elseif(!$order->isPaid() && $order->payment_method == 'manual')
 									<a class="btn btn-success mt-3" href="{{ route('orders.confirmation_payment', $order->id) }}">Proceed to payment</a>
-                                @elseif(!$order->isPaid() && $order->payment_method == 'qris')
-									<a class="btn btn-success mt-3" href="{{ route('orders.confirmation_payment', $order->id) }}">Proceed to payment</a>
 								@elseif(!$order->isPaid() && $order->payment_method == 'cod')
+									<h1 class="text-center">Silahkan Lakukan Pembayaran ke Toko</h1>
+									<a href="{{ route('orders.index') }}" class="btn btn-primary">Kembali</a>
+								@elseif(!$order->isPaid() && $order->payment_method == 'toko')
 									<h1 class="text-center">Silahkan Lakukan Pembayaran ke Toko</h1>
 									<a href="{{ route('orders.index') }}" class="btn btn-primary">Kembali</a>
 								@endif

@@ -75,7 +75,7 @@
                             <label>Email Address </label>
                             <input type="text" class="form-control" name="email" value="{{ old('email', auth()->user()->email) }}">
                         </div>
-                        <div class="form-item">
+                                                <div class="form-item">
                             <label>Order Notes </label>
                             <input type="textarea" class="form-control" name="note" value="{{ old('note') }}">
                         </div>
@@ -86,6 +86,37 @@
                         <div class="form-item mt-4 d-none image-item">
                             <label for="">Preview Image</label>
                             <img src="" class="img-preview img-fluid" alt="">
+                        </div>
+                        <div class="form-item address-fields" style="display: none;">
+                            <label>Provinsi<span class="required">*</span></label>
+                            <select name="province_id" class="form-control" id="shipping-province">
+                                <option value="">-- Pilih Provinsi --</option>
+                                @foreach($provinces as $id => $province)
+                                    <option {{ auth()->user()->province_id == $id ? 'selected' : null }} value="{{ $id }}">{{ $province }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-item address-fields" style="display: none;">
+                            <label>City<span class="required">*</span></label>
+                            <select name="shipping_city_id" class="form-control" id="shipping-city">
+                                <option value="">-- Pilih Kota --</option>
+                                @if($cities)
+                                    @foreach($cities as $id => $city)
+                                        <option {{ auth()->user()->city_id == $id ? 'selected' : null }} value="{{ $id }}">{{ $city }}</option>
+                                    @endforeach
+                                @endif
+                            </select>
+                        </div>
+                        <div class="form-item address-fields" style="display: none;">
+                            <label>District<span class="required">*</span></label>
+                            <select name="shipping_district_id" class="form-control" id="shipping-district">
+                                <option value="">-- Pilih Kecamatan --</option>
+                                @if($districts)
+                                    @foreach($districts as $id => $district)
+                                        <option {{ auth()->user()->district_id == $id ? 'selected' : null }} value="{{ $id }}">{{ $district }}</option>
+                                    @endforeach
+                                @endif
+                            </select>
                         </div>
                     </div>
                     <div class="col-md-12 col-lg-6 col-xl-5">
@@ -144,7 +175,7 @@
                                         </td>
                                         <td>
                                             <div class="form-check">
-                                                <input type="radio" class="form-check-input" id="delivery-self" name="delivery_method" value="self">
+                                                <input type="radio" class="form-check-input" id="delivery-self" name="delivery_method" value="self" checked>
                                                 <label class="form-check-label" for="delivery-self">
                                                     Self Pickup - Rp. 0 (Same Day)
                                                 </label>
@@ -201,7 +232,7 @@
                         <div class="row g-4 text-center align-items-center justify-content-center border-bottom py-3">
                             <div class="col-12">
                                 <div class="form-check text-start my-3">
-                                    <input type="checkbox" class="form-check-input checkoption bg-primary border-0" id="Transfer-1" name="payment_method" value="manual">
+                                    <input type="radio" class="form-check-input payment-option bg-primary border-0" id="Transfer-1" name="payment_method" value="manual" checked>
                                     <label class="form-check-label" for="Transfer-1">Direct Bank Transfer</label>
                                 </div>
                                 <p class="text-start text-dark">You can pay to us via : <br> 1. BCA : 01401840112(Ahmad Sambudi) <br> 2. BCA : 01401840112(Ahmad Sambudi)</p>
@@ -210,25 +241,16 @@
                         <div class="row g-4 text-center align-items-center justify-content-center border-bottom py-3">
                             <div class="col-12">
                                 <div class="form-check text-start my-3">
-                                    <input type="checkbox" class="form-check-input checkoption bg-primary border-0" id="Automatic-1" name="payment_method" value="automatic">
+                                    <input type="radio" class="form-check-input payment-option bg-primary border-0" id="Automatic-1" name="payment_method" value="automatic">
                                     <label class="form-check-label" for="Automatic-1">Automatic Payment (Midtrans)</label>
                                 </div>
-                                <p class="text-start text-dark">Pay automatically using Credit Card, E-Wallet, or Bank Transfer via Midtrans</p>
+                                <p class="text-start text-dark">Pay automatically using Credit Card, E-Wallet, Bank Transfer, or QR Code via Midtrans</p>
                             </div>
                         </div>
                         <div class="row g-4 text-center align-items-center justify-content-center border-bottom py-3">
                             <div class="col-12">
                                 <div class="form-check text-start my-3">
-                                    <input type="checkbox" class="form-check-input checkoption bg-primary border-0" id="QRIS-1" name="payment_method" value="qris">
-                                    <label class="form-check-label" for="QRIS-1">QRIS Payment</label>
-                                </div>
-                                <p class="text-start text-dark">Scan QR Code to pay using any e-wallet or banking app</p>
-                            </div>
-                        </div>
-                        <div class="row g-4 text-center align-items-center justify-content-center border-bottom py-3">
-                            <div class="col-12">
-                                <div class="form-check text-start my-3">
-                                    <input type="checkbox" class="form-check-input checkoption bg-primary border-0" id="COD-1" name="payment_method" value="cod">
+                                    <input type="radio" class="form-check-input payment-option bg-primary border-0" id="COD-1" name="payment_method" value="cod">
                                     <label class="form-check-label" for="COD-1">Cash on Delivery (COD)</label>
                                 </div>
                                 <p class="text-start text-dark">Pay cash when the product is delivered to your location</p>
@@ -237,7 +259,7 @@
                         <div class="row g-4 text-center align-items-center justify-content-center border-bottom py-3">
                             <div class="col-12">
                                 <div class="form-check text-start my-3">
-                                    <input type="checkbox" class="form-check-input checkoption bg-primary border-0" id="Store-1" name="payment_method" value="toko">
+                                    <input type="radio" class="form-check-input payment-option bg-primary border-0" id="Store-1" name="payment_method" value="toko">
                                     <label class="form-check-label" for="Store-1">Bayar Di Toko</label>
                                 </div>
                                 <p class="text-start text-dark">Datang langsung ke toko untuk melakukan pembayaran</p>
@@ -250,14 +272,10 @@
                                     <input type="file" class="form-control" id="payment-slip" name="payment_slip" accept="image/*">
                                     <small class="text-muted">Upload your payment slip or transfer screenshot</small>
                                 </div>
-                                <div class="mt-3" id="qris-section" style="display: none;">
-                                    <img id="images" src="{{ asset('images/qr.jpg') }}" alt="QRIS Code" class="img-fluid" style="max-width: 300px;">
-                                    <p class="text-center mt-2">Scan this QR code to pay with any e-wallet or banking app</p>
-                                </div>
                             </div>
                         </div>
                         <div class="row g-4 text-center align-items-center justify-content-center pt-4">
-                            <button type="submit" class="btn border-secondary py-3 px-4 text-uppercase w-100 text-primary">Place Order</button>
+                            <button type="submit" class="btn border-secondary py-3 px-4 text-uppercase w-100 text-primary" onclick="return validateForm()">Place Order</button>
                         </div>
                     </div>
                 </div>
@@ -376,18 +394,11 @@
             });
             
             $('#shipping-row').hide();
+            $('.address-fields').hide();
             $('#shipping-cost-option').html('<option value="">-- Select Delivery Method First --</option>');
             
             // Initialize total amount calculation
             updateTotalAmount();
-            
-            // Ensure a delivery method is selected by default if none is selected
-            if ($('input[name="delivery_method"]:checked').length === 0) {
-                console.log('No delivery method selected, defaulting to courier');
-                $('input[name="delivery_method"][value="courier"]').prop('checked', true);
-                $('#shipping-row').show();
-                updateTotalAmount();
-            }
             
             // Debug: Test element accessibility
             console.log('=== CHECKOUT PAGE DEBUG ===');
@@ -519,12 +530,23 @@
                 console.log('🚚 DELIVERY METHOD CHANGED to:', method);
                 
                 if (method === 'self') {
+                    $('.address-fields').hide();
                     $('#shipping-row').hide();
                     $('#shipping-cost-option').removeAttr('required');
+                    
+                    $('#shipping-province').removeAttr('required');
+                    $('#shipping-city').removeAttr('required');
+                    $('#shipping-district').removeAttr('required');
+                    
                     updateTotalAmount();
                 } else if (method === 'courier') {
+                    $('.address-fields').show();
                     $('#shipping-row').show();
                     $('#shipping-cost-option').attr('required', 'required');
+                    
+                    $('#shipping-province').attr('required', 'required');
+                    $('#shipping-city').attr('required', 'required');
+                    $('#shipping-district').attr('required', 'required');
                     
                     var district_id = $('#shipping-district').val();
                     if (district_id) {
@@ -533,7 +555,6 @@
                         $('#shipping-cost-option').html('<option value="">-- Select District First --</option>');
                     }
                     
-                    // Update total amount when switching to courier method
                     updateTotalAmount();
                 }
             });
@@ -553,15 +574,15 @@
                 updateTotalAmount();
             });
 
-            $('.checkoption').click(function() {
-                 $('.checkoption').not(this).prop('checked', false);
-            });
-
-            $('input:checkbox').change(function(){
-                if ($('.qris').is(':checked')) {
-                    $('#images').show();
+            $('.payment-option').click(function() {
+                $('.payment-option').not(this).prop('checked', false);
+                
+                var selectedPayment = $(this).val();
+                
+                if (selectedPayment === 'manual') {
+                    $('#payment-slip-section').show();
                 } else {
-                    $('#images').hide();
+                    $('#payment-slip-section').hide();
                 }
             });
             
@@ -588,6 +609,42 @@
             });
 
        });
+       
+       function validateForm() {
+           var deliveryMethod = $('input[name="delivery_method"]:checked').val();
+           var paymentMethod = $('input[name="payment_method"]:checked').val();
+           
+           if (!deliveryMethod) {
+               alert('Please select a delivery method');
+               return false;
+           }
+           
+           if (!paymentMethod) {
+               alert('Please select a payment method');
+               return false;
+           }
+           
+           if (deliveryMethod === 'courier') {
+               if (!$('#shipping-province').val()) {
+                   alert('Please select a province for courier delivery');
+                   return false;
+               }
+               if (!$('#shipping-city').val()) {
+                   alert('Please select a city for courier delivery');
+                   return false;
+               }
+               if (!$('#shipping-district').val()) {
+                   alert('Please select a district for courier delivery');
+                   return false;
+               }
+               if (!$('#shipping-cost-option').val()) {
+                   alert('Please select a shipping service for courier delivery');
+                   return false;
+               }
+           }
+           
+           return true;
+       }
     </script>
 
 @endpush

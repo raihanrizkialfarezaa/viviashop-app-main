@@ -393,18 +393,19 @@ view()->share('setting', $setting);
 			$request->validate([
 				'name' => 'required|string|max:255',
 				'address1' => 'required|string|max:255',
-				'province_id' => 'required|numeric',
-				'shipping_city_id' => 'required|numeric',
-				'shipping_district_id' => 'required|numeric',
+				'province_id' => 'required_if:delivery_method,courier|numeric',
+				'shipping_city_id' => 'required_if:delivery_method,courier|numeric',
+				'shipping_district_id' => 'required_if:delivery_method,courier|numeric',
 				'phone' => 'required|string|max:15',
 				'email' => 'required|email|max:255',
-				'payment_method' => 'required|string|in:manual,automatic,qris,cod,toko',
+				'payment_method' => 'required|string|in:manual,automatic,cod,toko',
 				'delivery_method' => 'required|string|in:self,courier',
-				'shipping_service' => 'required_if:delivery_method,courier|string',
+				'shipping_service' => 'required_if:delivery_method,courier',
 			]);
 
 			$params = $request->except('_token');
 			$params['attachments'] = $request->file('attachments');
+			$params['payment_slip'] = $request->file('payment_slip');
 
 			DB::beginTransaction();
 
@@ -427,10 +428,6 @@ view()->share('setting', $setting);
 					}
 
 					// Log successful token generation
-					// dd('Payment token generated for order', [
-					// 	'order_code' => $order->code,
-					// 	'payment_url' => $order->payment_url
-					// ]);
                     Log::info('Payment token generated for order', [
                         'order_code' => $order->code,
                         'payment_url' => $order->payment_url
@@ -470,11 +467,24 @@ view()->share('setting', $setting);
 		$shippingOptions = $this->_getShippingCost($destination, $totalWeight);
 
 		$selectedShipping = null;
+		
+		if (is_string($shippingService) && (strpos($shippingService, '{') === 0)) {
+			$shippingData = json_decode($shippingService, true);
+			if ($shippingData && isset($shippingData['service'])) {
+				return [
+					'service' => $shippingData['service'],
+					'cost' => $shippingData['cost'],
+					'etd' => $shippingData['etd'],
+					'courier' => $shippingData['courier']
+				];
+			}
+		}
+		
 		if (count($shippingOptions['results']) <= 1) {
-			$selectedShipping = $shippingOptions['results'][0];
+			$selectedShipping = $shippingOptions['results'][0] ?? null;
 		} elseif(count($shippingOptions['results']) > 1) {
 			foreach ($shippingOptions['results'] as $shippingOption) {
-				if (str_replace(' ', '', $shippingOption['service']) == $shippingService) {
+				if (str_replace(' ', '', $shippingOption['service']) == str_replace(' ', '', $shippingService)) {
 					$selectedShipping = $shippingOption;
 					break;
 				}
@@ -503,7 +513,18 @@ view()->share('setting', $setting);
 				'courier' => 'SELF'
 			];
 		} else {
-			$selectedShipping = $this->_getSelectedShipping($destination, $this->_getTotalWeight(), $params['shipping_service']);
+			$shippingDestination = isset($params['shipping_district_id']) ? $params['shipping_district_id'] : $destination;
+			$shippingService = $params['shipping_service'] ?? '';
+			$selectedShipping = $this->_getSelectedShipping($shippingDestination, $this->_getTotalWeight(), $shippingService);
+			
+			if (!$selectedShipping) {
+				$selectedShipping = [
+					'service' => 'Standard Delivery',
+					'cost' => 0,
+					'etd' => '1-2 days',
+					'courier' => 'COURIER'
+				];
+			}
 		}
 
 		$baseTotalPrice = (int)Cart::subtotal(0,'','');
@@ -516,8 +537,6 @@ view()->share('setting', $setting);
 			$paymentMethod = 'manual';
 		} elseif($params['payment_method'] == 'automatic') {
 			$paymentMethod = 'automatic';
-		} elseif($params['payment_method'] == 'qris') {
-			$paymentMethod = 'qris';
 		} elseif($params['payment_method'] == 'cod') {
 			$paymentMethod = 'cod';
 		} elseif($params['payment_method'] == 'toko') {
@@ -536,8 +555,8 @@ view()->share('setting', $setting);
 			'name' => $params['name'],
 			'address1' => $params['address1'],
 			'address2' => $params['address2'],
-			'province_id' => $params['province_id'],
-			'city_id' => $params['shipping_city_id'],
+			'province_id' => $params['delivery_method'] == 'courier' ? $params['province_id'] : auth()->user()->province_id,
+			'city_id' => $params['delivery_method'] == 'courier' ? $params['shipping_city_id'] : auth()->user()->city_id,
 			'postcode' => $params['postcode'],
 			'phone' => $params['phone'],
 			'email' => $params['email'],
@@ -570,8 +589,8 @@ view()->share('setting', $setting);
 				'customer_address2' => $params['address2'],
 				'customer_phone' => $params['phone'],
 				'customer_email' => $params['email'],
-				'customer_city_id' => $params['shipping_city_id'],
-				'customer_province_id' => $params['province_id'],
+				'customer_city_id' => $params['delivery_method'] == 'courier' ? $params['shipping_city_id'] : (auth()->user()->city_id ?? 1),
+				'customer_province_id' => $params['delivery_method'] == 'courier' ? $params['province_id'] : (auth()->user()->province_id ?? 1),
 				'customer_postcode' => $params['postcode'],
 				'shipping_courier' => $selectedShipping['courier'],
 				'shipping_service_name' => $selectedShipping['service'],
@@ -600,8 +619,8 @@ view()->share('setting', $setting);
 				'customer_address2' => $params['address2'],
 				'customer_phone' => $params['phone'],
 				'customer_email' => $params['email'],
-				'customer_city_id' => $params['shipping_city_id'],
-				'customer_province_id' => $params['province_id'],
+				'customer_city_id' => $params['delivery_method'] == 'courier' ? $params['shipping_city_id'] : (auth()->user()->city_id ?? 1),
+				'customer_province_id' => $params['delivery_method'] == 'courier' ? $params['province_id'] : (auth()->user()->province_id ?? 1),
 				'customer_postcode' => $params['postcode'],
 				'shipping_courier' => $selectedShipping['courier'],
 				'shipping_service_name' => $selectedShipping['service'],
@@ -980,9 +999,16 @@ view()->share('setting', $setting);
 		$shippingAddress2 = isset($params['ship_to']) ? $params['shipping_address2'] : $params['address2'];
 		$shippingPhone = isset($params['ship_to']) ? $params['shipping_phone'] : $params['phone'];
 		$shippingEmail = isset($params['ship_to']) ? $params['shipping_email'] : $params['email'];
-		$shippingCityId = isset($params['ship_to']) ? $params['shipping_city_id'] : $params['shipping_city_id'];
-		$shippingProvinceId = isset($params['ship_to']) ? $params['shipping_province_id'] : $params['province_id'];
+		$shippingCityId = isset($params['ship_to']) ? $params['shipping_city_id'] : ($params['delivery_method'] == 'courier' ? $params['shipping_city_id'] : (auth()->user()->city_id ?? 1));
+		$shippingProvinceId = isset($params['ship_to']) ? $params['shipping_province_id'] : ($params['delivery_method'] == 'courier' ? $params['province_id'] : (auth()->user()->province_id ?? 1));
 		$shippingPostcode = isset($params['ship_to']) ? $params['shipping_postcode'] : $params['postcode'];
+		
+		if ($params['delivery_method'] == 'self') {
+			$shippingName = 'Ambil di Toko';
+			$shippingAddress1 = 'Toko ViVia Shop';
+			$shippingAddress2 = '';
+		}
+		
 		$totalQty = 0;
 		foreach($order->orderItems as $orderItem) {
 			$totalQty += $orderItem->qty;
