@@ -878,20 +878,32 @@ view()->share('setting', $setting);
 							Log::info("Order {$orderId} payment challenged by FDS");
 						} else {
 							$order->payment_status = Order::PAID;
-							$order->status = Order::COMPLETED;
-							$order->approved_at = now();
-							$order->notes = $order->notes . "\nPayment completed using credit card";
-							Log::info("Order {$orderId} payment successful with credit card");
+							if ($order->shipping_service_name == 'Self Pickup') {
+								$order->status = Order::CONFIRMED;
+								$order->notes = $order->notes . "\nPayment completed using credit card. Waiting for pickup confirmation.";
+								Log::info("Order {$orderId} payment successful with credit card - self pickup order awaiting confirmation");
+							} else {
+								$order->status = Order::COMPLETED;
+								$order->approved_at = now();
+								$order->notes = $order->notes . "\nPayment completed using credit card";
+								Log::info("Order {$orderId} payment successful with credit card");
+							}
 						}
 					}
 					break;
 
 				case 'settlement':
 					$order->payment_status = Order::PAID;
-					$order->status = Order::COMPLETED;
-					$order->approved_at = now();
-					$order->notes = $order->notes . "\nPayment settled using {$type}";
-					Log::info("Order {$orderId} payment settled with {$type}");
+					if ($order->shipping_service_name == 'Self Pickup') {
+						$order->status = Order::CONFIRMED;
+						$order->notes = $order->notes . "\nPayment settled using {$type}. Waiting for pickup confirmation.";
+						Log::info("Order {$orderId} payment settled with {$type} - self pickup order awaiting confirmation");
+					} else {
+						$order->status = Order::COMPLETED;
+						$order->approved_at = now();
+						$order->notes = $order->notes . "\nPayment settled using {$type}";
+						Log::info("Order {$orderId} payment settled with {$type}");
+					}
 					break;
 
 				case 'pending':
@@ -992,7 +1004,7 @@ view()->share('setting', $setting);
 		$shipmentParams = [
 			'user_id' => auth()->id(),
 			'order_id' => $order->id,
-			'status' => $params['delivery_method'] == 'self' ? Shipment::SHIPPED : Shipment::PENDING,
+			'status' => Shipment::PENDING,
 			'total_qty' => $totalQty,
 			'total_weight' => $this->_getTotalWeight(),
 			'name' => $shippingName,
@@ -1055,7 +1067,16 @@ view()->share('setting', $setting);
 				
 				if ($transactionStatus == 'settlement' || $transactionStatus == 'capture') {
 					$order->payment_status = Order::PAID;
-					$order->status = Order::COMPLETED;
+					if ($order->shipping_service_name == 'Self Pickup') {
+						$order->status = Order::CONFIRMED;
+						$order->notes = $order->notes . "\nPayment confirmed via finish redirect. Waiting for pickup confirmation.";
+						Log::info("Payment confirmed for self pickup order {$orderId} - awaiting pickup confirmation");
+					} else {
+						$order->status = Order::COMPLETED;
+						$order->approved_at = now();
+						$order->notes = $order->notes . "\nPayment confirmed via finish redirect";
+						Log::info("Payment confirmed and order completed for {$orderId}");
+					}
 					$order->approved_at = now();
 					$order->save();
 					

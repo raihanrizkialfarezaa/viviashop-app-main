@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Shipment;
 use Illuminate\Http\Request;
 use App\Models\ProductInventory;
 use App\Http\Controllers\Controller;
@@ -377,8 +378,13 @@ class OrderController extends Controller
 
 			if ($transactionStatus == 'settlement' || $transactionStatus == 'capture') {
 				$order->payment_status = Order::PAID;
-				$order->status = Order::COMPLETED;
-				$order->approved_at = Carbon::now();
+				if ($order->shipping_service_name == 'Self Pickup') {
+					$order->status = Order::CONFIRMED;
+					$order->notes = $order->notes . "\nPayment confirmed via admin notification. Waiting for pickup confirmation.";
+				} else {
+					$order->status = Order::COMPLETED;
+					$order->approved_at = Carbon::now();
+				}
 				$order->save();
 			} elseif ($transactionStatus == 'pending') {
 				$order->payment_status = Order::WAITING;
@@ -696,26 +702,6 @@ class OrderController extends Controller
 				return redirect()->back();
 			}
 		}
-		// For SELF pickup orders - need shipment handling
-		elseif (!$order->isDelivered() && $order->isPaid()) {
-			if ($order->shipping_service_name == 'Self Pickup' && $order->isPaid()) {
-				if ($order->shipment) {
-					$order->shipment->status = 'delivered';
-					$order->shipment->delivered_by = auth()->id();
-					$order->shipment->delivered_at = now();
-				}
-				$order->status = Order::COMPLETED;
-				$order->approved_by = auth()->id();
-				$order->approved_at = now();
-
-				if ($order->save()) {
-					Alert::success('Success', 'Self-pickup order has been completed successfully!');
-					return redirect()->back();
-				}
-			}
-			Alert::error('Error', 'Order cannot be completed because it has not been delivered or paid yet.');
-			return redirect()->back();
-		}
 		// General completion for paid orders
 		elseif($order->isPaid()) {
 			$order->status = Order::COMPLETED;
@@ -770,5 +756,30 @@ class OrderController extends Controller
 		} else {
 			return redirect('admin/orders/trashed');
 		}
+	}
+
+	public function confirmPickup(Request $request, Order $order)
+	{
+		if ($order->shipping_service_name == 'Self Pickup' && $order->isPaid()) {
+			if ($order->shipment) {
+				$order->shipment->status = Shipment::SHIPPED;
+				$order->shipment->shipped_by = auth()->id();
+				$order->shipment->shipped_at = now();
+				$order->shipment->save();
+			}
+			
+			$order->status = Order::COMPLETED;
+			$order->approved_by = auth()->id();
+			$order->approved_at = now();
+			$order->notes = $order->notes . "\nSelf pickup confirmed by admin - customer has collected items from store";
+
+			if ($order->save()) {
+				Alert::success('Success', 'Self pickup confirmed! Order marked as completed.');
+				return redirect()->back();
+			}
+		}
+
+		Alert::error('Error', 'Cannot confirm pickup for this order.');
+		return redirect()->back();
 	}
 }

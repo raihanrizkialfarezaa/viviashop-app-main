@@ -153,14 +153,40 @@
                                             <a href="{{ route('admin.shipments.create') }}?order_id={{ $order->id }}" class="btn btn-block mt-2 btn-lg btn-primary btn-pill"> Create Shipment</a>
                                         @endif
                                     @elseif(!$order->isCancelled() && $order->isPaid() && $order->isConfirmed() && !$order->needsShipment() && !$order->isCompleted())
-                                        {{-- Orders that don't need shipment (offline store, COD, self pickup) --}}
-                                        @unless ($order->isCancelled())
-                                            <a href="#" class="btn btn-block mt-2 btn-lg btn-success btn-pill" onclick="event.preventDefault();
-                                            document.getElementById('complete-form-{{ $order->id }}').submit();"> Mark as Completed</a>
-                                            <form class="d-none" method="POST" action="{{ route('admin.orders.complete', $order) }}" id="complete-form-{{ $order->id }}">
-                                                @csrf
-                                            </form>
-                                        @endunless
+                                        {{-- Orders that don't need shipment --}}
+                                        @if($order->shipping_service_name == 'Self Pickup')
+                                            {{-- Self pickup orders need confirmation of pickup --}}
+                                            @unless ($order->isCancelled())
+                                                <a href="#" class="btn btn-block mt-2 btn-lg btn-warning btn-pill" onclick="event.preventDefault();
+                                                document.getElementById('pickup-confirm-form-{{ $order->id }}').submit();">Customer Sudah Ambil Barang?</a>
+                                                <form class="d-none" method="POST" action="{{ route('admin.orders.confirmPickup', $order) }}" id="pickup-confirm-form-{{ $order->id }}">
+                                                    @csrf
+                                                </form>
+                                            @endunless
+                                        @else
+                                            {{-- Other orders (offline store, COD) --}}
+                                            @unless ($order->isCancelled())
+                                                <a href="#" class="btn btn-block mt-2 btn-lg btn-success btn-pill" onclick="event.preventDefault();
+                                                document.getElementById('complete-form-{{ $order->id }}').submit();"> Mark as Completed</a>
+                                                <form class="d-none" method="POST" action="{{ route('admin.orders.complete', $order) }}" id="complete-form-{{ $order->id }}">
+                                                    @csrf
+                                                </form>
+                                            @endunless
+                                        @endif
+                                    @elseif(!$order->isCancelled() && $order->isPaid() && $order->isCompleted() && $order->shipping_service_name == 'Self Pickup')
+                                        {{-- Self pickup orders that were auto-completed but need pickup confirmation --}}
+                                        @if($order->shipment && $order->shipment->status == 'shipped' && $order->shipment->shipped_by)
+                                            {{-- Pickup already confirmed - no button needed --}}
+                                        @else
+                                            {{-- Auto-completed order that still needs pickup confirmation --}}
+                                            @unless ($order->isCancelled())
+                                                <a href="#" class="btn btn-block mt-2 btn-lg btn-warning btn-pill" onclick="event.preventDefault();
+                                                document.getElementById('pickup-confirm-form-{{ $order->id }}').submit();">Customer Sudah Ambil Barang?</a>
+                                                <form class="d-none" method="POST" action="{{ route('admin.orders.confirmPickup', $order) }}" id="pickup-confirm-form-{{ $order->id }}">
+                                                    @csrf
+                                                </form>
+                                            @endunless
+                                        @endif
                                     @endif
 
                                     @unless ($order->isCancelled())
