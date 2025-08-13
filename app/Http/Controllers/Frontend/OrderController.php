@@ -185,32 +185,34 @@ view()->share('setting', $setting);
 
 	public function shippingCost(Request $request)
 	{
-		$destination = $request->input('district_id');
+		$destination = $request->get('district_id');
+		$weight = $this->_getTotalWeight();
 		
-		// Debug logging
 		Log::info('Shipping cost request', [
 			'destination' => $destination,
-			'weight' => $this->_getTotalWeight(),
+			'weight' => $weight,
 			'user_id' => auth()->id()
 		]);
-		
+
+		if ($weight <= 0) {
+			$weight = 1000;
+		}
+
 		try {
-			$result = $this->_getShippingCost($destination, $this->_getTotalWeight());
+			$result = $this->_getShippingCost($destination, $weight);
 			Log::info('Shipping cost result', ['result' => $result]);
 			return response()->json($result);
 		} catch (\Exception $e) {
 			Log::error('Shipping cost error: ' . $e->getMessage(), [
 				'destination' => $destination,
-				'exception' => $e->getTraceAsString()
+				'weight' => $weight
 			]);
 			return response()->json([
 				'error' => 'Failed to get shipping costs: ' . $e->getMessage(),
 				'results' => []
-			], 500);
+			]);
 		}
-	}
-
-	private function _getShippingCost($destination, $weight)
+	}	private function _getShippingCost($destination, $weight)
     {
         $results = [];
 
@@ -366,19 +368,29 @@ view()->share('setting', $setting);
 	public function doCheckout(Request $request)
 	{
 		try {
-			// Validate request
-			$request->validate([
+			Log::info('Checkout request received', $request->all());
+			
+			$validationRules = [
 				'name' => 'required|string|max:255',
 				'address1' => 'required|string|max:255',
-				'province_id' => 'required_if:delivery_method,courier|numeric',
-				'shipping_city_id' => 'required_if:delivery_method,courier|numeric',
-				'shipping_district_id' => 'required_if:delivery_method,courier|numeric',
+				'address2' => 'nullable|string|max:255',
+				'postcode' => 'required|string|max:20',
 				'phone' => 'required|string|max:15',
 				'email' => 'required|email|max:255',
 				'payment_method' => 'required|string|in:manual,automatic,cod,toko',
 				'delivery_method' => 'required|string|in:self,courier',
-				'shipping_service' => 'required_if:delivery_method,courier',
-			]);
+			];
+
+			if ($request->delivery_method === 'courier') {
+				$validationRules['province_id'] = 'required|numeric';
+				$validationRules['shipping_city_id'] = 'required|numeric';
+				$validationRules['shipping_district_id'] = 'required|numeric';
+				$validationRules['shipping_service'] = 'required';
+			}
+
+			$request->validate($validationRules);
+
+			Log::info('Checkout validation passed');
 
 			$params = $request->except('_token');
 			$params['attachments'] = $request->file('attachments');
@@ -434,8 +446,9 @@ view()->share('setting', $setting);
 			}
 		} catch (\Exception $e) {
 			Log::error('Checkout Input Validation Error: ' . $e->getMessage());
+			Log::error('Request data: ', $request->all());
 
-			return redirect()->back()->withInput()->with('error', 'Please check your input: ' . $e->getMessage());
+			return redirect()->back()->withInput()->withErrors($e->getMessage())->with('error', 'Please check your input: ' . $e->getMessage());
 		}
 	}
 
@@ -480,9 +493,8 @@ view()->share('setting', $setting);
 
     private function _saveOrder($params)
 	{
-		$destination = !isset($params['ship_to']) ? $params['shipping_city_id'] : $params['customer_shipping_city_id'];
-		
 		if ($params['delivery_method'] == 'self') {
+			$destination = auth()->user()->city_id ?? 1;
 			$selectedShipping = [
 				'service' => 'Self Pickup',
 				'cost' => 0,
@@ -490,6 +502,7 @@ view()->share('setting', $setting);
 				'courier' => 'SELF'
 			];
 		} else {
+			$destination = !isset($params['ship_to']) ? ($params['shipping_city_id'] ?? auth()->user()->city_id) : $params['customer_shipping_city_id'];
 			$shippingDestination = isset($params['shipping_district_id']) ? $params['shipping_district_id'] : $destination;
 			$shippingService = $params['shipping_service'] ?? '';
 			$selectedShipping = $this->_getSelectedShipping($shippingDestination, $this->_getTotalWeight(), $shippingService);
@@ -532,8 +545,8 @@ view()->share('setting', $setting);
 			'name' => $params['name'],
 			'address1' => $params['address1'],
 			'address2' => $params['address2'],
-			'province_id' => $params['delivery_method'] == 'courier' ? $params['province_id'] : auth()->user()->province_id,
-			'city_id' => $params['delivery_method'] == 'courier' ? $params['shipping_city_id'] : auth()->user()->city_id,
+			'province_id' => $params['delivery_method'] == 'courier' ? ($params['province_id'] ?? auth()->user()->province_id) : auth()->user()->province_id,
+			'city_id' => $params['delivery_method'] == 'courier' ? ($params['shipping_city_id'] ?? auth()->user()->city_id) : auth()->user()->city_id,
 			'postcode' => $params['postcode'],
 			'phone' => $params['phone'],
 			'email' => $params['email'],
@@ -697,7 +710,7 @@ view()->share('setting', $setting);
 					'email' => $order->customer_email,
 					'phone' => $order->customer_phone,
 					'address' => $order->customer_address1,
-					'city' => $this->getCityName($order->customer_city_id, $order->customer_province_id),
+					'city' => 'Jakarta',
 					'postal_code' => $order->customer_postcode,
 					'country_code' => 'IDN'
 				],
@@ -707,7 +720,7 @@ view()->share('setting', $setting);
 					'email' => $order->shipment ? $order->shipment->email : $order->customer_email,
 					'phone' => $order->shipment ? $order->shipment->phone : $order->customer_phone,
 					'address' => $order->shipment ? $order->shipment->address1 : $order->customer_address1,
-					'city' => $order->shipment ? $this->getCityName($order->shipment->city_id, $order->shipment->province_id) : $this->getCityName($order->customer_city_id, $order->customer_province_id),
+					'city' => 'Jakarta',
 					'postal_code' => $order->shipment ? $order->shipment->postcode : $order->customer_postcode,
 					'country_code' => 'IDN'
 				]
@@ -792,12 +805,13 @@ view()->share('setting', $setting);
 	}
 	private function getCityName($cityId, $provinceId)
 	{
-		// Implement logic to get city name from city ID
-		// You might have a City model or need to use the RajaOngkir API
-
-		// Placeholder implementation - replace with your actual code
-		$cities = $this->getCities($provinceId);
-		return isset($cities[$cityId]) ? $cities[$cityId] : 'Unknown City';
+		try {
+			$cities = $this->getCities($provinceId);
+			return isset($cities[$cityId]) ? $cities[$cityId] : 'Unknown City';
+		} catch (\Exception $e) {
+			Log::warning('Failed to get city name: ' . $e->getMessage());
+			return 'City ID: ' . $cityId;
+		}
 	}
 	private function _restoreStock($order)
 	{
@@ -807,15 +821,13 @@ view()->share('setting', $setting);
 	}
 	public function notificationHandler(Request $request)
 	{
-        // Log all raw input for debugging
-        Log::info('Midtrans Raw Notification Data:', $request->all());
+		Log::info('Midtrans Raw Notification Data:', $request->all());
 
 		try {
-            $this->initPaymentGateway();
-			// Get notification instance from Midtrans
+			$this->initPaymentGateway();
+			
 			$notification = new \Midtrans\Notification();
 
-			// Extract important data
 			$transaction = $notification->transaction_status;
 			$type = $notification->payment_type;
 			$orderId = $notification->order_id;
@@ -823,7 +835,6 @@ view()->share('setting', $setting);
 			$amount = $notification->gross_amount;
 			$transactionId = $notification->transaction_id;
 
-			// Log the notification
 			Log::info('Midtrans Notification Received', [
 				'order_id' => $orderId,
 				'transaction_status' => $transaction,
@@ -833,7 +844,6 @@ view()->share('setting', $setting);
 				'transaction_id' => $transactionId
 			]);
 
-			// Find the order
 			$order = Order::where('code', $orderId)->first();
 
 			if (!$order) {
@@ -844,7 +854,6 @@ view()->share('setting', $setting);
 				], 404);
 			}
 
-			// Record payment details
 			$paymentData = [
 				'transaction_id' => $transactionId,
 				'amount' => $amount,
@@ -852,7 +861,7 @@ view()->share('setting', $setting);
 				'status' => $transaction,
 				'token' => $order->payment_token,
 				'payloads' => json_encode($notification),
-                'number' => $transactionId,
+				'number' => $transactionId,
 				'payment_type' => $type,
 				'va_number' => $type == 'bank_transfer' ? $notification->va_numbers[0]->va_number : null,
 				'va_bank' => $type == 'bank_transfer' ? $notification->va_numbers[0]->bank : null,
@@ -860,20 +869,16 @@ view()->share('setting', $setting);
 				'biller_code' => $type == 'echannel' ? $notification->biller_code : null,
 			];
 
-			// Process different transaction statuses
 			switch ($transaction) {
 				case 'capture':
-					// For credit card transaction
 					if ($type == 'credit_card') {
 						if ($fraud == 'challenge') {
-							// When payment is challenged by FDS
 							$order->payment_status = Order::WAITING;
 							$order->notes = $order->notes . "\nPayment challenged by Fraud Detection System. Manual verification required.";
 							Log::info("Order {$orderId} payment challenged by FDS");
 						} else {
-							// When payment is successful
 							$order->payment_status = Order::PAID;
-							$order->status = Order::CONFIRMED;
+							$order->status = Order::COMPLETED;
 							$order->approved_at = now();
 							$order->notes = $order->notes . "\nPayment completed using credit card";
 							Log::info("Order {$orderId} payment successful with credit card");
@@ -882,70 +887,56 @@ view()->share('setting', $setting);
 					break;
 
 				case 'settlement':
-					// Payment has been settled (for bank transfers, etc)
 					$order->payment_status = Order::PAID;
-					$order->status = Order::CONFIRMED;
+					$order->status = Order::COMPLETED;
 					$order->approved_at = now();
 					$order->notes = $order->notes . "\nPayment settled using {$type}";
 					Log::info("Order {$orderId} payment settled with {$type}");
 					break;
 
 				case 'pending':
-					// Payment is pending (waiting for customer to complete payment)
 					$order->payment_status = Order::WAITING;
 					$order->notes = $order->notes . "\nPayment pending using {$type}";
 					Log::info("Order {$orderId} payment pending with {$type}");
 					break;
 
 				case 'deny':
-					// Payment was denied
 					$order->payment_status = Order::CANCELLED;
 					$order->status = Order::CANCELLED;
 					$order->notes = $order->notes . "\nPayment denied using {$type}";
 					Log::warning("Order {$orderId} payment denied with {$type}");
-
-					// Return items to inventory
 					$this->_restoreStock($order);
 					break;
 
 				case 'expire':
-					// Payment has expired
 					$order->payment_status = Order::CANCELLED;
 					$order->status = Order::CANCELLED;
 					$order->notes = $order->notes . "\nPayment expired for {$type}";
 					Log::warning("Order {$orderId} payment expired for {$type}");
-
-					// Return items to inventory
 					$this->_restoreStock($order);
 					break;
 
 				case 'cancel':
-					// Payment was canceled
 					$order->payment_status = Order::CANCELLED;
 					$order->status = Order::CANCELLED;
 					$order->notes = $order->notes . "\nPayment canceled for {$type}";
 					Log::warning("Order {$orderId} payment canceled for {$type}");
-
-					// Return items to inventory
 					$this->_restoreStock($order);
 					break;
 
 				default:
-					// Unknown status
 					Log::error("Unknown transaction status: {$transaction} for order {$orderId}");
 					break;
 			}
 
-			// Save payment details to database (assuming you have a Payment model)
-			if (class_exists('App\Models\Payment')) {
-				Payment::create(array_merge($paymentData, ['order_id' => $order->id]));
+			try {
+				\App\Models\Payment::create(array_merge($paymentData, ['order_id' => $order->id]));
+				Log::info("Payment record created for order {$orderId}");
+			} catch (\Exception $e) {
+				Log::warning("Failed to create payment record for order {$orderId}: " . $e->getMessage());
 			}
 
-			// Save order changes
 			$order->save();
-
-			// You might want to send notifications here based on the payment status
-			// $this->_sendPaymentStatusNotification($order);
 
 			return response()->json([
 				'success' => true,
@@ -976,8 +967,15 @@ view()->share('setting', $setting);
 		$shippingAddress2 = isset($params['ship_to']) ? $params['shipping_address2'] : $params['address2'];
 		$shippingPhone = isset($params['ship_to']) ? $params['shipping_phone'] : $params['phone'];
 		$shippingEmail = isset($params['ship_to']) ? $params['shipping_email'] : $params['email'];
-		$shippingCityId = isset($params['ship_to']) ? $params['shipping_city_id'] : ($params['delivery_method'] == 'courier' ? $params['shipping_city_id'] : (auth()->user()->city_id ?? 1));
-		$shippingProvinceId = isset($params['ship_to']) ? $params['shipping_province_id'] : ($params['delivery_method'] == 'courier' ? $params['province_id'] : (auth()->user()->province_id ?? 1));
+		
+		if ($params['delivery_method'] == 'courier') {
+			$shippingCityId = isset($params['ship_to']) ? $params['shipping_city_id'] : ($params['shipping_city_id'] ?? (auth()->user()->city_id ?? 1));
+			$shippingProvinceId = isset($params['ship_to']) ? $params['shipping_province_id'] : ($params['province_id'] ?? (auth()->user()->province_id ?? 1));
+		} else {
+			$shippingCityId = auth()->user()->city_id ?? 1;
+			$shippingProvinceId = auth()->user()->province_id ?? 1;
+		}
+		
 		$shippingPostcode = isset($params['ship_to']) ? $params['shipping_postcode'] : $params['postcode'];
 		
 		if ($params['delivery_method'] == 'self') {
@@ -1037,7 +1035,36 @@ view()->share('setting', $setting);
 	public function finishRedirect(Request $request)
 	{
 		$orderId = $request->get('order_id');
-		$order = Order::where('code', $orderId)->firstOrFail();
+		$order = Order::where('code', $orderId)->first();
+		
+		if ($order) {
+			Log::info("Payment finish redirect for order: {$orderId}");
+			
+			try {
+				$this->initPaymentGateway();
+				$status = \Midtrans\Transaction::status($orderId);
+				
+				$transactionStatus = is_object($status) ? $status->transaction_status : $status['transaction_status'] ?? null;
+				$paymentType = is_object($status) ? $status->payment_type : $status['payment_type'] ?? null;
+				
+				Log::info("Midtrans transaction status check", [
+					'order_id' => $orderId,
+					'status' => $transactionStatus,
+					'payment_type' => $paymentType
+				]);
+				
+				if ($transactionStatus == 'settlement' || $transactionStatus == 'capture') {
+					$order->payment_status = Order::PAID;
+					$order->status = Order::COMPLETED;
+					$order->approved_at = now();
+					$order->save();
+					
+					Log::info("Order payment status updated to paid: {$orderId}");
+				}
+			} catch (\Exception $e) {
+				Log::error("Failed to check transaction status: " . $e->getMessage());
+			}
+		}
 
 		return redirect('orders/received/'. $order->id)->with('success', 'Thank you for your payment!');
 	}
@@ -1056,6 +1083,45 @@ view()->share('setting', $setting);
 		$order = Order::where('code', $orderId)->firstOrFail();
 
 		return redirect('orders/received/'. $order->id)->with('error', 'There was a problem with your payment!');
+	}
+
+	public function invoice($id)
+	{
+		$order = Order::where('id', $id)->first();
+		
+		if (!$order) {
+			abort(404, 'Order not found');
+		}
+		
+		// Check if user owns this order or is admin
+		if (auth()->check()) {
+			if (auth()->user()->email !== $order->customer_email && !auth()->user()->is_admin) {
+				abort(403, 'Unauthorized to view this invoice');
+			}
+		} else {
+			abort(403, 'Please login to view invoice');
+		}
+		
+		$pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.orders.invoices', compact('order'))
+			->setOptions(['defaultFont' => 'sans-serif']);
+		$pdf->setPaper('a4', 'portrait');
+		
+		return $pdf->stream('invoice-' . $order->code . '.pdf');
+	}
+
+	public function getOrderStatus($id)
+	{
+		$order = Order::find($id);
+		
+		if (!$order) {
+			return response()->json(['error' => 'Order not found'], 404);
+		}
+		
+		return response()->json([
+			'payment_status' => $order->payment_status,
+			'status' => $order->status,
+			'is_paid' => $order->isPaid()
+		]);
 	}
 
 	/**

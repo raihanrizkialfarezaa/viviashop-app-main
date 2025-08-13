@@ -14,7 +14,7 @@
     <div class="container-fluid py-5">
         <div class="container py-5">
             <h1 class="mb-4">Billing details</h1>
-            <form action="{{ route('orders.checkout') }}" method="post" enctype="multipart/form-data">
+            <form action="{{ route('orders.checkout') }}" method="post" enctype="multipart/form-data" onsubmit="return handleFormSubmit(event)">
                 @csrf
                 <div class="row g-5">
                     <div class="col-md-12 col-lg-6 col-xl-7">
@@ -231,7 +231,8 @@
                             </div>
                         </div>
                         <div class="row g-4 text-center align-items-center justify-content-center pt-4">
-                            <button type="submit" class="btn border-secondary py-3 px-4 text-uppercase w-100 text-primary" onclick="return validateForm()">Place Order</button>
+                            <input type="hidden" name="total_amount" class="total-amount-input" value="{{ (int)Cart::subtotal(0,'','') }}">
+                            <button type="submit" class="btn border-secondary py-3 px-4 text-uppercase w-100 text-primary">Place Order</button>
                         </div>
                     </div>
                 </div>
@@ -488,6 +489,7 @@
             console.log('Final total calculation:', subtotal, '+', uniqueCode, '+', shippingCost, '=', total);
             
             $('.total-amount').text(number_format(total));
+            $('.total-amount-input').val(total);
             console.log('Total updated to:', number_format(total));
         }
 
@@ -621,10 +623,12 @@
                 updateTotalAmount();
             });
 
-            $('.payment-option').click(function() {
-                $('.payment-option').not(this).prop('checked', false);
-                
+            $('.payment-option').on('change', function() {
                 var selectedPayment = $(this).val();
+                console.log('Payment method selected:', selectedPayment);
+                
+                $('.payment-option').not(this).prop('checked', false);
+                $(this).prop('checked', true);
                 
                 if (selectedPayment === 'manual') {
                     $('#payment-slip-section').show();
@@ -657,9 +661,38 @@
 
        });
        
+       function handleFormSubmit(event) {
+           if (!validateForm()) {
+               event.preventDefault();
+               return false;
+           }
+           
+           var deliveryMethod = $('input[name="delivery_method"]:checked').val();
+           console.log('Form submit - delivery method:', deliveryMethod);
+           
+           if (deliveryMethod === 'self') {
+               $('#shipping-province').removeAttr('name');
+               $('#shipping-city').removeAttr('name');
+               $('#shipping-district').removeAttr('name');
+               $('#shipping-cost-option').removeAttr('name');
+               console.log('Self pickup - removed address field names');
+           }
+           
+           return true;
+       }
+
        function validateForm() {
            var deliveryMethod = $('input[name="delivery_method"]:checked').val();
            var paymentMethod = $('input[name="payment_method"]:checked').val();
+           
+           console.log('Validating form...');
+           console.log('Delivery method:', deliveryMethod);
+           console.log('Payment method:', paymentMethod);
+           console.log('Name:', $('input[name="name"]').val());
+           console.log('Address1:', $('input[name="address1"]').val());
+           console.log('Phone:', $('input[name="phone"]').val());
+           console.log('Email:', $('input[name="email"]').val());
+           console.log('Postcode:', $('input[name="postcode"]').val());
            
            if (!deliveryMethod) {
                alert('Please select a delivery method');
@@ -672,24 +705,35 @@
            }
            
            if (deliveryMethod === 'courier') {
-               if (!$('#shipping-province').val()) {
+               console.log('Province:', $('#shipping-province').val());
+               console.log('City:', $('#shipping-city').val());
+               console.log('District:', $('#shipping-district').val());
+               console.log('Shipping service:', $('#shipping-cost-option').val());
+               
+               if (!$('#shipping-province').val() || $('#shipping-province').val() === '') {
                    alert('Please select a province for courier delivery');
                    return false;
                }
-               if (!$('#shipping-city').val()) {
+               if (!$('#shipping-city').val() || $('#shipping-city').val() === '') {
                    alert('Please select a city for courier delivery');
                    return false;
                }
-               if (!$('#shipping-district').val()) {
+               if (!$('#shipping-district').val() || $('#shipping-district').val() === '') {
                    alert('Please select a district for courier delivery');
                    return false;
                }
-               if (!$('#shipping-cost-option').val()) {
+               if (!$('#shipping-cost-option').val() || $('#shipping-cost-option').val() === '') {
                    alert('Please select a shipping service for courier delivery');
                    return false;
                }
+           } else {
+               console.log('Self pickup selected - skipping address validation');
            }
            
+           updateTotalAmount();
+           
+           console.log('Form validation passed');
+           console.log('Final total amount:', $('.total-amount-input').val());
            return true;
        }
     </script>

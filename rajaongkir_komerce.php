@@ -2,7 +2,7 @@
 
 class RajaOngkirKomerce
 {
-    private $apiKey = '1h8XRdWne4e8399a0d4a16a0pJmwuggK';
+    private $apiKey = '8a8LJP3tb7897949dc74d7616Zo75MWQ';
     private $baseUrl = 'https://rajaongkir.komerce.id/api/v1/';
     
     public function getProvinces()
@@ -85,12 +85,10 @@ class RajaOngkirKomerce
         ];
         $response = $this->makePostRequest($url, $data);
         
-        // Check if response has error
         if (isset($response['error'])) {
             return [];
         }
         
-        // Process the response data
         if (!isset($response['data']) || !is_array($response['data'])) {
             return [];
         }

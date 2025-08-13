@@ -53,6 +53,27 @@ Route::get('/debug-midtrans', function() {
     ];
 });
 
+Route::get('/test-payment-status/{orderId}', function($orderId) {
+    $order = App\Models\Order::where('code', $orderId)->first();
+    if (!$order) {
+        return ['error' => 'Order not found'];
+    }
+    
+    // Update payment status to simulate successful payment
+    $order->payment_status = 'paid';
+    $order->status = 'confirmed';
+    $order->approved_at = now();
+    $order->save();
+    
+    return [
+        'success' => true,
+        'message' => 'Payment status updated to paid',
+        'order_id' => $orderId,
+        'new_status' => $order->payment_status,
+        'redirect_url' => url("orders/received/{$order->id}")
+    ];
+});
+
 Route::get('/debug-order/{id}', function($id) {
     $order = App\Models\Order::find($id);
     if (!$order) {
@@ -153,6 +174,14 @@ Route::post('payments/notification', [App\Http\Controllers\Frontend\OrderControl
 
     Route::get('payments/error', [App\Http\Controllers\Frontend\OrderController::class, 'errorRedirect'])
     ->name('payment.error');
+
+	// Customer invoice and order status routes
+	Route::get('orders/invoice/{id}', [App\Http\Controllers\Frontend\OrderController::class, 'invoice'])
+		->name('orders.invoice')
+		->middleware('auth');
+		
+	Route::get('orders/status/{id}', [App\Http\Controllers\Frontend\OrderController::class, 'getOrderStatus'])
+		->name('orders.status');
 
     Route::get('/instagram', [InstagramController::class, 'getInstagramData'])->name('admin.instagram.index');
     Route::get('/instagram/callback', [InstagramController::class, 'handleCallback'])
