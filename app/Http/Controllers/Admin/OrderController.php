@@ -698,7 +698,7 @@ class OrderController extends Controller
 		}
 		// For SELF pickup orders - need shipment handling
 		elseif (!$order->isDelivered() && $order->isPaid()) {
-			if ($order->shipping_service_name == 'SELF' && $order->isPaid()) {
+			if ($order->shipping_service_name == 'Self Pickup' && $order->isPaid()) {
 				if ($order->shipment) {
 					$order->shipment->status = 'delivered';
 					$order->shipment->delivered_by = auth()->id();

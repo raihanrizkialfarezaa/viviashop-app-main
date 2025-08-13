@@ -992,7 +992,7 @@ view()->share('setting', $setting);
 		$shipmentParams = [
 			'user_id' => auth()->id(),
 			'order_id' => $order->id,
-			'status' => Shipment::PENDING,
+			'status' => $params['delivery_method'] == 'self' ? Shipment::SHIPPED : Shipment::PENDING,
 			'total_qty' => $totalQty,
 			'total_weight' => $this->_getTotalWeight(),
 			'name' => $shippingName,

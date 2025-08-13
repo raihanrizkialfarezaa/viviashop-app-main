@@ -135,8 +135,7 @@ class Order extends Model
 			return false;
 		}
 
-		// Online orders need shipment unless they are COD or self pickup
-		return $this->payment_method !== 'cod' && 
-			   $this->shipping_service_name !== 'SELF';
+		// Online orders need shipment unless they are self pickup
+		return $this->shipping_service_name !== 'Self Pickup';
 	}
 }
