@@ -452,27 +452,29 @@ function showAttributeModal(productId, productName, productSku, productPrice, at
         attributeHtml += `
             <div class="form-group mb-4">
                 <label class="font-weight-bold">${attribute.name}:</label>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label>Pilih Varian:</label>
+                        <select class="form-control variant-select" data-attribute-code="${attribute.code}">
+                            <option value="">Pilih Varian</option>
         `;
         
         attribute.attribute_variants.forEach(variant => {
-            attributeHtml += `
-                <div class="variant-group mb-3">
-                    <h6 class="text-muted">${variant.name}:</h6>
-                    <select class="form-control" name="${attribute.code}_${variant.id}">
-                        <option value="">Select ${variant.name}</option>
-            `;
-            
-            variant.attribute_options.forEach(option => {
-                attributeHtml += `<option value="${option.id}">${option.name}</option>`;
-            });
-            
-            attributeHtml += `
-                    </select>
-                </div>
-            `;
+            attributeHtml += `<option value="${variant.id}">${variant.name}</option>`;
         });
         
-        attributeHtml += `</div>`;
+        attributeHtml += `
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label>Pilih Jenis:</label>
+                        <select class="form-control option-select" name="${attribute.code}" data-attribute-code="${attribute.code}">
+                            <option value="">Pilih jenis terlebih dahulu varian</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        `;
     });
     
     attributeHtml += `
@@ -487,11 +489,32 @@ function showAttributeModal(productId, productName, productSku, productPrice, at
         </div>
     `;
     
-    // Remove existing modal if any
     $('#attributeModal').remove();
-    
-    // Add new modal
     $('body').append(attributeHtml);
+    
+    $('.variant-select').on('change', function() {
+        const variantId = $(this).val();
+        const attributeCode = $(this).data('attribute-code');
+        const optionSelect = $(this).closest('.row').find('.option-select');
+        
+        if (variantId) {
+            $.ajax({
+                url: `/api/attribute-options/0/${variantId}`,
+                method: 'GET',
+                success: function(data) {
+                    optionSelect.empty();
+                    optionSelect.append('<option value="">Pilih Jenis</option>');
+                    data.options.forEach(function(option) {
+                        optionSelect.append(new Option(option.name, option.id));
+                    });
+                }
+            });
+        } else {
+            optionSelect.empty();
+            optionSelect.append('<option value="">Pilih jenis terlebih dahulu varian</option>');
+        }
+    });
+    
     $('#attributeModal').modal('show');
     $('#modalProduct').modal('hide');
 }

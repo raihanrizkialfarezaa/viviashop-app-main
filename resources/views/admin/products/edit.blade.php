@@ -52,12 +52,6 @@
                           </select>
                         </div>
                     </div>
-                    <div class="form-group row border-bottom pb-4">
-                        <label for="weight" class="col-sm-2 col-form-label">Berat (kg)</label>
-                        <div class="col-sm-10">
-                          <input type="number" step="0.01" class="form-control" name="weight" value="{{ old('weight', $product->weight) }}" id="weight" placeholder="Contoh: 1.5 (untuk 1.5 kg)">
-                        </div>
-                    </div>
                     <div class="configurable-attributes">
                       @if(count($configurable_attributes) > 0)
                         <p class="text-primary mt-4">Konfigurasi Attribute Produk</p>
@@ -66,16 +60,32 @@
                           <div class="form-group row border-bottom pb-4">
                               <label for="{{ $configurable_attribute->code }}" class="col-sm-2 col-form-label">{{ $configurable_attribute->name }}</label>
                               <div class="col-sm-10">
-                                @foreach($configurable_attribute->attribute_variants as $variant)
-                                  <div class="variant-section mb-3">
-                                    <h6 class="text-info">{{ $variant->name }}</h6>
-                                    <select class="form-control select-multiple" multiple="multiple" name="{{ $configurable_attribute->code }}[]" id="{{ $configurable_attribute->code }}_{{ $variant->id }}">
-                                      @foreach($variant->attribute_options as $option)
-                                        <option value="{{ $option->id }}">{{ $option->name }}</option>
+                                <div class="row">
+                                  <div class="col-md-6">
+                                    <label class="form-label">Pilih Varian:</label>
+                                    <select class="form-control select-variant" data-attribute-code="{{ $configurable_attribute->code }}">
+                                      <option value="">Pilih Varian</option>
+                                      @foreach($configurable_attribute->attribute_variants as $variant)
+                                        <option value="{{ $variant->id }}" 
+                                          {{ isset($selected_attributes[$configurable_attribute->code]) && $selected_attributes[$configurable_attribute->code]['variant_id'] == $variant->id ? 'selected' : '' }}>
+                                          {{ $variant->name }}
+                                        </option>
                                       @endforeach
                                     </select>
                                   </div>
-                                @endforeach
+                                  <div class="col-md-6">
+                                    <label class="form-label">Pilih Jenis:</label>
+                                    <select class="form-control select-multiple select-options" multiple="multiple" name="{{ $configurable_attribute->code }}[]" data-attribute-code="{{ $configurable_attribute->code }}">
+                                      @if(isset($selected_attributes[$configurable_attribute->code]))
+                                        <option value="{{ $selected_attributes[$configurable_attribute->code]['option_id'] }}" selected>
+                                          {{ $selected_attributes[$configurable_attribute->code]['option_name'] }}
+                                        </option>
+                                      @else
+                                        <option value="">Pilih jenis terlebih dahulu varian</option>
+                                      @endif
+                                    </select>
+                                  </div>
+                                </div>
                               </div>
                           </div>
                         @endforeach
@@ -83,6 +93,77 @@
                     </div>
                     @if ($product)
                         @if ($product->type == 'configurable')
+                            <p class="text-primary mt-4">Data Produk Induk</p>
+                            <hr/>
+                            @php $hasVariants = $product->variants->count() > 0; @endphp
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <div class="form-group border-bottom pb-4">
+                                        <label for="parent_sku" class="form-label">SKU Produk Induk</label>
+                                        <input type="text" class="form-control" name="sku" value="{{ old('sku', $product->sku) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_sku">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group border-bottom pb-4">
+                                        <label for="parent_name" class="form-label">Nama Produk Induk</label>
+                                        <input type="text" class="form-control" name="name" value="{{ old('name', $product->name) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_name">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group border-bottom pb-4">
+                                        <label for="parent_price" class="form-label">Harga Jual</label>
+                                        <input type="number" class="form-control" name="price" value="{{ old('price', $product->price) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_price">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group border-bottom pb-4">
+                                        <label for="parent_harga_beli" class="form-label">Harga Beli</label>
+                                        <input type="number" class="form-control" name="harga_beli" value="{{ old('harga_beli', $product->harga_beli) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_harga_beli">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group border-bottom pb-4">
+                                        <label for="parent_qty" class="form-label">Jumlah</label>
+                                        <input type="number" class="form-control" name="qty" value="{{ old('qty', $product->productInventory ? $product->productInventory->qty : null) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_qty">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <div class="form-group border-bottom pb-4">
+                                        <label for="parent_weight" class="form-label">Berat (kg)</label>
+                                        <input type="number" step="0.01" class="form-control" name="weight" value="{{ old('weight', $product->weight) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_weight">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group border-bottom pb-4">
+                                        <label for="parent_length" class="form-label">Panjang (cm)</label>
+                                        <input type="number" class="form-control" name="length" value="{{ old('length', $product->length) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_length">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group border-bottom pb-4">
+                                        <label for="parent_width" class="form-label">Lebar (cm)</label>
+                                        <input type="number" class="form-control" name="width" value="{{ old('width', $product->width) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_width">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group border-bottom pb-4">
+                                        <label for="parent_height" class="form-label">Tinggi (cm)</label>
+                                        <input type="number" class="form-control" name="height" value="{{ old('height', $product->height) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_height">
+                                    </div>
+                                </div>
+                            </div>
+                            @if($hasVariants)
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <button type="button" class="btn btn-danger" id="delete-variants-btn">
+                                            <i class="fa fa-trash"></i> Hapus atribut dan jadikan produk induk
+                                        </button>
+                                        <small class="text-muted d-block mt-2">Menghapus semua sub-produk dengan atribut terkonfigurasi dan mengaktifkan kembali form produk induk</small>
+                                    </div>
+                                </div>
+                            @endif
                             @include('admin.products.configurable')
                         @else
                             @include('admin.products.simple')
@@ -115,12 +196,6 @@
                         <label for="name" class="col-sm-2 col-form-label">Link redirect Product</label>
                         <div class="col-sm-10">
                           <input type="text" class="form-control" name="link1" value="{{ $product->link1 }}" id="link1">
-                        </div>
-                    </div>
-                    <div class="form-group row border-bottom pb-4">
-                        <label for="weight" class="col-sm-2 col-form-label">Berat (kg)</label>
-                        <div class="col-sm-10">
-                          <input type="number" step="0.01" class="form-control" name="weight" value="{{ old('weight', $product->weight) }}" id="weight" placeholder="Contoh: 1.5 (untuk 1.5 kg)">
                         </div>
                     </div>
                     <div class="form-group row border-bottom pb-4">
@@ -254,6 +329,71 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
       $('.select-multiple').select2();
+      
+      // Function to load options for a variant and select the saved option
+      function loadOptionsForVariant(variantSelect, preselectedOptionId = null) {
+          const variantId = variantSelect.val();
+          const attributeCode = variantSelect.data('attribute-code');
+          const optionsSelect = variantSelect.closest('.col-sm-10').find('.select-options');
+          
+          if (variantId) {
+              $.ajax({
+                  url: `/api/attribute-options/0/${variantId}`,
+                  method: 'GET',
+                  success: function(data) {
+                      optionsSelect.empty();
+                      data.options.forEach(function(option) {
+                          const isSelected = preselectedOptionId && option.id == preselectedOptionId;
+                          const optionElement = new Option(option.name, option.id, isSelected, isSelected);
+                          optionsSelect.append(optionElement);
+                      });
+                      optionsSelect.trigger('change');
+                  }
+              });
+          } else {
+              optionsSelect.empty();
+              optionsSelect.append(new Option('Pilih jenis terlebih dahulu varian', ''));
+          }
+      }
+      
+      $('.select-variant').on('change', function() {
+          loadOptionsForVariant($(this));
+      });
+      
+      // Load options for pre-selected variants on page load
+      $(document).ready(function() {
+          const selectedAttributes = @json($selected_attributes ?? []);
+          
+          $('.select-variant').each(function() {
+              const variantSelect = $(this);
+              const attributeCode = variantSelect.data('attribute-code');
+              
+              if (selectedAttributes[attributeCode] && variantSelect.val()) {
+                  const preselectedOptionId = selectedAttributes[attributeCode].option_id;
+                  loadOptionsForVariant(variantSelect, preselectedOptionId);
+              }
+          });
+      });
+      
+      $('#delete-variants-btn').click(function() {
+          if (confirm('Apakah Anda yakin ingin menghapus semua atribut dan sub-produk? Tindakan ini tidak dapat dibatalkan.')) {
+              $.ajax({
+                  url: '/admin/products/{{ $product->id }}/delete-variants',
+                  type: 'DELETE',
+                  data: {
+                      _token: $('meta[name="csrf-token"]').attr('content')
+                  },
+                  success: function(response) {
+                      alert('Atribut berhasil dihapus. Halaman akan dimuat ulang.');
+                      window.location.reload();
+                  },
+                  error: function(xhr) {
+                      alert('Terjadi kesalahan saat menghapus atribut.');
+                  }
+              });
+          }
+      });
+      
       function showHideConfigurableAttributes() {
 			var productType = $(".product-type").val();
             console.log(productType);

@@ -331,12 +331,35 @@ class ProductController extends Controller
      */
     public function edit(Product $product)
     {
+        $product->load(['variants.variantAttributeValues.attribute']);
+        
         $categories = Category::orderBy('name', 'ASC')->get(['name','id']);
         $statuses = Product::statuses();
         $types = Product::types();
         $configurable_attributes = $this->_getConfigurableAttributes();
+        
+        $selected_attributes = [];
+        if ($product->type == 'configurable' && $product->variants->count() > 0) {
+            $firstVariant = $product->variants->first();
+            if ($firstVariant && $firstVariant->variantAttributeValues->count() > 0) {
+                foreach ($firstVariant->variantAttributeValues as $attrValue) {
+                    $attributeCode = $attrValue->attribute->code;
+                    $textValue = $attrValue->text_value;
+                    
+                    $attributeOption = \App\Models\AttributeOption::where('name', $textValue)->with('attribute_variant')->first();
+                    if ($attributeOption) {
+                        $selected_attributes[$attributeCode] = [
+                            'variant_id' => $attributeOption->attribute_variant_id,
+                            'option_id' => $attributeOption->id,
+                            'variant_name' => $attributeOption->attribute_variant->name,
+                            'option_name' => $attributeOption->name
+                        ];
+                    }
+                }
+            }
+        }
 
-        return view('admin.products.edit', compact('product','categories','statuses','types','configurable_attributes'));
+        return view('admin.products.edit', compact('product','categories','statuses','types','configurable_attributes','selected_attributes'));
     }
 
     private function _updateProductVariants($request)
@@ -351,6 +374,28 @@ class ProductController extends Controller
 
 				ProductInventory::updateOrCreate(['product_id' => $product->id], ['qty' => $productParams['qty']]);
 			}
+		}
+	}
+
+	private function _updateConfigurableAttributes($product, $request)
+	{
+		$configurableAttributes = $this->_getConfigurableAttributes();
+		$hasNewAttributes = false;
+
+		foreach ($configurableAttributes as $attribute) {
+			if (!empty($request[$attribute->code])) {
+				$hasNewAttributes = true;
+				break;
+			}
+		}
+
+		if ($hasNewAttributes) {
+			foreach ($product->variants as $variant) {
+				ProductAttributeValue::where('product_id', $variant->id)->delete();
+				$variant->delete();
+			}
+
+			$this->_generateProductVariants($product, $request);
 		}
 	}
 
@@ -369,6 +414,7 @@ class ProductController extends Controller
 
 				if ($product->type == 'configurable') {
 					$this->_updateProductVariants($request);
+					$this->_updateConfigurableAttributes($product, $request);
 				} else {
 					ProductInventory::updateOrCreate(['product_id' => $product->id], ['qty' => $request['qty']]);
 				}
@@ -397,5 +443,26 @@ class ProductController extends Controller
             'message' => 'Berhasil di hapus !',
             'alert-type' => 'danger'
         ]);
+    }
+
+    public function deleteVariants($id)
+    {
+        $product = Product::findOrFail($id);
+        
+        if ($product->type !== 'configurable') {
+            return response()->json(['error' => 'Produk bukan tipe configurable'], 400);
+        }
+
+        DB::transaction(function () use ($product) {
+            foreach ($product->variants as $variant) {
+                ProductAttributeValue::where('product_id', $variant->id)->delete();
+                if ($variant->productInventory) {
+                    $variant->productInventory->delete();
+                }
+                $variant->delete();
+            }
+        });
+
+        return response()->json(['message' => 'Semua variant berhasil dihapus']);
     }
 }

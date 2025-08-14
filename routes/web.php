@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Frontend\HomepageController;
+
 Route::post('payments/notification', [App\Http\Controllers\Frontend\OrderController::class, 'notificationHandler'])
     ->name('payment.notification');
 
@@ -262,6 +263,7 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     Route::get('/products/data/datatable', [ProductController::class, 'data'])->name('products.data');
     Route::get('/products/{id}/attributes', [ProductController::class, 'getProductAttributes'])->name('products.attributes');
     Route::post('/products/barcode/search', [ProductController::class, 'findByBarcode'])->name('products.findByBarcode');
+    Route::delete('/products/{id}/delete-variants', [ProductController::class, 'deleteVariants'])->name('products.deleteVariants');
     Route::resource('products.product_images', \App\Http\Controllers\Admin\ProductImageController::class);
     Route::get('/products/generateAllBarcodes', [ProductController::class, 'generateBarcodeAll'])->name('products.generateAll');
     Route::get('/products/generateSingleBarcode/{id}', [ProductController::class, 'generateBarcodeSingle'])->name('products.generateSingle');
@@ -340,3 +342,7 @@ Route::get('/download-file/{id}', [\App\Http\Controllers\Frontend\OrderControlle
 Route::get('api/provinces', [\App\Http\Controllers\Frontend\OrderController::class, 'provinces']);
 Route::get('api/cities/{province_id}', [\App\Http\Controllers\Frontend\OrderController::class, 'cities']);
 Route::get('api/districts/{city_id}', [\App\Http\Controllers\Frontend\OrderController::class, 'districts']);
+Route::get('/api/attribute-options/{attributeId}/{variantId}', function($attributeId, $variantId) {
+    $options = \App\Models\AttributeOption::where('attribute_variant_id', $variantId)->get();
+    return response()->json(['options' => $options]);
+})->name('api.attribute-options');

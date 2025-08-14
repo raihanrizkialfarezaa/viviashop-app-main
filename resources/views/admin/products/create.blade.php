@@ -64,16 +64,23 @@
                           <div class="form-group row border-bottom pb-4">
                               <label for="{{ $configurable_attribute->code }}" class="col-sm-2 col-form-label">{{ $configurable_attribute->name }}</label>
                               <div class="col-sm-10">
-                                @foreach($configurable_attribute->attribute_variants as $variant)
-                                  <div class="variant-section mb-3">
-                                    <h6 class="text-info">{{ $variant->name }}</h6>
-                                    <select class="form-control select-multiple" multiple="multiple" name="{{ $configurable_attribute->code }}[]" id="{{ $configurable_attribute->code }}_{{ $variant->id }}">
-                                      @foreach($variant->attribute_options as $option)
-                                        <option value="{{ $option->id }}">{{ $option->name }}</option>
+                                <div class="row">
+                                  <div class="col-md-6">
+                                    <label class="form-label">Pilih Varian:</label>
+                                    <select class="form-control select-variant" data-attribute-code="{{ $configurable_attribute->code }}">
+                                      <option value="">Pilih Varian</option>
+                                      @foreach($configurable_attribute->attribute_variants as $variant)
+                                        <option value="{{ $variant->id }}">{{ $variant->name }}</option>
                                       @endforeach
                                     </select>
                                   </div>
-                                @endforeach
+                                  <div class="col-md-6">
+                                    <label class="form-label">Pilih Jenis:</label>
+                                    <select class="form-control select-multiple select-options" multiple="multiple" name="{{ $configurable_attribute->code }}[]" data-attribute-code="{{ $configurable_attribute->code }}">
+                                      <option value="">Pilih jenis terlebih dahulu varian</option>
+                                    </select>
+                                  </div>
+                                </div>
                               </div>
                           </div>
                         @endforeach
@@ -103,6 +110,30 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
       $('.select-multiple').select2();
+      
+      $('.select-variant').on('change', function() {
+          const variantId = $(this).val();
+          const attributeCode = $(this).data('attribute-code');
+          const optionsSelect = $(this).closest('.col-sm-10').find('.select-options');
+          
+          if (variantId) {
+              $.ajax({
+                  url: `/api/attribute-options/0/${variantId}`,
+                  method: 'GET',
+                  success: function(data) {
+                      optionsSelect.empty();
+                      data.options.forEach(function(option) {
+                          optionsSelect.append(new Option(option.name, option.id));
+                      });
+                      optionsSelect.trigger('change');
+                  }
+              });
+          } else {
+              optionsSelect.empty();
+              optionsSelect.append(new Option('Pilih jenis terlebih dahulu varian', ''));
+          }
+      });
+      
       function showHideConfigurableAttributes() {
 			var productType = $(".product-type").val();
             console.log(productType);

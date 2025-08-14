@@ -67,22 +67,22 @@
                                     @foreach($configurable_attributes as $attribute)
                                         <div class="attribute-group mb-3">
                                             <label class="form-label fw-bold">{{ $attribute->name }}:</label>
-                                            @foreach($attribute->attribute_variants as $variant)
-                                                <div class="variant-group mb-2">
-                                                    <h6 class="text-muted">{{ $variant->name }}:</h6>
-                                                    <select class="form-select attribute-select" 
-                                                            data-attribute-id="{{ $attribute->id }}" 
-                                                            data-variant-id="{{ $variant->id }}">
-                                                        <option value="">Pilih {{ $variant->name }}</option>
-                                                        @foreach($variant->attribute_options as $option)
-                                                            <option value="{{ $option->id }}" 
-                                                                    data-product-variant-id="{{ $product->products->variants->where('productAttributeValues.attribute_option_id', $option->id)->first()->id ?? '' }}">
-                                                                {{ $option->name }}
-                                                            </option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                            @endforeach
+                                            <select class="form-select attribute-select-level1" 
+                                                    data-attribute-id="{{ $attribute->id }}" 
+                                                    data-attribute-code="{{ $attribute->code }}">
+                                                <option value="">Pilih {{ $attribute->name }}</option>
+                                                @foreach($attribute->attribute_variants as $variant)
+                                                    <option value="{{ $variant->id }}">{{ $variant->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            
+                                            <div class="level2-options mt-2" style="display: none;">
+                                                <label class="form-label fw-bold">Pilih Jenis:</label>
+                                                <select class="form-select attribute-select-level2" 
+                                                        data-attribute-id="{{ $attribute->id }}">
+                                                    <option value="">Pilih Jenis</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     @endforeach
                                 </div>
@@ -176,43 +176,84 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const attributeSelects = document.querySelectorAll('.attribute-select');
+            const level1Selects = document.querySelectorAll('.attribute-select-level1');
+            const level2Selects = document.querySelectorAll('.attribute-select-level2');
             const addToCartBtn = document.querySelector('.add-to-card');
             
-            attributeSelects.forEach(function(select) {
+            level1Selects.forEach(function(select) {
+                select.addEventListener('change', function() {
+                    const variantId = this.value;
+                    const attributeId = this.dataset.attributeId;
+                    const level2Container = this.parentNode.querySelector('.level2-options');
+                    const level2Select = this.parentNode.querySelector('.attribute-select-level2');
+                    
+                    if (variantId) {
+                        loadLevel2Options(attributeId, variantId, level2Select);
+                        level2Container.style.display = 'block';
+                    } else {
+                        level2Container.style.display = 'none';
+                        level2Select.innerHTML = '<option value="">Pilih Jenis</option>';
+                    }
+                    
+                    updateProductVariant();
+                });
+            });
+            
+            level2Selects.forEach(function(select) {
                 select.addEventListener('change', function() {
                     updateProductVariant();
                 });
             });
             
+            function loadLevel2Options(attributeId, variantId, targetSelect) {
+                fetch(`/api/attribute-options/${attributeId}/${variantId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        targetSelect.innerHTML = '<option value="">Pilih Jenis</option>';
+                        data.options.forEach(option => {
+                            const optionElement = document.createElement('option');
+                            optionElement.value = option.id;
+                            optionElement.textContent = option.name;
+                            targetSelect.appendChild(optionElement);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading options:', error);
+                    });
+            }
+            
             function updateProductVariant() {
                 const selectedAttributes = {};
                 let allSelected = true;
                 
-                attributeSelects.forEach(function(select) {
-                    if (select.value) {
-                        selectedAttributes[select.dataset.variantId] = select.value;
+                level1Selects.forEach(function(select) {
+                    const attributeCode = select.dataset.attributeCode;
+                    const variantId = select.value;
+                    const level2Select = select.parentNode.querySelector('.attribute-select-level2');
+                    const optionId = level2Select.value;
+                    
+                    if (variantId && optionId) {
+                        selectedAttributes[attributeCode] = {
+                            variant_id: variantId,
+                            option_id: optionId
+                        };
                     } else {
                         allSelected = false;
                     }
                 });
                 
                 if (allSelected && Object.keys(selectedAttributes).length > 0) {
-                    // Here you can update price, stock, or other variant-specific data
                     console.log('Selected attributes:', selectedAttributes);
-                    
-                    // Update add to cart button to include selected attributes
                     addToCartBtn.setAttribute('data-selected-attributes', JSON.stringify(selectedAttributes));
                     addToCartBtn.classList.remove('disabled');
                 } else {
                     addToCartBtn.removeAttribute('data-selected-attributes');
-                    if (attributeSelects.length > 0) {
+                    if (level1Selects.length > 0) {
                         addToCartBtn.classList.add('disabled');
                     }
                 }
             }
             
-            // Initialize the state
             updateProductVariant();
         });
     </script>

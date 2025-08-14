@@ -127,6 +127,11 @@ class Product extends Model
 		return $this->hasMany(ProductAttributeValue::class, 'parent_product_id');
 	}
 
+	public function variantAttributeValues()
+	{
+		return $this->hasMany(ProductAttributeValue::class, 'product_id');
+	}
+
 	public function configurableAttributes()
 	{
 		return Attribute::where('is_configurable', true)->with(['attribute_variants.attribute_options'])->get();

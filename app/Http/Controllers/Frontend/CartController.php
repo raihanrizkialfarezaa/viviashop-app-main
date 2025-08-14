@@ -50,20 +50,20 @@ class CartController extends Controller
 
 			$attributes = [];
 			if ($product->configurable()) {
-				// Handle new attribute structure
+				// Handle new 2-level attribute structure
 				if (isset($params['attributes']) && is_array($params['attributes'])) {
 					// New structure from frontend
-					foreach ($params['attributes'] as $variantId => $optionId) {
-						$option = \App\Models\AttributeOption::find($optionId);
-						if ($option) {
-							$variant = $option->attribute_variant;
-							$attribute = $variant->attribute;
-							$attributes[$attribute->code] = $option->name;
+					foreach ($params['attributes'] as $attributeCode => $data) {
+						if (is_array($data) && isset($data['option_id'])) {
+							$option = \App\Models\AttributeOption::find($data['option_id']);
+							if ($option) {
+								$attributes[$attributeCode] = $option->name;
+							}
 						}
 					}
 					
 					// Find the specific product variant based on selected attributes
-					$product = $this->_findProductVariant($product->id, $params['attributes']);
+					$product = $this->_findProductVariantByOptions($product->id, $params['attributes']);
 					if (!$product) {
 						return response()->json([
 							'status' => 'error',
@@ -177,6 +177,36 @@ class CartController extends Controller
 				if (!$hasAttribute) {
 					$variantMatches = false;
 					break;
+				}
+			}
+			
+			if ($variantMatches) {
+				return $variant;
+			}
+		}
+
+		return null;
+	}
+
+	private function _findProductVariantByOptions($parentProductId, $selectedAttributes)
+	{
+		$variants = Product::where('parent_id', $parentProductId)
+			->with(['productAttributeValues.attribute_option'])
+			->get();
+
+		foreach ($variants as $variant) {
+			$variantMatches = true;
+			
+			foreach ($selectedAttributes as $attributeCode => $data) {
+				if (is_array($data) && isset($data['option_id'])) {
+					$hasAttribute = $variant->productAttributeValues->contains(function ($value) use ($data) {
+						return $value->attribute_option_id == $data['option_id'];
+					});
+					
+					if (!$hasAttribute) {
+						$variantMatches = false;
+						break;
+					}
 				}
 			}
 			

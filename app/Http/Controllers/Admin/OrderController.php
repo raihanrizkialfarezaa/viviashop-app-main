@@ -509,9 +509,9 @@ class OrderController extends Controller
 			
 			// Handle both old and new attribute structure
 			if ($itemIndex !== null && $request->has('attributes') && isset($request->attributes[$itemIndex])) {
-				// New structure from modal
+				// New structure from modal (2-level)
 				$itemAttributes = $request->attributes[$itemIndex];
-				foreach ($itemAttributes as $fieldName => $optionId) {
+				foreach ($itemAttributes as $attributeCode => $optionId) {
 					if ($optionId) {
 						$option = \App\Models\AttributeOption::find($optionId);
 						if ($option) {
@@ -526,20 +526,42 @@ class OrderController extends Controller
 					}
 				}
 			} else {
-				// Old structure for backward compatibility
+				// Check if direct attribute codes are present (new 2-level structure)
+				$hasDirectAttributes = false;
 				foreach ($configurableAttributes as $attribute) {
-					foreach ($attribute->attribute_variants as $variant) {
-						$fieldName = $attribute->code . '_' . $variant->id;
-						if ($request->has($fieldName)) {
-							$optionId = $request->get($fieldName);
-							if ($optionId) {
-								$option = \App\Models\AttributeOption::find($optionId);
-								if ($option) {
-									$attributes[] = [
-										'attribute' => $attribute->name,
-										'variant' => $variant->name,
-										'option' => $option->name,
-									];
+					if ($request->has($attribute->code)) {
+						$hasDirectAttributes = true;
+						$optionId = $request->get($attribute->code);
+						if ($optionId) {
+							$option = \App\Models\AttributeOption::find($optionId);
+							if ($option) {
+								$variant = $option->attribute_variant;
+								$attributes[] = [
+									'attribute' => $attribute->name,
+									'variant' => $variant->name,
+									'option' => $option->name,
+								];
+							}
+						}
+					}
+				}
+				
+				// Old structure for backward compatibility
+				if (!$hasDirectAttributes) {
+					foreach ($configurableAttributes as $attribute) {
+						foreach ($attribute->attribute_variants as $variant) {
+							$fieldName = $attribute->code . '_' . $variant->id;
+							if ($request->has($fieldName)) {
+								$optionId = $request->get($fieldName);
+								if ($optionId) {
+									$option = \App\Models\AttributeOption::find($optionId);
+									if ($option) {
+										$attributes[] = [
+											'attribute' => $attribute->name,
+											'variant' => $variant->name,
+											'option' => $option->name,
+										];
+									}
 								}
 							}
 						}
