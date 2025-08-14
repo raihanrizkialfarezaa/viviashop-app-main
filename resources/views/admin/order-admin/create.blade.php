@@ -322,17 +322,21 @@ function findAndAddProduct(barcode) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Product found
-            addProductToOrder(data.product);
-            document.getElementById('result').innerHTML = '<div class="alert alert-success">✓ Product added: <strong>' + data.product.name + '</strong></div>';
+            const product = data.product;
+            addProductToOrder({
+                id: product.id,
+                name: product.name,
+                sku: product.sku,
+                price: product.price,
+                type: product.type || 'simple'
+            });
+            document.getElementById('result').innerHTML = '<div class="alert alert-success">✓ Product added: <strong>' + product.name + '</strong></div>';
 
-            // Close modal after success
             setTimeout(function() {
                 $('#barcodeModal').modal('hide');
             }, 2000);
 
         } else {
-            // Product not found
             document.getElementById('result').innerHTML = '<div class="alert alert-warning">✗ Product not found: <strong>' + barcode + '</strong><br><button onclick="initializeScanner()" class="btn btn-primary btn-sm mt-2">Scan Again</button></div>';
         }
     })
@@ -342,38 +346,7 @@ function findAndAddProduct(barcode) {
     });
 }
 
-function addProductToOrder(product) {
-    const orderItems = document.getElementById('order-items');
-    const itemIndex = orderItems.children.length;
 
-    const productHtml = `
-        <div class="order-item card mb-2 p-3">
-            <div class="row">
-                <div class="col-md-6">
-                    <label>Product</label>
-                    <input type="text" class="form-control" value="${product.name} (${product.sku})" readonly>
-                    <input type="hidden" name="product_id[]" value="${product.id}">
-                </div>
-                <div class="col-md-3">
-                    <label>Qty</label>
-                    <input type="number" name="qty[]" class="form-control" value="1" min="1" required>
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm remove-item">Remove</button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    orderItems.insertAdjacentHTML('beforeend', productHtml);
-}
-
-// Remove item functionality
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('remove-item')) {
-        e.target.closest('.order-item').remove();
-    }
-});
 </script>
 <script>
     function addModal() {
@@ -407,55 +380,38 @@ $('#product-table').on('click', '.select-product', function(){
           type = $(this).data('type'),
           price = $(this).data('price');
 
-    if (type === 'configurable') {
-        // Load attributes for configurable product
-        loadProductAttributes(id, name, sku, price);
-    } else {
-        // Add simple product directly
-        addProductToOrder({id, name, sku, price});
-        $('#modalProduct').modal('hide');
-    }
+    addProductToOrder({id, name, sku, price, type});
+    $('#modalProduct').modal('hide');
 });
 
-function loadProductAttributes(productId, productName, productSku, productPrice) {
+function loadAttributesForProduct(productId, itemIndex) {
     $.ajax({
         url: `/admin/products/${productId}/attributes`,
         type: 'GET',
         success: function(response) {
             if (response.attributes && response.attributes.length > 0) {
-                showAttributeModal(productId, productName, productSku, productPrice, response.attributes);
+                renderAttributeOptions(response.attributes, itemIndex);
             } else {
-                addProductToOrder({id: productId, name: productName, sku: productSku, price: productPrice});
-                $('#modalProduct').modal('hide');
+                $(`#attribute-section-${itemIndex}`).html('<p class="text-muted"><small>No attributes available for this product</small></p>');
             }
         },
         error: function() {
-            alert('Error loading product attributes');
+            $(`#attribute-section-${itemIndex}`).html('<p class="text-danger"><small>Error loading attributes</small></p>');
         }
     });
 }
 
-function showAttributeModal(productId, productName, productSku, productPrice, attributes) {
-    let attributeHtml = `
-        <div class="modal fade" id="attributeModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Select Product Attributes for ${productName}</h5>
-                        <button type="button" class="close" data-dismiss="modal">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="attribute-form">
-    `;
+function renderAttributeOptions(attributes, itemIndex) {
+    let attributeHtml = '<div class="border-top pt-3"><h6>Product Options:</h6>';
     
     attributes.forEach(attribute => {
         attributeHtml += `
-            <div class="form-group mb-4">
+            <div class="form-group mb-3">
                 <label class="font-weight-bold">${attribute.name}:</label>
                 <div class="row">
                     <div class="col-md-6">
                         <label>Pilih Varian:</label>
-                        <select class="form-control variant-select" data-attribute-code="${attribute.code}">
+                        <select class="form-control variant-select" data-attribute-code="${attribute.code}" data-item-index="${itemIndex}">
                             <option value="">Pilih Varian</option>
         `;
         
@@ -468,7 +424,7 @@ function showAttributeModal(productId, productName, productSku, productPrice, at
                     </div>
                     <div class="col-md-6">
                         <label>Pilih Jenis:</label>
-                        <select class="form-control option-select" name="${attribute.code}" data-attribute-code="${attribute.code}">
+                        <select class="form-control option-select" name="attributes[${itemIndex}][${attribute.code}]" data-attribute-code="${attribute.code}" data-item-index="${itemIndex}">
                             <option value="">Pilih jenis terlebih dahulu varian</option>
                         </select>
                     </div>
@@ -477,22 +433,11 @@ function showAttributeModal(productId, productName, productSku, productPrice, at
         `;
     });
     
-    attributeHtml += `
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-primary" onclick="addConfigurableProduct(${productId}, '${productName}', '${productSku}', ${productPrice})">Add Product</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+    attributeHtml += '</div>';
     
-    $('#attributeModal').remove();
-    $('body').append(attributeHtml);
+    $(`#attribute-section-${itemIndex}`).html(attributeHtml);
     
-    $('.variant-select').on('change', function() {
+    $(`.variant-select[data-item-index="${itemIndex}"]`).on('change', function() {
         const variantId = $(this).val();
         const attributeCode = $(this).data('attribute-code');
         const optionSelect = $(this).closest('.row').find('.option-select');
@@ -514,51 +459,29 @@ function showAttributeModal(productId, productName, productSku, productPrice, at
             optionSelect.append('<option value="">Pilih jenis terlebih dahulu varian</option>');
         }
     });
-    
-    $('#attributeModal').modal('show');
-    $('#modalProduct').modal('hide');
-}
-
-function addConfigurableProduct(productId, productName, productSku, productPrice) {
-    const formData = new FormData(document.getElementById('attribute-form'));
-    const attributes = {};
-    
-    for (let [key, value] of formData.entries()) {
-        if (value) {
-            attributes[key] = value;
-        }
-    }
-    
-    addProductToOrder({
-        id: productId, 
-        name: productName, 
-        sku: productSku, 
-        price: productPrice,
-        attributes: attributes
-    });
-    
-    $('#attributeModal').modal('hide');
 }
 
 function addProductToOrder(product) {
     const orderItems = document.getElementById('order-items');
     const itemIndex = orderItems.children.length;
     
-    let attributeInputs = '';
-    if (product.attributes) {
-        for (let [key, value] of Object.entries(product.attributes)) {
-            attributeInputs += `<input type="hidden" name="attributes[${itemIndex}][${key}]" value="${value}">`;
-        }
+    let attributeSection = '';
+    if (product.type === 'configurable') {
+        attributeSection = `
+            <div id="attribute-section-${itemIndex}" class="attribute-section mt-3">
+                <p class="text-info"><small>Loading attributes...</small></p>
+            </div>
+        `;
     }
 
     const productHtml = `
-        <div class="order-item card mb-2 p-3">
+        <div class="order-item card mb-2 p-3" data-index="${itemIndex}">
             <div class="row">
                 <div class="col-md-6">
                     <label>Product</label>
                     <input type="text" class="form-control" value="${product.name} (${product.sku})" readonly>
                     <input type="hidden" name="product_id[]" value="${product.id}">
-                    ${attributeInputs}
+                    <input type="hidden" name="product_type[]" value="${product.type || 'simple'}">
                 </div>
                 <div class="col-md-3">
                     <label>Qty</label>
@@ -568,15 +491,25 @@ function addProductToOrder(product) {
                     <button type="button" class="btn btn-danger btn-sm remove-item">Remove</button>
                 </div>
             </div>
+            ${attributeSection}
         </div>
     `;
 
     orderItems.insertAdjacentHTML('beforeend', productHtml);
+    
+    if (product.type === 'configurable') {
+        loadAttributesForProduct(product.id, itemIndex);
+    }
 }
 
-  // remove item
   $('#order-items').on('click','.remove-item', function(){
     $(this).closest('.order-item').remove();
+  });
+
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-item')) {
+        e.target.closest('.order-item').remove();
+    }
   });
 </script>
 <script>

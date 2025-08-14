@@ -508,9 +508,9 @@ class OrderController extends Controller
 			$configurableAttributes = $product->configurableAttributes();
 			
 			// Handle both old and new attribute structure
-			if ($itemIndex !== null && $request->has('attributes') && isset($request->attributes[$itemIndex])) {
+			if ($itemIndex !== null && $request->has('attributes') && ($request->input('attributes')[$itemIndex] ?? null)) {
 				// New structure from modal (2-level)
-				$itemAttributes = $request->attributes[$itemIndex];
+				$itemAttributes = $request->input('attributes')[$itemIndex];
 				foreach ($itemAttributes as $attributeCode => $optionId) {
 					if ($optionId) {
 						$option = \App\Models\AttributeOption::find($optionId);
