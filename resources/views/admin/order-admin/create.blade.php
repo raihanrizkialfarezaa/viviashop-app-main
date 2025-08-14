@@ -403,19 +403,139 @@ $(function(){
 $('#product-table').on('click', '.select-product', function(){
     const id   = $(this).data('id'),
           sku  = $(this).data('sku'),
-          name = $(this).data('name');
+          name = $(this).data('name'),
+          type = $(this).data('type'),
+          price = $(this).data('price');
 
-    // append to your form (example)
+    if (type === 'configurable') {
+        // Load attributes for configurable product
+        loadProductAttributes(id, name, sku, price);
+    } else {
+        // Add simple product directly
+        addProductToOrder({id, name, sku, price});
+        $('#modalProduct').modal('hide');
+    }
+});
+
+function loadProductAttributes(productId, productName, productSku, productPrice) {
+    $.ajax({
+        url: `/admin/products/${productId}/attributes`,
+        type: 'GET',
+        success: function(response) {
+            if (response.attributes && response.attributes.length > 0) {
+                showAttributeModal(productId, productName, productSku, productPrice, response.attributes);
+            } else {
+                addProductToOrder({id: productId, name: productName, sku: productSku, price: productPrice});
+                $('#modalProduct').modal('hide');
+            }
+        },
+        error: function() {
+            alert('Error loading product attributes');
+        }
+    });
+}
+
+function showAttributeModal(productId, productName, productSku, productPrice, attributes) {
+    let attributeHtml = `
+        <div class="modal fade" id="attributeModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Select Product Attributes for ${productName}</h5>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="attribute-form">
+    `;
+    
+    attributes.forEach(attribute => {
+        attributeHtml += `
+            <div class="form-group mb-4">
+                <label class="font-weight-bold">${attribute.name}:</label>
+        `;
+        
+        attribute.attribute_variants.forEach(variant => {
+            attributeHtml += `
+                <div class="variant-group mb-3">
+                    <h6 class="text-muted">${variant.name}:</h6>
+                    <select class="form-control" name="${attribute.code}_${variant.id}">
+                        <option value="">Select ${variant.name}</option>
+            `;
+            
+            variant.attribute_options.forEach(option => {
+                attributeHtml += `<option value="${option.id}">${option.name}</option>`;
+            });
+            
+            attributeHtml += `
+                    </select>
+                </div>
+            `;
+        });
+        
+        attributeHtml += `</div>`;
+    });
+    
+    attributeHtml += `
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="addConfigurableProduct(${productId}, '${productName}', '${productSku}', ${productPrice})">Add Product</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    $('#attributeModal').remove();
+    
+    // Add new modal
+    $('body').append(attributeHtml);
+    $('#attributeModal').modal('show');
+    $('#modalProduct').modal('hide');
+}
+
+function addConfigurableProduct(productId, productName, productSku, productPrice) {
+    const formData = new FormData(document.getElementById('attribute-form'));
+    const attributes = {};
+    
+    for (let [key, value] of formData.entries()) {
+        if (value) {
+            attributes[key] = value;
+        }
+    }
+    
+    addProductToOrder({
+        id: productId, 
+        name: productName, 
+        sku: productSku, 
+        price: productPrice,
+        attributes: attributes
+    });
+    
+    $('#attributeModal').modal('hide');
+}
+
+function addProductToOrder(product) {
     const orderItems = document.getElementById('order-items');
     const itemIndex = orderItems.children.length;
+    
+    let attributeInputs = '';
+    if (product.attributes) {
+        for (let [key, value] of Object.entries(product.attributes)) {
+            attributeInputs += `<input type="hidden" name="attributes[${itemIndex}][${key}]" value="${value}">`;
+        }
+    }
 
     const productHtml = `
         <div class="order-item card mb-2 p-3">
             <div class="row">
                 <div class="col-md-6">
                     <label>Product</label>
-                    <input type="text" class="form-control" value="${name} (${sku})" readonly>
-                    <input type="hidden" name="product_id[]" value="${id}">
+                    <input type="text" class="form-control" value="${product.name} (${product.sku})" readonly>
+                    <input type="hidden" name="product_id[]" value="${product.id}">
+                    ${attributeInputs}
                 </div>
                 <div class="col-md-3">
                     <label>Qty</label>
@@ -429,10 +549,7 @@ $('#product-table').on('click', '.select-product', function(){
     `;
 
     orderItems.insertAdjacentHTML('beforeend', productHtml);
-
-    $('#productModal').modal('hide');
-    $('#productModal').removeClass('show');
-  });
+}
 
   // remove item
   $('#order-items').on('click','.remove-item', function(){

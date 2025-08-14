@@ -20,7 +20,11 @@
                     <div class="form-group row border-bottom pb-4">
                         <label for="type" class="col-sm-2 col-form-label">Tipe Kategori</label>
                         <div class="col-sm-10">
-                            <input type="text" name="type" readonly value="simple" placeholder="Simple" class="form-control">
+                            <select class="form-control product-type" name="type" id="type">
+                                @foreach($types as $value => $type)
+                                    <option {{ old('type') == $value ? 'selected' : '' }} value="{{ $value }}">{{ $type }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
                     <div class="form-group row border-bottom pb-4">

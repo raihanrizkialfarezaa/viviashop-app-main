@@ -22,7 +22,11 @@
                     <div class="form-group row border-bottom pb-4">
                         <label for="type" class="col-sm-2 col-form-label">Tipe Kategori</label>
                         <div class="col-sm-10">
-                            <input type="text" name="type" readonly value="simple" placeholder="Simple" class="form-control">
+                            <select class="form-control product-type" name="type" id="type">
+                                @foreach($types as $value => $type)
+                                    <option {{ old('type', $product->type) == $value ? 'selected' : '' }} value="{{ $value }}">{{ $type }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
                     <div class="form-group row border-bottom pb-4">
@@ -48,23 +52,35 @@
                           </select>
                         </div>
                     </div>
-                    @if(!empty($configurable_attributes) && empty($product))
-                      <p class="text-primary mt-4">Konfigurasi Attribute Produk</p>
-                      <hr/>
-                      @foreach($configurable_attributes as $configurable_attribute)
-                        <div class="form-group row border-bottom pb-4">
-                            <label for="{{ $configurable_attribute->code }}" class="col-sm-2 col-form-label">{{ $configurable_attribute->code }}</label>
-                            <div class="col-sm-10">
-                            <!-- sampai sini -->
-                              <select class="form-control select-multiple"  multiple="multiple" name="{{ $configurable_attribute->code }}[]" id="{{ $configurable_attribute->code }}">
-                                @foreach($configurable_attribute->attribute_options as $attribute_option)
-                                  <option value="{{ $attribute_option->id }}"> {{ $attribute_option->name }}</option>
-                                @endforeach
-                              </select>
-                            </div>
+                    <div class="form-group row border-bottom pb-4">
+                        <label for="weight" class="col-sm-2 col-form-label">Berat (kg)</label>
+                        <div class="col-sm-10">
+                          <input type="number" step="0.01" class="form-control" name="weight" value="{{ old('weight', $product->weight) }}" id="weight" placeholder="Contoh: 1.5 (untuk 1.5 kg)">
                         </div>
-                      @endforeach
-                    @endif
+                    </div>
+                    <div class="configurable-attributes">
+                      @if(count($configurable_attributes) > 0)
+                        <p class="text-primary mt-4">Konfigurasi Attribute Produk</p>
+                        <hr/>
+                        @foreach($configurable_attributes as $configurable_attribute)
+                          <div class="form-group row border-bottom pb-4">
+                              <label for="{{ $configurable_attribute->code }}" class="col-sm-2 col-form-label">{{ $configurable_attribute->name }}</label>
+                              <div class="col-sm-10">
+                                @foreach($configurable_attribute->attribute_variants as $variant)
+                                  <div class="variant-section mb-3">
+                                    <h6 class="text-info">{{ $variant->name }}</h6>
+                                    <select class="form-control select-multiple" multiple="multiple" name="{{ $configurable_attribute->code }}[]" id="{{ $configurable_attribute->code }}_{{ $variant->id }}">
+                                      @foreach($variant->attribute_options as $option)
+                                        <option value="{{ $option->id }}">{{ $option->name }}</option>
+                                      @endforeach
+                                    </select>
+                                  </div>
+                                @endforeach
+                              </div>
+                          </div>
+                        @endforeach
+                      @endif
+                    </div>
                     @if ($product)
                         @if ($product->type == 'configurable')
                             @include('admin.products.configurable')
@@ -238,5 +254,21 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
       $('.select-multiple').select2();
+      function showHideConfigurableAttributes() {
+			var productType = $(".product-type").val();
+            console.log(productType);
+
+			if (productType == 'configurable') {
+				$(".configurable-attributes").show();
+			} else {
+				$(".configurable-attributes").hide();
+			}
+		}
+		$(function(){
+			showHideConfigurableAttributes();
+			$(".product-type").change(function() {
+				showHideConfigurableAttributes();
+			});
+		});
 </script>
 @endpush

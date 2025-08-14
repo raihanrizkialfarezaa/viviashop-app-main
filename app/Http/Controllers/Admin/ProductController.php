@@ -231,15 +231,13 @@ class ProductController extends Controller
 
     public function data()
     {
-        // 1) Fetch all products into a collection
-        $products = Product::select('id', 'sku', 'name', 'price')
+        $products = Product::with(['variants.productAttributeValues.attribute', 'variants.productAttributeValues.attribute_variant', 'variants.productAttributeValues.attribute_option'])
+            ->select('id', 'sku', 'name', 'price', 'type')
             ->get();
 
-
-        // 3) Return a valid DataTables JSON response
         return datatables()
-            ->of($products)                   // use the array of rows
-            ->addIndexColumn()            // adds DT_RowIndex
+            ->of($products)
+            ->addIndexColumn()
             ->addColumn('name' , function ($product) {
                 return $product->name;
             })
@@ -255,12 +253,37 @@ class ProductController extends Controller
                              class="btn btn-sm btn-success select-product"
                              data-id="'. $product->id .'"
                              data-sku="'. $product->sku .'"
-                            data-name="'. e($product->name) .'">
+                             data-name="'. e($product->name) .'"
+                             data-type="'. $product->type .'"
+                             data-price="'. $product->price .'">
                              Add
                             </button>';
             })
-            ->rawColumns(['action'])      // allow HTML in the action column
+            ->rawColumns(['action'])
             ->make(true);
+    }
+
+    public function getProductAttributes($id)
+    {
+        $product = Product::with(['variants.productAttributeValues.attribute', 'variants.productAttributeValues.attribute_variant', 'variants.productAttributeValues.attribute_option'])
+            ->find($id);
+        
+        if (!$product) {
+            return response()->json(['error' => 'Product not found'], 404);
+        }
+
+        if ($product->type !== 'configurable') {
+            return response()->json(['attributes' => []]);
+        }
+
+        $configurableAttributes = \App\Models\Attribute::where('is_configurable', true)
+            ->with(['attribute_variants.attribute_options'])
+            ->get();
+
+        return response()->json([
+            'product' => $product,
+            'attributes' => $configurableAttributes
+        ]);
     }
 
     public function findByBarcode(Request $request)

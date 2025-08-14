@@ -259,6 +259,9 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     Route::resource('attributes.attribute_variants', \App\Http\Controllers\Admin\AttributeVariantController::class);
     Route::resource('attributes.attribute_variants.attribute_options', \App\Http\Controllers\Admin\AttributeOptionController::class);
     Route::resource('products', \App\Http\Controllers\Admin\ProductController::class);
+    Route::get('/products/data/datatable', [ProductController::class, 'data'])->name('products.data');
+    Route::get('/products/{id}/attributes', [ProductController::class, 'getProductAttributes'])->name('products.attributes');
+    Route::post('/products/barcode/search', [ProductController::class, 'findByBarcode'])->name('products.findByBarcode');
     Route::resource('products.product_images', \App\Http\Controllers\Admin\ProductImageController::class);
     Route::get('/products/generateAllBarcodes', [ProductController::class, 'generateBarcodeAll'])->name('products.generateAll');
     Route::get('/products/generateSingleBarcode/{id}', [ProductController::class, 'generateBarcodeSingle'])->name('products.generateSingle');

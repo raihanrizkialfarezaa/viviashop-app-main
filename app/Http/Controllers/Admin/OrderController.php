@@ -183,13 +183,16 @@ class OrderController extends Controller
 	{
 		$provinces = [];
 		$products = Product::where('type', 'simple')->get();
+		$configurable_attributes = \App\Models\Attribute::where('is_configurable', true)
+			->with(['attribute_variants.attribute_options'])
+			->get();
 		$paymentMethods = [
 			'qris' => 'QRIS',
 			'midtrans' => 'Midtrans Gateway',
 			'toko' => 'Bayar di Toko',
 			'transfer' => 'Transfer Bank'
 		];
-		return view('admin.order-admin.create', compact('provinces', 'products', 'paymentMethods'));
+		return view('admin.order-admin.create', compact('provinces', 'products', 'paymentMethods', 'configurable_attributes'));
 	}
 
 	public function storeAdmin(Request $request)
@@ -207,6 +210,8 @@ class OrderController extends Controller
 				'qty' => 'required|array|min:1',
 				'qty.*' => 'required|integer|min:1',
 				'payment_method' => 'nullable|string|in:qris,midtrans,toko,transfer',
+				'attributes' => 'nullable|array',
+				'attributes.*' => 'nullable|array',
 			]);
 
 			if (count($validated['product_id']) !== count($validated['qty'])) {
@@ -227,7 +232,7 @@ class OrderController extends Controller
 				$itemTotal = $product->price * $qty;
 				$totalPrice += $itemTotal;
 
-				$attributes = $this->_collectProductAttributes($product, $request);
+				$attributes = $this->_collectProductAttributes($product, $request, $i);
 
 				$orderItems[] = [
 					'product_id' => $product->id,
@@ -495,26 +500,47 @@ class OrderController extends Controller
 		return redirect()->route('admin.orders.show', $order->id)->with('error', 'Payment failed. Please try again or contact support.');
 	}
 
-	private function _collectProductAttributes($product, $request)
+	private function _collectProductAttributes($product, $request, $itemIndex = null)
 	{
 		$attributes = [];
 		
 		if ($product->configurable()) {
 			$configurableAttributes = $product->configurableAttributes();
 			
-			foreach ($configurableAttributes as $attribute) {
-				foreach ($attribute->attribute_variants as $variant) {
-					$fieldName = $attribute->code . '_' . $variant->id;
-					if ($request->has($fieldName)) {
-						$optionId = $request->get($fieldName);
-						if ($optionId) {
-							$option = \App\Models\AttributeOption::find($optionId);
-							if ($option) {
-								$attributes[] = [
-									'attribute' => $attribute->name,
-									'variant' => $variant->name,
-									'option' => $option->name,
-								];
+			// Handle both old and new attribute structure
+			if ($itemIndex !== null && $request->has('attributes') && isset($request->attributes[$itemIndex])) {
+				// New structure from modal
+				$itemAttributes = $request->attributes[$itemIndex];
+				foreach ($itemAttributes as $fieldName => $optionId) {
+					if ($optionId) {
+						$option = \App\Models\AttributeOption::find($optionId);
+						if ($option) {
+							$variant = $option->attribute_variant;
+							$attribute = $variant->attribute;
+							$attributes[] = [
+								'attribute' => $attribute->name,
+								'variant' => $variant->name,
+								'option' => $option->name,
+							];
+						}
+					}
+				}
+			} else {
+				// Old structure for backward compatibility
+				foreach ($configurableAttributes as $attribute) {
+					foreach ($attribute->attribute_variants as $variant) {
+						$fieldName = $attribute->code . '_' . $variant->id;
+						if ($request->has($fieldName)) {
+							$optionId = $request->get($fieldName);
+							if ($optionId) {
+								$option = \App\Models\AttributeOption::find($optionId);
+								if ($option) {
+									$attributes[] = [
+										'attribute' => $attribute->name,
+										'variant' => $variant->name,
+										'option' => $option->name,
+									];
+								}
 							}
 						}
 					}

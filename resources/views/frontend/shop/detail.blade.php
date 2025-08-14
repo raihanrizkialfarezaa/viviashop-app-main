@@ -60,6 +60,34 @@
                             @if ($product->products->productInventory != null)
                                 <p>Stok : {{ $product->products->productInventory->qty }}</p>
                             @endif
+                            
+                            @if($product->products->type == 'configurable' && count($configurable_attributes) > 0)
+                                <div class="product-attributes mb-4">
+                                    <h6>Pilih Varian Produk:</h6>
+                                    @foreach($configurable_attributes as $attribute)
+                                        <div class="attribute-group mb-3">
+                                            <label class="form-label fw-bold">{{ $attribute->name }}:</label>
+                                            @foreach($attribute->attribute_variants as $variant)
+                                                <div class="variant-group mb-2">
+                                                    <h6 class="text-muted">{{ $variant->name }}:</h6>
+                                                    <select class="form-select attribute-select" 
+                                                            data-attribute-id="{{ $attribute->id }}" 
+                                                            data-variant-id="{{ $variant->id }}">
+                                                        <option value="">Pilih {{ $variant->name }}</option>
+                                                        @foreach($variant->attribute_options as $option)
+                                                            <option value="{{ $option->id }}" 
+                                                                    data-product-variant-id="{{ $product->products->variants->where('productAttributeValues.attribute_option_id', $option->id)->first()->id ?? '' }}">
+                                                                {{ $option->name }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+                            
                             <p class="mb-4">{!! $product->products->description !!}</p>
                             <div class="input-group quantity mb-5" style="width: 100px;">
                             </div>
@@ -145,4 +173,47 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const attributeSelects = document.querySelectorAll('.attribute-select');
+            const addToCartBtn = document.querySelector('.add-to-card');
+            
+            attributeSelects.forEach(function(select) {
+                select.addEventListener('change', function() {
+                    updateProductVariant();
+                });
+            });
+            
+            function updateProductVariant() {
+                const selectedAttributes = {};
+                let allSelected = true;
+                
+                attributeSelects.forEach(function(select) {
+                    if (select.value) {
+                        selectedAttributes[select.dataset.variantId] = select.value;
+                    } else {
+                        allSelected = false;
+                    }
+                });
+                
+                if (allSelected && Object.keys(selectedAttributes).length > 0) {
+                    // Here you can update price, stock, or other variant-specific data
+                    console.log('Selected attributes:', selectedAttributes);
+                    
+                    // Update add to cart button to include selected attributes
+                    addToCartBtn.setAttribute('data-selected-attributes', JSON.stringify(selectedAttributes));
+                    addToCartBtn.classList.remove('disabled');
+                } else {
+                    addToCartBtn.removeAttribute('data-selected-attributes');
+                    if (attributeSelects.length > 0) {
+                        addToCartBtn.classList.add('disabled');
+                    }
+                }
+            }
+            
+            // Initialize the state
+            updateProductVariant();
+        });
+    </script>
 @endsection

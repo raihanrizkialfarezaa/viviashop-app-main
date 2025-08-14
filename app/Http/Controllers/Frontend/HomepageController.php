@@ -43,13 +43,21 @@ class HomepageController extends Controller
 
     public function detail($id)
     {
-        $product = ProductCategory::where('product_id', $id)->with('categories', 'products')->first();
+        $product = ProductCategory::where('product_id', $id)->with('categories', 'products.variants.productAttributeValues.attribute', 'products.variants.productAttributeValues.attribute_variant', 'products.variants.productAttributeValues.attribute_option')->first();
         $products = ProductCategory::with('categories', 'products')->get();
+        
+        $configurable_attributes = collect();
+        if ($product && $product->products->type == 'configurable') {
+            $configurable_attributes = \App\Models\Attribute::where('is_configurable', true)
+                ->with(['attribute_variants.attribute_options'])
+                ->get();
+        }
+        
         $cart = Cart::content()->count();
         $setting = Setting::first();
         view()->share('setting', $setting);
         view()->share('countCart', $cart);
-        return view('frontend.shop.detail', compact('product', 'products'));
+        return view('frontend.shop.detail', compact('product', 'products', 'configurable_attributes'));
     }
 
     public function reports(Request $request)

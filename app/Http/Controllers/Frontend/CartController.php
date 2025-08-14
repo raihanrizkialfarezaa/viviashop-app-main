@@ -50,35 +50,58 @@ class CartController extends Controller
 
 			$attributes = [];
 			if ($product->configurable()) {
-				$product = Product::from('products as p')
-					->whereRaw(
-						"p.parent_id = :parent_product_id
-					and (select pav.text_value
-							from product_attribute_values pav
-							join attributes a on a.id = pav.attribute_id
-							where a.code = :size_code
-							and pav.product_id = p.id
-							limit 1
-						) = :size_value
-					and (select pav.text_value
-							from product_attribute_values pav
-							join attributes a on a.id = pav.attribute_id
-							where a.code = :color_code
-							and pav.product_id = p.id
-							limit 1
-						) = :color_value
-						",
-						[
-							'parent_product_id' => $product->id,
-							'size_code' => 'size',
-							'size_value' => $params['size'],
-							'color_code' => 'color',
-							'color_value' => $params['color'],
-						]
-					)->firstOrFail();
+				// Handle new attribute structure
+				if (isset($params['attributes']) && is_array($params['attributes'])) {
+					// New structure from frontend
+					foreach ($params['attributes'] as $variantId => $optionId) {
+						$option = \App\Models\AttributeOption::find($optionId);
+						if ($option) {
+							$variant = $option->attribute_variant;
+							$attribute = $variant->attribute;
+							$attributes[$attribute->code] = $option->name;
+						}
+					}
+					
+					// Find the specific product variant based on selected attributes
+					$product = $this->_findProductVariant($product->id, $params['attributes']);
+					if (!$product) {
+						return response()->json([
+							'status' => 'error',
+							'message' => 'Product variant not found'
+						]);
+					}
+				} else {
+					// Old structure for backward compatibility
+					$product = Product::from('products as p')
+						->whereRaw(
+							"p.parent_id = :parent_product_id
+						and (select pav.text_value
+								from product_attribute_values pav
+								join attributes a on a.id = pav.attribute_id
+								where a.code = :size_code
+								and pav.product_id = p.id
+								limit 1
+							) = :size_value
+						and (select pav.text_value
+								from product_attribute_values pav
+								join attributes a on a.id = pav.attribute_id
+								where a.code = :color_code
+								and pav.product_id = p.id
+								limit 1
+							) = :color_value
+							",
+							[
+								'parent_product_id' => $product->id,
+								'size_code' => 'size',
+								'size_value' => $params['size'],
+								'color_code' => 'color',
+								'color_value' => $params['color'],
+							]
+						)->firstOrFail();
 
-				$attributes['size'] = $params['size'];
-				$attributes['color'] = $params['color'];
+					$attributes['size'] = $params['size'];
+					$attributes['color'] = $params['color'];
+				}
 			}
 
 			$itemQuantity =  $this->_getItemQuantity($params['qty']);
@@ -133,5 +156,35 @@ class CartController extends Controller
 			'message' => 'Produk berhasil di hapus !',
 			'alert-type' => 'danger'
 		]);
+	}
+
+	private function _findProductVariant($parentProductId, $selectedAttributes)
+	{
+		// Get all variants of the parent product
+		$variants = Product::where('parent_id', $parentProductId)
+			->with(['productAttributeValues.attribute_option'])
+			->get();
+
+		foreach ($variants as $variant) {
+			$variantMatches = true;
+			
+			// Check if this variant has all the selected attributes
+			foreach ($selectedAttributes as $variantId => $optionId) {
+				$hasAttribute = $variant->productAttributeValues->contains(function ($value) use ($optionId) {
+					return $value->attribute_option_id == $optionId;
+				});
+				
+				if (!$hasAttribute) {
+					$variantMatches = false;
+					break;
+				}
+			}
+			
+			if ($variantMatches) {
+				return $variant;
+			}
+		}
+
+		return null;
 	}
 }
