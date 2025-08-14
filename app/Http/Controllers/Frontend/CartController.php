@@ -47,12 +47,12 @@ class CartController extends Controller
 
 			$product = Product::findOrFail($params['product_id']);
 			$slug = $product->slug;
+			$productName = $product->name;
+			$originalProduct = $product;
 
 			$attributes = [];
 			if ($product->configurable()) {
-				// Handle new 2-level attribute structure
 				if (isset($params['attributes']) && is_array($params['attributes'])) {
-					// New structure from frontend
 					foreach ($params['attributes'] as $attributeCode => $data) {
 						if (is_array($data) && isset($data['option_id'])) {
 							$option = \App\Models\AttributeOption::find($data['option_id']);
@@ -62,45 +62,30 @@ class CartController extends Controller
 						}
 					}
 					
-					// Find the specific product variant based on selected attributes
 					$product = $this->_findProductVariantByOptions($product->id, $params['attributes']);
 					if (!$product) {
+						$variants = Product::where('parent_id', $originalProduct->id)->get();
+						if ($variants->count() === 1) {
+							$product = $variants->first();
+						} else {
+							return response()->json([
+								'status' => 'error',
+								'message' => 'Product variant not found'
+							]);
+						}
+					}
+					$productName = $originalProduct->name;
+				} else {
+					$variants = Product::where('parent_id', $originalProduct->id)->get();
+					if ($variants->count() === 1) {
+						$product = $variants->first();
+						$productName = $originalProduct->name;
+					} else {
 						return response()->json([
 							'status' => 'error',
-							'message' => 'Product variant not found'
+							'message' => 'Product variant selection required'
 						]);
 					}
-				} else {
-					// Old structure for backward compatibility
-					$product = Product::from('products as p')
-						->whereRaw(
-							"p.parent_id = :parent_product_id
-						and (select pav.text_value
-								from product_attribute_values pav
-								join attributes a on a.id = pav.attribute_id
-								where a.code = :size_code
-								and pav.product_id = p.id
-								limit 1
-							) = :size_value
-						and (select pav.text_value
-								from product_attribute_values pav
-								join attributes a on a.id = pav.attribute_id
-								where a.code = :color_code
-								and pav.product_id = p.id
-								limit 1
-							) = :color_value
-							",
-							[
-								'parent_product_id' => $product->id,
-								'size_code' => 'size',
-								'size_value' => $params['size'],
-								'color_code' => 'color',
-								'color_value' => $params['color'],
-							]
-						)->firstOrFail();
-
-					$attributes['size'] = $params['size'];
-					$attributes['color'] = $params['color'];
 				}
 			}
 
@@ -120,7 +105,7 @@ class CartController extends Controller
 			} else {
 				Cart::add(
 					$product->id,
-					$product->name,
+					$productName,
 					(int)$params['qty'],
 					(float)$product->price,
 					['options' => $attributes]

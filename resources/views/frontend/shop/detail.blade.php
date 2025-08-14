@@ -16,17 +16,16 @@
                     <div class="row g-4">
                         <div class="col-lg-6">
                             <div class="border rounded">
-                                @if ($product->products->productImages->count() > 0)
-                                    @if ($product->products->productImages->count() > 1)
+                                @if ($parentProduct->productImages->count() > 0)
+                                    @if ($parentProduct->productImages->count() > 1)
                                         <div id="carouselExampleIndicators" class="carousel slide" data-bs-ride="carousel">
                                             <div class="carousel-indicators">
-                                                @foreach ($product->products->productImages as $key)
-                                                    {{--  <?php  echo $key; ?>  --}}
+                                                @foreach ($parentProduct->productImages as $key)
                                                     <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="{{ $loop->index }}" class="active"></button>
                                                 @endforeach
                                             </div>
                                             <div class="carousel-inner">
-                                                @foreach($product->products->productImages as $key => $images)
+                                                @foreach($parentProduct->productImages as $key => $images)
                                                 <div class="carousel-item {{$key == 0 ? 'active' : '' }}">
                                                     <img src="{{ asset('storage/'. $images->path) }}" class="d-block w-100"  alt="...">
                                                 </div>
@@ -42,7 +41,7 @@
                                             </button>
                                         </div>
                                     @else
-                                        <img src="{{ asset('storage/'. $product->products->productImages->first()->path) }}" class="img-fluid rounded" alt="Image">
+                                        <img src="{{ asset('storage/'. $parentProduct->productImages->first()->path) }}" class="img-fluid rounded" alt="Image">
                                     @endif
                                 @else
                                 <img src="{{ asset('images/placeholder.jpg') }}" class="img-fluid rounded" alt="Image">
@@ -50,18 +49,22 @@
                             </div>
                         </div>
                         <div class="col-lg-6">
-                            <h4 class="fw-bold mb-3">{{ $product->products->name }}</h4>
-                            <p class="mb-3">Category: {{ $product->categories->name }}</p>
-                            <p class="mb-3">Stock: {{ $product->products->productInventory->qty }}</p>
-                            <h5 class="fw-bold mb-3">Rp. {{ number_format($product->products->price) }}</h5>
+                            <h4 class="fw-bold mb-3">{{ $parentProduct->name }}</h4>
+                            @if($productCategory)
+                                <p class="mb-3">Category: {{ $productCategory->categories->name }}</p>
+                            @endif
+                            @if($parentProduct->productInventory)
+                                <p class="mb-3">Stock: {{ $parentProduct->productInventory->qty }}</p>
+                            @endif
+                            <h5 class="fw-bold mb-3" id="product-price">Rp. {{ number_format($parentProduct->price) }}</h5>
                             <div class="d-flex mb-4">
                             </div>
-                            <b class="mb-4">{{ $product->products->short_description }}</b>
-                            @if ($product->products->productInventory != null)
-                                <p>Stok : {{ $product->products->productInventory->qty }}</p>
+                            <b class="mb-4">{{ $parentProduct->short_description }}</b>
+                            @if ($parentProduct->productInventory != null)
+                                <p id="stock-info">Stok : {{ $parentProduct->productInventory->qty }}</p>
                             @endif
                             
-                            @if($product->products->type == 'configurable' && count($configurable_attributes) > 0)
+                            @if($parentProduct->type == 'configurable' && count($configurable_attributes) > 0)
                                 <div class="product-attributes mb-4">
                                     <h6>Pilih Varian Produk:</h6>
                                     @foreach($configurable_attributes as $attribute)
@@ -88,10 +91,15 @@
                                 </div>
                             @endif
                             
-                            <p class="mb-4">{!! $product->products->description !!}</p>
+                            <p class="mb-4">{!! $parentProduct->description !!}</p>
                             <div class="input-group quantity mb-5" style="width: 100px;">
+                                <input type="number" class="form-control" id="quantity" value="1" min="1">
                             </div>
-                            <a class="btn border border-secondary rounded-pill px-4 py-2 mb-4 text-primary add-to-card" product-id="{{ $product->products->id }}" product-type="{{ $product->products->type }}" product-slug="{{ $product->products->slug }}">
+                            <input type="hidden" id="selected-variant-id" value="">
+                            <a class="btn border border-secondary rounded-pill px-4 py-2 mb-4 text-primary add-to-card" 
+                               product-id="{{ $parentProduct->id }}" 
+                               product-type="{{ $parentProduct->type }}" 
+                               product-slug="{{ $parentProduct->slug }}">
                                 <i class="fa fa-shopping-bag me-2 text-primary"></i>
                                 Add to cart
                             </a>
@@ -109,11 +117,11 @@
                             </nav>
                             <div class="tab-content mb-5">
                                 <div class="tab-pane active" id="nav-about" role="tabpanel" aria-labelledby="nav-about-tab">
-                                    <b>{{ $product->products->short_description }} </b>
-                                    @if ($product->products->productInventory != null)
-                                        <p>Stok : {{ $product->products->productInventory->qty }}</p>
+                                    <b>{{ $parentProduct->short_description }} </b>
+                                    @if ($parentProduct->productInventory != null)
+                                        <p>Stok : {{ $parentProduct->productInventory->qty }}</p>
                                     @endif
-                                    <p>{!! $product->products->description !!}</p>
+                                    <p>{!! $parentProduct->description !!}</p>
                                     <div class="px-2">
                                         <div class="row g-4">
                                             <div class="col-6">
@@ -122,7 +130,7 @@
                                                         <p class="mb-0">Weight</p>
                                                     </div>
                                                     <div class="col-6">
-                                                        <p class="mb-0">{{ $product->products->weight }} gram</p>
+                                                        <p class="mb-0">{{ $parentProduct->weight }} gram</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -130,9 +138,9 @@
                                     </div>
                                 </div>
                                 <div class="tab-pane" id="nav-links" role="tabpanel" aria-labelledby="nav-links-tab">
-                                    <a href="{{ $product->products->link1 }}"><p>Product Link 1 : {{ $product->products->link1 }} </p></a>
-                                    <a href="{{ $product->products->link2 }}"><p>Product Link 2 : {{ $product->products->link2 }}</p></a>
-                                    <a href="{{ $product->products->link3 }}"><p>Product Link 3 : {{ $product->products->link3 }}</p></a>
+                                    <a href="{{ $parentProduct->link1 }}"><p>Product Link 1 : {{ $parentProduct->link1 }} </p></a>
+                                    <a href="{{ $parentProduct->link2 }}"><p>Product Link 2 : {{ $parentProduct->link2 }}</p></a>
+                                    <a href="{{ $parentProduct->link3 }}"><p>Product Link 3 : {{ $parentProduct->link3 }}</p></a>
                                 </div>
                                 <div class="tab-pane" id="nav-mission" role="tabpanel" aria-labelledby="nav-mission-tab">
                                     <div class="d-flex">
@@ -225,6 +233,24 @@
             function updateProductVariant() {
                 const selectedAttributes = {};
                 let allSelected = true;
+                const parentProduct = @json($parentProduct);
+                const variants = @json($variants);
+                
+                if (parentProduct.type === 'simple') {
+                    addToCartBtn.classList.remove('disabled');
+                    return;
+                }
+                
+                // If configurable product has only 1 variant, enable button directly
+                if (parentProduct.type === 'configurable' && variants.length === 1) {
+                    addToCartBtn.classList.remove('disabled');
+                    document.getElementById('selected-variant-id').value = variants[0].id;
+                    updateProductDisplay(variants[0]);
+                    
+                    addToCartBtn.setAttribute('data-single-variant', 'true');
+                    addToCartBtn.setAttribute('data-variant-id', variants[0].id);
+                    return;
+                }
                 
                 level1Selects.forEach(function(select) {
                     const attributeCode = select.dataset.attributeCode;
@@ -243,18 +269,109 @@
                 });
                 
                 if (allSelected && Object.keys(selectedAttributes).length > 0) {
-                    console.log('Selected attributes:', selectedAttributes);
+                    findMatchingVariant(selectedAttributes);
                     addToCartBtn.setAttribute('data-selected-attributes', JSON.stringify(selectedAttributes));
                     addToCartBtn.classList.remove('disabled');
                 } else {
+                    resetToParentProduct();
                     addToCartBtn.removeAttribute('data-selected-attributes');
                     if (level1Selects.length > 0) {
                         addToCartBtn.classList.add('disabled');
+                    } else {
+                        addToCartBtn.classList.remove('disabled');
                     }
                 }
             }
             
+            function findMatchingVariant(selectedAttributes) {
+                const variants = @json($variants);
+                
+                for (const variant of variants) {
+                    let matches = true;
+                    
+                    // Check if variant has product_attribute_values
+                    if (!variant.product_attribute_values || variant.product_attribute_values.length === 0) {
+                        // If no attribute values, just use the first variant
+                        updateProductDisplay(variant);
+                        document.getElementById('selected-variant-id').value = variant.id;
+                        return;
+                    }
+                    
+                    for (const [attributeCode, selection] of Object.entries(selectedAttributes)) {
+                        const hasMatchingAttribute = variant.product_attribute_values.some(pav => 
+                            pav.attribute && pav.attribute.code === attributeCode &&
+                            pav.attribute_variant && pav.attribute_variant.id == selection.variant_id &&
+                            pav.attribute_option && pav.attribute_option.id == selection.option_id
+                        );
+                        
+                        if (!hasMatchingAttribute) {
+                            matches = false;
+                            break;
+                        }
+                    }
+                    
+                    if (matches) {
+                        updateProductDisplay(variant);
+                        document.getElementById('selected-variant-id').value = variant.id;
+                        return;
+                    }
+                }
+                
+                resetToParentProduct();
+            }
+            
+            function updateProductDisplay(variant) {
+                const priceElement = document.getElementById('product-price');
+                const stockElement = document.getElementById('stock-info');
+                
+                priceElement.textContent = `Rp. ${new Intl.NumberFormat('id-ID').format(variant.price)}`;
+                
+                if (variant.product_inventory) {
+                    stockElement.textContent = `Stok : ${variant.product_inventory.qty}`;
+                    stockElement.style.display = 'block';
+                } else {
+                    stockElement.textContent = 'Stok : 0';
+                    stockElement.style.display = 'block';
+                }
+                
+                const quantityInput = document.getElementById('quantity');
+                if (variant.product_inventory) {
+                    quantityInput.max = variant.product_inventory.qty;
+                } else {
+                    quantityInput.max = 0;
+                }
+            }
+            
+            function resetToParentProduct() {
+                const parentProduct = @json($parentProduct);
+                const priceElement = document.getElementById('product-price');
+                const stockElement = document.getElementById('stock-info');
+                
+                priceElement.textContent = `Rp. ${new Intl.NumberFormat('id-ID').format(parentProduct.price)}`;
+                
+                if (parentProduct.product_inventory) {
+                    stockElement.textContent = `Stok : ${parentProduct.product_inventory.qty}`;
+                    stockElement.style.display = 'block';
+                } else {
+                    stockElement.style.display = 'none';
+                }
+                
+                document.getElementById('selected-variant-id').value = '';
+                
+                const quantityInput = document.getElementById('quantity');
+                if (parentProduct.product_inventory) {
+                    quantityInput.max = parentProduct.product_inventory.qty;
+                } else {
+                    quantityInput.max = 1;
+                }
+            }
+            
             updateProductVariant();
+            
+            const parentProduct = @json($parentProduct);
+            if (parentProduct.type === 'simple') {
+                addToCartBtn.classList.remove('disabled');
+            }
         });
     </script>
 @endsection
