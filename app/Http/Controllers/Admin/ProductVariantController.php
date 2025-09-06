@@ -48,8 +48,12 @@ class ProductVariantController extends Controller
                 'name' => $request->name,
                 'sku' => $sku,
                 'price' => $request->price,
+                'harga_beli' => $request->harga_beli,
                 'stock' => $request->stock,
                 'weight' => $request->weight ?? $product->weight ?? 0,
+                'length' => $request->length ?? $product->length ?? 0,
+                'width' => $request->width ?? $product->width ?? 0,
+                'height' => $request->height ?? $product->height ?? 0,
             ];
 
             $variant = $this->productVariantService->createVariant($product, $variantData, $request->input('attributes', []));
@@ -135,8 +139,12 @@ class ProductVariantController extends Controller
                 'name' => $request->name,
                 'sku' => $sku,
                 'price' => $request->price,
+                'harga_beli' => $request->harga_beli,
                 'stock' => $request->stock,
                 'weight' => $request->weight ?? $variant->product->weight ?? 0,
+                'length' => $request->length ?? $variant->product->length ?? 0,
+                'width' => $request->width ?? $variant->product->width ?? 0,
+                'height' => $request->height ?? $variant->product->height ?? 0,
             ];
 
             $updatedVariant = $this->productVariantService->updateVariant($variant, $variantData, $request->input('attributes', []));

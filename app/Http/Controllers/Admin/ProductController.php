@@ -348,9 +348,16 @@ class ProductController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Product $product)
+    public function edit(Product $product, Request $request)
     {
-        $product->load(['brand', 'productVariants.variantAttributes', 'categories']);
+        $product->load(['brand', 'categories']);
+        
+        $variantsPerPage = 3;
+        $currentPage = $request->get('variant_page', 1);
+        
+        $productVariants = $product->productVariants()
+            ->with('variantAttributes')
+            ->paginate($variantsPerPage, ['*'], 'variant_page', $currentPage);
         
         $categories = Category::orderBy('name', 'ASC')->get(['name','id']);
         $brands = Brand::active()->orderBy('name', 'ASC')->get(['name','id']);
@@ -362,12 +369,12 @@ class ProductController extends Controller
             $variantOptions = $product->getVariantOptions();
         }
 
-        // Provide backward compatibility for old variables
-        $configurable_attributes = collect(); // Empty collection to prevent count() error
+        $configurable_attributes = collect();
         $selected_attributes = [];
 
         return view('admin.products.edit', compact(
             'product', 
+            'productVariants',
             'categories', 
             'brands', 
             'statuses', 
@@ -450,6 +457,13 @@ class ProductController extends Controller
 
     private function updateConfigurableProduct(Product $product, $request)
     {
+        if ($request->qty !== null) {
+            ProductInventory::updateOrCreate(
+                ['product_id' => $product->id],
+                ['qty' => $request->qty]
+            );
+        }
+
         if (isset($request->variants)) {
             foreach ($request->variants as $variantData) {
                 if (isset($variantData['id'])) {

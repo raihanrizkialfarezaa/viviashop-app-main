@@ -60,9 +60,9 @@
                                     <p class="text-primary mt-4">Product Variants Management</p>
                                     <hr/>
                                     
-                                    @if($product->productVariants && $product->productVariants->count() > 0)
+                                    @if(isset($productVariants) && $productVariants->count() > 0)
                                         <div class="existing-variants">
-                                            <h5>Existing Variants ({{ $product->productVariants->count() }})</h5>
+                                            <h5>Existing Variants ({{ $product->productVariants->count() }} total, showing {{ $productVariants->count() }} per page)</h5>
                                             <div class="table-responsive">
                                                 <table class="table table-sm">
                                                     <thead>
@@ -71,13 +71,14 @@
                                                             <th>Name</th>
                                                             <th>Attributes</th>
                                                             <th>Price</th>
+                                                            <th>Harga Beli</th>
                                                             <th>Stock</th>
                                                             <th>Status</th>
                                                             <th>Action</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        @foreach($product->productVariants as $variant)
+                                                        @foreach($productVariants as $variant)
                                                             <tr>
                                                                 <td><small>{{ $variant->sku }}</small></td>
                                                                 <td>{{ $variant->name }}</td>
@@ -87,6 +88,7 @@
                                                                     @endforeach
                                                                 </td>
                                                                 <td>Rp {{ number_format($variant->price, 0, ',', '.') }}</td>
+                                                                <td>Rp {{ number_format($variant->harga_beli ?? 0, 0, ',', '.') }}</td>
                                                                 <td>{{ $variant->stock }}</td>
                                                                 <td>
                                                                     <span class="badge badge-{{ $variant->is_active ? 'success' : 'secondary' }}">
@@ -97,12 +99,21 @@
                                                                     <button type="button" class="btn btn-sm btn-primary edit-variant" data-variant-id="{{ $variant->id }}">
                                                                         <i class="fa fa-edit"></i>
                                                                     </button>
+                                                                    <button type="button" class="btn btn-sm btn-danger delete-variant" data-variant-id="{{ $variant->id }}" data-variant-name="{{ $variant->name }}">
+                                                                        <i class="fa fa-trash"></i>
+                                                                    </button>
                                                                 </td>
                                                             </tr>
                                                         @endforeach
                                                     </tbody>
                                                 </table>
                                             </div>
+                                            
+                                            @if($productVariants->hasPages())
+                                                <div class="d-flex justify-content-center mt-3">
+                                                    {{ $productVariants->appends(request()->query())->links() }}
+                                                </div>
+                                            @endif
                                         </div>
                                         
                                         <div class="mt-3">
@@ -124,79 +135,61 @@
                     @endif
                     @if ($product)
                         @if ($product->type == 'configurable')
-                            <p class="text-primary mt-4">Data Produk Induk</p>
-                            <hr/>
-                            @php $hasVariants = $product->productVariants ? $product->productVariants->count() > 0 : false; @endphp
-                            <div class="row mb-3">
-                                <div class="col-md-3">
-                                    <div class="form-group border-bottom pb-4">
-                                        <label for="parent_sku" class="form-label">SKU Produk Induk</label>
-                                        <input type="text" class="form-control" name="sku" value="{{ old('sku', $product->sku) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_sku">
+                            <!-- CRUD Produk Induk untuk Configurable Product -->
+                            <div class="form-group row border-bottom pb-4">
+                                <div class="col-12">
+                                    <p class="text-primary mt-4">Data Produk Induk</p>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="parent_price">Harga Dasar Produk Induk</label>
+                                                <input type="number" step="0.01" class="form-control" name="price" id="parent_price" 
+                                                       value="{{ old('price', $product->price) }}" placeholder="Harga dasar produk">
+                                                <small class="text-muted">Harga dasar untuk produk induk (opsional)</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="parent_harga_beli">Harga Beli Produk Induk</label>
+                                                <input type="number" step="0.01" class="form-control" name="harga_beli" id="parent_harga_beli"
+                                                       value="{{ old('harga_beli', $product->harga_beli) }}" placeholder="Harga beli produk">
+                                                <small class="text-muted">Harga beli dasar untuk produk induk (opsional)</small>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group border-bottom pb-4">
-                                        <label for="parent_name" class="form-label">Nama Produk Induk</label>
-                                        <input type="text" class="form-control" name="name" value="{{ old('name', $product->name) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_name">
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group border-bottom pb-4">
-                                        <label for="parent_price" class="form-label">Harga Jual</label>
-                                        <input type="number" class="form-control" name="price" value="{{ old('price', $product->price) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_price">
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group border-bottom pb-4">
-                                        <label for="parent_harga_beli" class="form-label">Harga Beli</label>
-                                        <input type="number" class="form-control" name="harga_beli" value="{{ old('harga_beli', $product->harga_beli) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_harga_beli">
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group border-bottom pb-4">
-                                        <label for="parent_qty" class="form-label">Jumlah</label>
-                                        <input type="number" class="form-control" name="qty" value="{{ old('qty', $product->productInventory ? $product->productInventory->qty : null) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_qty">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-3">
-                                    <div class="form-group border-bottom pb-4">
-                                        <label for="parent_weight" class="form-label">Berat (kg)</label>
-                                        <input type="number" step="0.01" class="form-control" name="weight" value="{{ old('weight', $product->weight) }}" id="parent_weight">
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group border-bottom pb-4">
-                                        <label for="parent_length" class="form-label">Panjang (cm)</label>
-                                        <input type="number" class="form-control" name="length" value="{{ old('length', $product->length) }}" id="parent_length">
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group border-bottom pb-4">
-                                        <label for="parent_width" class="form-label">Lebar (cm)</label>
-                                        <input type="number" class="form-control" name="width" value="{{ old('width', $product->width) }}" id="parent_width">
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group border-bottom pb-4">
-                                        <label for="parent_height" class="form-label">Tinggi (cm)</label>
-                                        <input type="number" class="form-control" name="height" value="{{ old('height', $product->height) }}" id="parent_height">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label for="parent_weight">Berat (kg)</label>
+                                                <input type="number" step="0.01" class="form-control" name="weight" id="parent_weight"
+                                                       value="{{ old('weight', $product->weight) }}" placeholder="Berat">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label for="parent_length">Panjang (cm)</label>
+                                                <input type="number" step="0.01" class="form-control" name="length" id="parent_length"
+                                                       value="{{ old('length', $product->length) }}" placeholder="Panjang">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label for="parent_width">Lebar (cm)</label>
+                                                <input type="number" step="0.01" class="form-control" name="width" id="parent_width"
+                                                       value="{{ old('width', $product->width) }}" placeholder="Lebar">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label for="parent_height">Tinggi (cm)</label>
+                                                <input type="number" step="0.01" class="form-control" name="height" id="parent_height"
+                                                       value="{{ old('height', $product->height) }}" placeholder="Tinggi">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            @if($hasVariants)
-                                <div class="row mb-3">
-                                    <div class="col-md-12">
-                                        <button type="button" class="btn btn-danger" id="delete-variants-btn">
-                                            <i class="fa fa-trash"></i> Hapus atribut dan jadikan produk induk
-                                        </button>
-                                        <small class="text-muted d-block mt-2">Menghapus semua sub-produk dengan atribut terkonfigurasi dan mengaktifkan kembali form produk induk</small>
-                                    </div>
-                                </div>
-                            @endif
-                            @include('admin.products.configurable')
-                        @else
+                        @elseif ($product->type == 'simple')
                             @include('admin.products.simple')
                         @endif
 
@@ -406,25 +399,6 @@
           });
       });
       
-      $('#delete-variants-btn').click(function() {
-          if (confirm('Apakah Anda yakin ingin menghapus semua atribut dan sub-produk? Tindakan ini tidak dapat dibatalkan.')) {
-              $.ajax({
-                  url: '/admin/products/{{ $product->id }}/delete-variants',
-                  type: 'DELETE',
-                  data: {
-                      _token: $('meta[name="csrf-token"]').attr('content')
-                  },
-                  success: function(response) {
-                      alert('Atribut berhasil dihapus. Halaman akan dimuat ulang.');
-                      window.location.reload();
-                  },
-                  error: function(xhr) {
-                      alert('Terjadi kesalahan saat menghapus atribut.');
-                  }
-              });
-          }
-      });
-      
       function showHideConfigurableAttributes() {
 			var productType = $(".product-type").val();
             console.log(productType);
@@ -448,6 +422,12 @@
 			$('.edit-variant').on('click', function() {
 				var variantId = $(this).data('variant-id');
 				editVariant(variantId);
+			});
+			
+			$('.delete-variant').on('click', function() {
+				var variantId = $(this).data('variant-id');
+				var variantName = $(this).data('variant-name');
+				deleteVariant(variantId, variantName);
 			});
 		});
 		
@@ -479,13 +459,19 @@
 										</div>
 									</div>
 									<div class="row">
-										<div class="col-md-6">
+										<div class="col-md-4">
 											<div class="form-group">
-												<label>Price</label>
+												<label>Harga Jual</label>
 												<input type="number" class="form-control" name="price" step="0.01" required>
 											</div>
 										</div>
-										<div class="col-md-6">
+										<div class="col-md-4">
+											<div class="form-group">
+												<label>Harga Beli</label>
+												<input type="number" class="form-control" name="harga_beli" step="0.01">
+											</div>
+										</div>
+										<div class="col-md-4">
 											<div class="form-group">
 												<label>Stock</label>
 												<input type="number" class="form-control" name="stock" required>
@@ -493,11 +479,31 @@
 										</div>
 									</div>
 									<div class="row">
-										<div class="col-md-6">
+										<div class="col-md-3">
 											<div class="form-group">
-												<label>Weight (grams)</label>
-												<input type="number" class="form-control" name="weight">
+												<label>Berat (kg)</label>
+												<input type="number" step="0.01" class="form-control" name="weight">
 											</div>
+										</div>
+										<div class="col-md-3">
+											<div class="form-group">
+												<label>Panjang (cm)</label>
+												<input type="number" class="form-control" name="length">
+											</div>
+										</div>
+										<div class="col-md-3">
+											<div class="form-group">
+												<label>Lebar (cm)</label>
+												<input type="number" class="form-control" name="width">
+											</div>
+										</div>
+										<div class="col-md-3">
+											<div class="form-group">
+												<label>Tinggi (cm)</label>
+												<input type="number" class="form-control" name="height">
+											</div>
+										</div>
+									</div>
 										</div>
 									</div>
 									<h6>Variant Attributes</h6>
@@ -566,8 +572,12 @@
 				name: $('#variantModal input[name="name"]').val(),
 				sku: $('#variantModal input[name="sku"]').val(),
 				price: $('#variantModal input[name="price"]').val(),
+				harga_beli: $('#variantModal input[name="harga_beli"]').val(),
 				stock: $('#variantModal input[name="stock"]').val(),
 				weight: $('#variantModal input[name="weight"]').val() || {{ $product->weight ?? 0 }},
+				length: $('#variantModal input[name="length"]').val() || {{ $product->length ?? 0 }},
+				width: $('#variantModal input[name="width"]').val() || {{ $product->width ?? 0 }},
+				height: $('#variantModal input[name="height"]').val() || {{ $product->height ?? 0 }},
 				attributes: []
 			};
 			
@@ -596,7 +606,9 @@
 				},
 				success: function(response) {
 					closeVariantModal();
-					location.reload();
+					var currentUrl = new URL(window.location.href);
+					var variantPage = currentUrl.searchParams.get('variant_page') || 1;
+					window.location.href = currentUrl.pathname + '?variant_page=' + variantPage;
 				},
 				error: function(xhr) {
 					var message = 'Error creating variant';
@@ -640,13 +652,19 @@
 											</div>
 										</div>
 										<div class="row">
-											<div class="col-md-6">
+											<div class="col-md-4">
 												<div class="form-group">
-													<label>Price</label>
+													<label>Harga Jual</label>
 													<input type="number" class="form-control" name="price" value="${variant.price}" step="0.01" required>
 												</div>
 											</div>
-											<div class="col-md-6">
+											<div class="col-md-4">
+												<div class="form-group">
+													<label>Harga Beli</label>
+													<input type="number" class="form-control" name="harga_beli" value="${variant.harga_beli || ''}" step="0.01">
+												</div>
+											</div>
+											<div class="col-md-4">
 												<div class="form-group">
 													<label>Stock</label>
 													<input type="number" class="form-control" name="stock" value="${variant.stock}" required>
@@ -654,10 +672,28 @@
 											</div>
 										</div>
 										<div class="row">
-											<div class="col-md-6">
+											<div class="col-md-3">
 												<div class="form-group">
-													<label>Weight (grams)</label>
-													<input type="number" class="form-control" name="weight" value="${variant.weight}">
+													<label>Berat (kg)</label>
+													<input type="number" step="0.01" class="form-control" name="weight" value="${variant.weight || ''}">
+												</div>
+											</div>
+											<div class="col-md-3">
+												<div class="form-group">
+													<label>Panjang (cm)</label>
+													<input type="number" class="form-control" name="length" value="${variant.length || ''}">
+												</div>
+											</div>
+											<div class="col-md-3">
+												<div class="form-group">
+													<label>Lebar (cm)</label>
+													<input type="number" class="form-control" name="width" value="${variant.width || ''}">
+												</div>
+											</div>
+											<div class="col-md-3">
+												<div class="form-group">
+													<label>Tinggi (cm)</label>
+													<input type="number" class="form-control" name="height" value="${variant.height || ''}">
 												</div>
 											</div>
 										</div>
@@ -754,8 +790,12 @@
 				name: $('#editVariantModal input[name="name"]').val(),
 				sku: $('#editVariantModal input[name="sku"]').val(),
 				price: $('#editVariantModal input[name="price"]').val(),
+				harga_beli: $('#editVariantModal input[name="harga_beli"]').val(),
 				stock: $('#editVariantModal input[name="stock"]').val(),
 				weight: $('#editVariantModal input[name="weight"]').val() || {{ $product->weight ?? 0 }},
+				length: $('#editVariantModal input[name="length"]').val() || {{ $product->length ?? 0 }},
+				width: $('#editVariantModal input[name="width"]').val() || {{ $product->width ?? 0 }},
+				height: $('#editVariantModal input[name="height"]').val() || {{ $product->height ?? 0 }},
 				attributes: []
 			};
 			
@@ -784,7 +824,9 @@
 				},
 				success: function(response) {
 					closeEditVariantModal();
-					location.reload();
+					var currentUrl = new URL(window.location.href);
+					var variantPage = currentUrl.searchParams.get('variant_page') || 1;
+					window.location.href = currentUrl.pathname + '?variant_page=' + variantPage;
 				},
 				error: function(xhr) {
 					var message = 'Error updating variant';
@@ -794,6 +836,29 @@
 					alert(message);
 				}
 			});
+		}
+		
+		function deleteVariant(variantId, variantName) {
+			if (confirm('Are you sure you want to delete variant "' + variantName + '"? This action cannot be undone.')) {
+				$.ajax({
+					url: '/admin/variants/' + variantId,
+					method: 'DELETE',
+					headers: {
+						'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+					},
+					success: function(response) {
+						alert('Variant deleted successfully');
+						location.reload();
+					},
+					error: function(xhr) {
+						var message = 'Error deleting variant';
+						if (xhr.responseJSON && xhr.responseJSON.message) {
+							message = xhr.responseJSON.message;
+						}
+						alert(message);
+					}
+				});
+			}
 		}
 </script>
 @endpush
