@@ -90,8 +90,36 @@
                                 <tbody>
                                     @forelse ($items as $item)
                                     @php
-                                        $product = isset($item->model->parent) ? $item->model->parent : $item->model;
-                                        $image = !empty($product->productImages->first()) ? asset('storage/'.$product->productImages->first()->path) : asset('themes/ezone/assets/img/cart/3.jpg')
+                                        if (isset($item->options['type']) && $item->options['type'] === 'configurable') {
+                                            $product = \App\Models\Product::find($item->options['product_id']);
+                                            $image = !empty($item->options['image']) ? asset('storage/' . $item->options['image']) : asset('themes/ezone/assets/img/cart/3.jpg');
+                                            $displayName = $item->name;
+                                            if (isset($item->options['attributes']) && !empty($item->options['attributes'])) {
+                                                $attributes = [];
+                                                foreach ($item->options['attributes'] as $attr => $value) {
+                                                    $attributes[] = $attr . ': ' . $value;
+                                                }
+                                                $displayName .= ' (' . implode(', ', $attributes) . ')';
+                                            }
+                                        } else {
+                                            // For simple products, load from product_id if model is null
+                                            $product = $item->model;
+                                            if (!$product && isset($item->options['product_id'])) {
+                                                $product = \App\Models\Product::find($item->options['product_id']);
+                                            }
+                                            if (!$product) {
+                                                $product = \App\Models\Product::find($item->id);
+                                            }
+                                            
+                                            $image = asset('themes/ezone/assets/img/cart/3.jpg'); // default
+                                            if ($product && $product->productImages->isNotEmpty()) {
+                                                $image = asset('storage/'.$product->productImages->first()->path);
+                                            } elseif (!empty($item->options['image'])) {
+                                                $image = asset('storage/' . $item->options['image']);
+                                            }
+                                            
+                                            $displayName = $product ? $product->name : $item->name;
+                                        }
                                     @endphp
                                         <tr>
                                             <th scope="row">
@@ -99,8 +127,8 @@
                                                     <img src="{{ $image }}" class="img-fluid rounded" style="width: 90px; height: 90px;" alt="">
                                                 </div>
                                             </th>
-                                            <td class="py-5">{{ $product->name }}</td>
-                                            <td class="py-5">Rp. {{ number_format($product->price) }}</td>
+                                            <td class="py-5">{{ $displayName }}</td>
+                                            <td class="py-5">Rp. {{ number_format($item->price) }}</td>
                                             <td class="py-5">{{ $item->qty }}</td>
                                             <td class="py-5">Rp. {{ number_format($item->price * $item->qty) }}</td>
                                         </tr>

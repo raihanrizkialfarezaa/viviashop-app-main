@@ -30,6 +30,10 @@ use Illuminate\Support\Facades\Route;
 
 Auth::routes();
 
+Route::get('/test-add-cart', function() {
+    return view('test_add_cart');
+});
+
 // $cart = Cart::content()->count();
 // dd($cart);
 // view()->share('countCart', $cart);

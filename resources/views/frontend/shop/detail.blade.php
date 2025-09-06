@@ -364,10 +364,16 @@
             function updatePriceRange(variants) {
                 if (variants.length === 0) {
                     priceDisplay.textContent = 'Kombinasi tidak tersedia';
+                    resetVariantDisplay();
                     return;
                 }
                 
-                if (variants.length === 1) {
+                const exactVariant = findExactVariant();
+                
+                if (exactVariant) {
+                    priceDisplay.textContent = `Rp ${new Intl.NumberFormat('id-ID').format(exactVariant.price)}`;
+                    updateVariantDisplay(exactVariant);
+                } else if (variants.length === 1) {
                     const variant = variants[0];
                     priceDisplay.textContent = `Rp ${new Intl.NumberFormat('id-ID').format(variant.price)}`;
                     updateVariantDisplay(variant);
@@ -419,23 +425,26 @@
             }
             
             function updateCartButton() {
-                const totalAttributes = Object.keys(availableOptions).length;
-                const selectedCount = Object.keys(selectedAttributes).length;
-                const isComplete = selectedCount === totalAttributes;
-                
                 const hasVariants = @json($parentProduct->type) === 'configurable' || 
                                   (@json($parentProduct->type) === 'simple' && @json($variants->count()) > 0);
                 
                 if (hasVariants) {
+                    const selectedCount = Object.keys(selectedAttributes).length;
+                    const exactVariant = findExactVariant();
+                    const isComplete = exactVariant !== null;
+                    
                     addToCartBtn.disabled = !isComplete;
                     
                     if (isComplete) {
                         addToCartBtn.innerHTML = '<i class="fa fa-shopping-bag me-2"></i>Tambah ke Keranjang';
                         addToCartBtn.classList.remove('btn-secondary');
                         addToCartBtn.classList.add('btn-primary');
+                    } else if (selectedCount === 0) {
+                        addToCartBtn.innerHTML = '<i class="fa fa-info-circle me-2"></i>Pilih varian untuk melanjutkan';
+                        addToCartBtn.classList.remove('btn-primary');
+                        addToCartBtn.classList.add('btn-secondary');
                     } else {
-                        const remaining = totalAttributes - selectedCount;
-                        addToCartBtn.innerHTML = `<i class="fa fa-info-circle me-2"></i>Pilih ${remaining} varian lagi`;
+                        addToCartBtn.innerHTML = '<i class="fa fa-info-circle me-2"></i>Kombinasi varian tidak tersedia';
                         addToCartBtn.classList.remove('btn-primary');
                         addToCartBtn.classList.add('btn-secondary');
                     }
@@ -443,12 +452,16 @@
             }
             
             function findExactVariant() {
+                if (Object.keys(selectedAttributes).length === 0) {
+                    return null;
+                }
+                
                 return allVariants.find(variant => {
                     return Object.entries(selectedAttributes).every(([attrName, attrValue]) => {
                         return variant.variant_attributes.some(attr => 
                             attr.attribute_name === attrName && attr.attribute_value === attrValue
                         );
-                    }) && Object.keys(selectedAttributes).length === variant.variant_attributes.length;
+                    });
                 });
             }
             

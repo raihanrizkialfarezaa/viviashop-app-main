@@ -116,7 +116,15 @@ view()->share('setting', $setting);
 		$items = Cart::content();
 
 		foreach ($items as $item) {
-			$totalWeight += ($item->qty * ($item->model->weight));
+			$itemWeight = 0;
+			
+			if (isset($item->options['type']) && $item->options['type'] === 'configurable') {
+				$itemWeight = $item->weight ?? 0;
+			} else {
+				$itemWeight = $item->model ? ($item->model->weight ?? 0) : ($item->weight ?? 0);
+			}
+			
+			$totalWeight += ($item->qty * $itemWeight);
 		}
 
 		return $totalWeight;
@@ -634,31 +642,54 @@ view()->share('setting', $setting);
 				$itemBaseTotal = $item->qty * $item->price;
 				$itemSubTotal = $itemBaseTotal + $itemTaxAmount - $itemDiscountAmount;
 
-				$product = isset($item->model->parent) ? $item->model->parent : $item->model;
+				// Handle both simple and variant items
+				if (isset($item->options['type']) && $item->options['type'] === 'configurable') {
+					// Variant item
+					$product = \App\Models\Product::find($item->options['product_id']);
+					$productId = $item->options['variant_id']; // Store variant ID as product_id for order item
+					$sku = $item->options['sku'] ?? 'VAR-' . $item->options['variant_id'];
+					$weight = $item->weight ?? 0;
+				} else {
+					// Simple item
+					$product = isset($item->model->parent) ? $item->model->parent : $item->model;
+					$productId = $item->model->id;
+					$sku = $item->model->sku;
+					$weight = $item->model->weight ?? 0;
+				}
 
 				$orderItemParams = [
 					'order_id' => $order->id,
-					'product_id' => $item->model->id,
+					'product_id' => $productId,
 					'qty' => $item->qty,
 					'base_price' => $item->price,
 					'base_total' => $itemBaseTotal,
 					'tax_amount' => $itemTaxAmount,
 					'tax_percent' => $itemTaxPercent,
 					'discount_amount' => $itemDiscountAmount,
-					// 'attachments' => $order->
 					'discount_percent' => $itemDiscountPercent,
 					'sub_total' => $itemSubTotal,
-					'sku' => $item->model->sku,
-					'type' => $product->type,
+					'sku' => $sku,
+					'type' => $product ? $product->type : 'simple',
 					'name' => $item->name,
-					'weight' => $item->model->weight / 1000,
+					'weight' => $weight / 1000,
 					'attributes' => json_encode($item->options),
 				];
 
 				$orderItem = OrderItem::create($orderItemParams);
 
 				if ($orderItem) {
-					ProductInventory::reduceStock($orderItem->product_id, $orderItem->qty);
+					// Handle stock reduction for different item types
+					if (isset($item->options['type']) && $item->options['type'] === 'configurable') {
+						// For variant items, reduce stock from ProductVariant
+						$variant = \App\Models\ProductVariant::find($item->options['variant_id']);
+						if ($variant) {
+							$variant->stock = max(0, $variant->stock - $orderItem->qty);
+							$variant->save();
+						}
+					} else {
+						// For simple items, use ProductInventory
+						ProductInventory::reduceStock($orderItem->product_id, $orderItem->qty);
+					}
 				}
 			}
 		}

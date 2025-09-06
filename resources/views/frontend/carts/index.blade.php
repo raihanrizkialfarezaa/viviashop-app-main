@@ -38,8 +38,24 @@
                     <tbody>
                         @forelse ($items as $item)
                             @php
-                                $product = $item->model;
-                                $image = !empty($product->productImages->first()) ? asset('storage/'.$product->productImages->first()->path) : asset('themes/ezone/assets/img/cart/3.jpg');
+                                if (isset($item->options['type']) && $item->options['type'] === 'configurable') {
+                                    $product = \App\Models\Product::find($item->options['product_id']);
+                                    $image = !empty($item->options['image']) ? asset('storage/' . $item->options['image']) : asset('themes/ezone/assets/img/cart/3.jpg');
+                                    $maxQty = \App\Models\ProductVariant::find($item->options['variant_id'])->stock ?? 1;
+                                    $displayName = $item->name;
+                                    if (isset($item->options['attributes']) && !empty($item->options['attributes'])) {
+                                        $attributes = [];
+                                        foreach ($item->options['attributes'] as $attr => $value) {
+                                            $attributes[] = $attr . ': ' . $value;
+                                        }
+                                        $displayName .= ' (' . implode(', ', $attributes) . ')';
+                                    }
+                                } else {
+                                    $product = $item->model;
+                                    $image = !empty($product->productImages->first()) ? asset('storage/'.$product->productImages->first()->path) : asset('themes/ezone/assets/img/cart/3.jpg');
+                                    $maxQty = $product->productInventory ? $product->productInventory->qty : 1;
+                                    $displayName = $product->name;
+                                }
                             @endphp
                             <tr>
                                 <th scope="row">
@@ -48,13 +64,13 @@
                                     </div>
                                 </th>
                                 <td>
-                                    <p class="mb-0 mt-4">{{ $product->name }}</p>
+                                    <p class="mb-0 mt-4">{{ $displayName }}</p>
                                 </td>
                                 <td>
-                                    <p class="mb-0 mt-4">Rp. {{ number_format($product->price) }}</p>
+                                    <p class="mb-0 mt-4">Rp. {{ number_format($item->price) }}</p>
                                 </td>
                                 <td>
-                                    <input type="number" className="form-control" id="change-qty" value="{{ $item->qty }}" data-productId="{{ $item->rowId }}" min="1" max="{{ $product->productInventory->qty }}">
+                                    <input type="number" className="form-control" id="change-qty" value="{{ $item->qty }}" data-productId="{{ $item->rowId }}" min="1" max="{{ $maxQty }}">
                                 </td>
                                 <td>
                                     <p class="mb-0 mt-4">Rp. {{ number_format($item->price * $item->qty, 0, ",", ".")}}</p>
