@@ -305,6 +305,26 @@ class ProductController extends Controller
         ]);
     }
 
+    public function getVariantOptions($id)
+    {
+        $product = Product::find($id);
+        
+        if (!$product) {
+            return response()->json(['error' => 'Product not found'], 404);
+        }
+
+        if ($product->type !== 'configurable') {
+            return response()->json(['success' => false, 'message' => 'Product is not configurable']);
+        }
+
+        $variantOptions = $product->getVariantOptions();
+
+        return response()->json([
+            'success' => true,
+            'data' => $variantOptions
+        ]);
+    }
+
     public function findByBarcode(Request $request)
     {
         $barcode = $request->input('barcode');

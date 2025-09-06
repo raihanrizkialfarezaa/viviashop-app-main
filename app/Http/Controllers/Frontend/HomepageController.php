@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Frontend;
 use App\Exports\ReportRevenue;
 use App\Models\Slide;
 use App\Models\Product;
+use Exception;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
@@ -65,7 +66,7 @@ class HomepageController extends Controller
             return redirect()->route('shop-detail', $product->parent_id);
         }
         
-        $parentProduct = Product::with(['productInventory', 'variants.productInventory'])->find($id);
+        $parentProduct = Product::with(['productInventory', 'productVariants.variantAttributes'])->find($id);
         
         if (!$parentProduct) {
             abort(404);
@@ -74,25 +75,36 @@ class HomepageController extends Controller
         $productCategory = ProductCategory::where('product_id', $parentProduct->id)->with('categories')->first();
         
         $configurable_attributes = collect();
-        if ($parentProduct->type == 'configurable') {
+        $variants = collect();
+        $variantOptions = [];
+        
+        // Handle edge case: simple products that have variants (data inconsistency)
+        // For simple products with variants, treat them as configurable
+        $hasVariants = $parentProduct->activeVariants()->count() > 0;
+        $isConfigurable = $parentProduct->type == 'configurable' || 
+                         ($parentProduct->type == 'simple' && $hasVariants);
+        
+        if ($isConfigurable) {
             $configurable_attributes = \App\Models\Attribute::where('is_configurable', true)
                 ->with(['attribute_variants.attribute_options'])
                 ->get();
-        }
-        
-        $variants = $parentProduct->variants()->with(['productInventory'])->get();
-        
-        foreach ($variants as $variant) {
-            $variant->product_attribute_values = \App\Models\ProductAttributeValue::where('product_id', $variant->id)
-                ->with(['attribute', 'attribute_variant', 'attribute_option'])
-                ->get();
+            $variants = $parentProduct->activeVariants()->with(['variantAttributes'])->get();
+            
+            if ($variants->count() > 0) {
+                try {
+                    $variantOptions = $parentProduct->getVariantOptions();
+                } catch (Exception $e) {
+                    // If getVariantOptions fails, set empty array
+                    $variantOptions = [];
+                }
+            }
         }
         
         $cart = Cart::content()->count();
         $setting = Setting::first();
         view()->share('setting', $setting);
         view()->share('countCart', $cart);
-        return view('frontend.shop.detail', compact('parentProduct', 'productCategory', 'configurable_attributes', 'variants'));
+        return view('frontend.shop.detail', compact('parentProduct', 'productCategory', 'configurable_attributes', 'variants', 'variantOptions'));
     }
 
     public function reports(Request $request)
@@ -205,7 +217,7 @@ class HomepageController extends Controller
         $data = $this->getReportsData($awal, $akhir);
 
         return datatables()
-            ->of($data)
+            ->of(collect($data))
             ->make(true);
     }
 

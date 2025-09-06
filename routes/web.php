@@ -262,6 +262,7 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     Route::resource('products', \App\Http\Controllers\Admin\ProductController::class);
     Route::get('/products/data/datatable', [ProductController::class, 'data'])->name('products.data');
     Route::get('/products/{id}/attributes', [ProductController::class, 'getProductAttributes'])->name('products.attributes');
+    Route::get('/products/{id}/variant-options', [ProductController::class, 'getVariantOptions'])->name('products.variant-options');
     Route::post('/products/barcode/search', [ProductController::class, 'findByBarcode'])->name('products.findByBarcode');
     Route::delete('/products/{id}/delete-variants', [ProductController::class, 'deleteVariants'])->name('products.deleteVariants');
     Route::post('/variants/create', [\App\Http\Controllers\Admin\ProductVariantController::class, 'store'])->name('variants.create');

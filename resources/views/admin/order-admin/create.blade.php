@@ -386,79 +386,117 @@ $('#product-table').on('click', '.select-product', function(){
 
 function loadAttributesForProduct(productId, itemIndex) {
     $.ajax({
-        url: `/admin/products/${productId}/attributes`,
+        url: `/admin/products/${productId}/variant-options`,
         type: 'GET',
         success: function(response) {
-            if (response.attributes && response.attributes.length > 0) {
-                renderAttributeOptions(response.attributes, itemIndex);
+            if (response.success && response.data && Object.keys(response.data).length > 0) {
+                renderVariantOptions(response.data, itemIndex, productId);
             } else {
-                $(`#attribute-section-${itemIndex}`).html('<p class="text-muted"><small>No attributes available for this product</small></p>');
+                $(`#attribute-section-${itemIndex}`).html('<p class="text-muted"><small>No variants available for this product</small></p>');
             }
         },
         error: function() {
-            $(`#attribute-section-${itemIndex}`).html('<p class="text-danger"><small>Error loading attributes</small></p>');
+            $(`#attribute-section-${itemIndex}`).html('<p class="text-danger"><small>Error loading variants</small></p>');
         }
     });
 }
 
-function renderAttributeOptions(attributes, itemIndex) {
-    let attributeHtml = '<div class="border-top pt-3"><h6>Product Options:</h6>';
+function renderVariantOptions(variantOptions, itemIndex, productId) {
+    let attributeHtml = '<div class="border-top pt-3"><h6>Product Variants:</h6>';
     
-    attributes.forEach(attribute => {
+    Object.keys(variantOptions).forEach(attributeName => {
+        const options = variantOptions[attributeName];
         attributeHtml += `
             <div class="form-group mb-3">
-                <label class="font-weight-bold">${attribute.name}:</label>
-                <div class="row">
-                    <div class="col-md-6">
-                        <label>Pilih Varian:</label>
-                        <select class="form-control variant-select" data-attribute-code="${attribute.code}" data-item-index="${itemIndex}">
-                            <option value="">Pilih Varian</option>
+                <label class="font-weight-bold">${attributeName.charAt(0).toUpperCase() + attributeName.slice(1)}:</label>
+                <select class="form-control variant-attribute-select" 
+                        name="variant_attributes[${itemIndex}][${attributeName}]" 
+                        data-attribute="${attributeName}" 
+                        data-item-index="${itemIndex}" 
+                        data-product-id="${productId}" 
+                        required>
+                    <option value="">Pilih ${attributeName}</option>
         `;
         
-        attribute.attribute_variants.forEach(variant => {
-            attributeHtml += `<option value="${variant.id}">${variant.name}</option>`;
+        options.forEach(option => {
+            attributeHtml += `<option value="${option}">${option}</option>`;
         });
         
         attributeHtml += `
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label>Pilih Jenis:</label>
-                        <select class="form-control option-select" name="attributes[${itemIndex}][${attribute.code}]" data-attribute-code="${attribute.code}" data-item-index="${itemIndex}">
-                            <option value="">Pilih jenis terlebih dahulu varian</option>
-                        </select>
-                    </div>
-                </div>
+                </select>
             </div>
         `;
     });
     
-    attributeHtml += '</div>';
+    attributeHtml += `
+        <div class="variant-info mt-3" id="variant-info-${itemIndex}" style="display: none;">
+            <div class="alert alert-info">
+                <strong>Selected Variant:</strong><br>
+                <span id="variant-details-${itemIndex}"></span>
+            </div>
+            <input type="hidden" name="variant_id[${itemIndex}]" id="variant-id-${itemIndex}">
+        </div>
+    </div>`;
     
     $(`#attribute-section-${itemIndex}`).html(attributeHtml);
     
-    $(`.variant-select[data-item-index="${itemIndex}"]`).on('change', function() {
-        const variantId = $(this).val();
-        const attributeCode = $(this).data('attribute-code');
-        const optionSelect = $(this).closest('.row').find('.option-select');
+    $(`.variant-attribute-select[data-item-index="${itemIndex}"]`).on('change', function() {
+        updateVariantSelection(itemIndex, productId);
+    });
+}
+
+function updateVariantSelection(itemIndex, productId) {
+    const attributeSelects = $(`.variant-attribute-select[data-item-index="${itemIndex}"]`);
+    const selectedAttributes = {};
+    let allSelected = true;
+    
+    attributeSelects.each(function() {
+        const attributeName = $(this).data('attribute');
+        const value = $(this).val();
         
-        if (variantId) {
-            $.ajax({
-                url: `/api/attribute-options/0/${variantId}`,
-                method: 'GET',
-                success: function(data) {
-                    optionSelect.empty();
-                    optionSelect.append('<option value="">Pilih Jenis</option>');
-                    data.options.forEach(function(option) {
-                        optionSelect.append(new Option(option.name, option.id));
-                    });
-                }
-            });
+        if (value) {
+            selectedAttributes[attributeName] = value;
         } else {
-            optionSelect.empty();
-            optionSelect.append('<option value="">Pilih jenis terlebih dahulu varian</option>');
+            allSelected = false;
         }
     });
+    
+    if (allSelected && Object.keys(selectedAttributes).length > 0) {
+        fetch(`/api/products/${productId}/variant-by-attributes`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            body: JSON.stringify({
+                attributes: selectedAttributes
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                const variant = data.data;
+                $(`#variant-details-${itemIndex}`).html(`
+                    SKU: ${variant.sku}<br>
+                    Price: Rp ${variant.formatted_price}<br>
+                    Stock: ${variant.stock}
+                `);
+                $(`#variant-id-${itemIndex}`).val(variant.id);
+                $(`#variant-info-${itemIndex}`).show();
+            } else {
+                $(`#variant-info-${itemIndex}`).hide();
+                $(`#variant-id-${itemIndex}`).val('');
+            }
+        })
+        .catch(error => {
+            console.error('Error finding variant:', error);
+            $(`#variant-info-${itemIndex}`).hide();
+            $(`#variant-id-${itemIndex}`).val('');
+        });
+    } else {
+        $(`#variant-info-${itemIndex}`).hide();
+        $(`#variant-id-${itemIndex}`).val('');
+    }
 }
 
 function addProductToOrder(product) {

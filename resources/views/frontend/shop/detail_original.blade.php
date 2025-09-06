@@ -100,20 +100,23 @@
                             @if($productCategory)
                                 <p class="mb-3">Category: {{ $productCategory->categories->name }}</p>
                             @endif
-                            @if($parentProduct->productInventory && $parentProduct->productInventory->qty)
+                            @if($parentProduct->productInventory)
                                 <p class="mb-3">Stock: {{ $parentProduct->productInventory->qty }}</p>
                             @endif
                             <h5 class="fw-bold mb-3" id="product-price">Rp. {{ number_format($parentProduct->price) }}</h5>
                             <div class="d-flex mb-4">
                             </div>
                             <b class="mb-4">{{ $parentProduct->short_description }}</b>
-                            @if ($parentProduct->productInventory && $parentProduct->productInventory->qty)
+                            @if ($parentProduct->productInventory != null)
                                 <p id="stock-info">Stok : {{ $parentProduct->productInventory->qty }}</p>
                             @endif
                             
-                            @if($parentProduct->type == 'configurable' && $variants->count() > 0)
+                            @if($parentProduct->type == 'configurable' && $parentProduct->activeVariants->count() > 0)
                                 <div class="product-variants mb-4">
                                     <h6>Pilih Varian Produk:</h6>
+                                    @php
+                                        $variantOptions = $parentProduct->getVariantOptions();
+                                    @endphp
                                     
                                     @foreach($variantOptions as $attributeName => $options)
                                         <div class="variant-group mb-3">
@@ -133,9 +136,9 @@
                                     
                                     <div class="price-range mb-3">
                                         <h5 id="price-display" class="text-primary">
-                                            @if($variants->count() > 1)
-                                                Rp {{ number_format($variants->min('price'), 0, ',', '.') }} - 
-                                                Rp {{ number_format($variants->max('price'), 0, ',', '.') }}
+                                            @if($parentProduct->activeVariants->count() > 1)
+                                                Rp {{ number_format($parentProduct->activeVariants->min('price'), 0, ',', '.') }} - 
+                                                Rp {{ number_format($parentProduct->activeVariants->max('price'), 0, ',', '.') }}
                                             @else
                                                 Rp {{ number_format($parentProduct->price, 0, ',', '.') }}
                                             @endif
@@ -203,7 +206,7 @@
                             <div class="tab-content mb-5">
                                 <div class="tab-pane active" id="nav-about" role="tabpanel" aria-labelledby="nav-about-tab">
                                     <b>{{ $parentProduct->short_description }} </b>
-                                    @if ($parentProduct->productInventory && $parentProduct->productInventory->qty)
+                                    @if ($parentProduct->productInventory != null)
                                         <p>Stok : {{ $parentProduct->productInventory->qty }}</p>
                                     @endif
                                     <p>{!! $parentProduct->description !!}</p>
@@ -284,8 +287,8 @@
             const quantityInput = document.getElementById('quantity');
             
             let selectedAttributes = {};
-            let allVariants = @json($variants->load('variantAttributes')->values());
-            let availableOptions = @json($variantOptions ?? []);
+            let allVariants = @json($parentProduct->activeVariants->load('variantAttributes')->values());
+            let availableOptions = @json($variantOptions);
             
             function initializeVariantSystem() {
                 if (@json($parentProduct->type) === 'simple') {
@@ -404,7 +407,7 @@
                 selectionMessage.style.display = 'block';
                 
                 if (stockElement && @json($parentProduct->productInventory)) {
-                    stockElement.textContent = `Stok: ${@json($parentProduct->productInventory ? $parentProduct->productInventory->qty : 0)}`;
+                    stockElement.textContent = `Stok: ${@json($parentProduct->productInventory->qty)}`;
                 }
             }
             

@@ -210,8 +210,9 @@ class OrderController extends Controller
 				'qty' => 'required|array|min:1',
 				'qty.*' => 'required|integer|min:1',
 				'payment_method' => 'nullable|string|in:qris,midtrans,toko,transfer',
-				'attributes' => 'nullable|array',
-				'attributes.*' => 'nullable|array',
+				'variant_id' => 'nullable|array',
+				'variant_id.*' => 'nullable|integer',
+				'variant_attributes' => 'nullable|array',
 			]);
 
 			if (count($validated['product_id']) !== count($validated['qty'])) {
@@ -229,24 +230,42 @@ class OrderController extends Controller
 				}
 
 				$qty = $validated['qty'][$i];
-				$itemTotal = $product->price * $qty;
+				$price = $product->price;
+				$productSku = $product->sku ?? '';
+				$productName = $product->name;
+
+				$variantId = null;
+				if ($product->configurable() && $request->has('variant_id') && is_array($request->input('variant_id'))) {
+					$variantId = $request->input('variant_id')[$i] ?? null;
+					if ($variantId) {
+						$variant = \App\Models\ProductVariant::find($variantId);
+						if ($variant && $variant->product_id == $product->id) {
+							$price = $variant->price;
+							$productSku = $variant->sku;
+							$productName = $variant->name;
+						}
+					}
+				}
+
+				$itemTotal = $price * $qty;
 				$totalPrice += $itemTotal;
 
 				$attributes = $this->_collectProductAttributes($product, $request, $i);
 
 				$orderItems[] = [
 					'product_id' => $product->id,
+					'variant_id' => $variantId,
 					'qty' => $qty,
-					'base_price' => $product->price,
+					'base_price' => $price,
 					'base_total' => $itemTotal,
 					'tax_amount' => 0,
 					'tax_percent' => 0,
 					'discount_amount' => 0,
 					'discount_percent' => 0,
 					'sub_total' => $itemTotal,
-					'sku' => $product->sku ?? '',
+					'sku' => $productSku,
 					'type' => $product->type ?? 'simple',
-					'name' => $product->name,
+					'name' => $productName,
 					'weight' => (string)($product->weight ?? 0),
 					'attributes' => json_encode($attributes),
 				];
@@ -505,66 +524,27 @@ class OrderController extends Controller
 		$attributes = [];
 		
 		if ($product->configurable()) {
-			$configurableAttributes = $product->configurableAttributes();
-			
-			// Handle both old and new attribute structure
-			if ($itemIndex !== null && $request->has('attributes') && ($request->input('attributes')[$itemIndex] ?? null)) {
-				// New structure from modal (2-level)
-				$itemAttributes = $request->input('attributes')[$itemIndex];
-				foreach ($itemAttributes as $attributeCode => $optionId) {
-					if ($optionId) {
-						$option = \App\Models\AttributeOption::find($optionId);
-						if ($option) {
-							$variant = $option->attribute_variant;
-							$attribute = $variant->attribute;
+			if ($itemIndex !== null && $request->has('variant_id') && is_array($request->input('variant_id'))) {
+				$variantId = $request->input('variant_id')[$itemIndex] ?? null;
+				if ($variantId) {
+					$variant = \App\Models\ProductVariant::with('variantAttributes')->find($variantId);
+					if ($variant && $variant->product_id == $product->id) {
+						foreach ($variant->variantAttributes as $variantAttribute) {
 							$attributes[] = [
-								'attribute' => $attribute->name,
-								'variant' => $variant->name,
-								'option' => $option->name,
+								'attribute' => $variantAttribute->attribute_name,
+								'value' => $variantAttribute->attribute_value,
 							];
 						}
 					}
 				}
-			} else {
-				// Check if direct attribute codes are present (new 2-level structure)
-				$hasDirectAttributes = false;
-				foreach ($configurableAttributes as $attribute) {
-					if ($request->has($attribute->code)) {
-						$hasDirectAttributes = true;
-						$optionId = $request->get($attribute->code);
-						if ($optionId) {
-							$option = \App\Models\AttributeOption::find($optionId);
-							if ($option) {
-								$variant = $option->attribute_variant;
-								$attributes[] = [
-									'attribute' => $attribute->name,
-									'variant' => $variant->name,
-									'option' => $option->name,
-								];
-							}
-						}
-					}
-				}
-				
-				// Old structure for backward compatibility
-				if (!$hasDirectAttributes) {
-					foreach ($configurableAttributes as $attribute) {
-						foreach ($attribute->attribute_variants as $variant) {
-							$fieldName = $attribute->code . '_' . $variant->id;
-							if ($request->has($fieldName)) {
-								$optionId = $request->get($fieldName);
-								if ($optionId) {
-									$option = \App\Models\AttributeOption::find($optionId);
-									if ($option) {
-										$attributes[] = [
-											'attribute' => $attribute->name,
-											'variant' => $variant->name,
-											'option' => $option->name,
-										];
-									}
-								}
-							}
-						}
+			} elseif ($request->has('variant_attributes') && is_array($request->input('variant_attributes'))) {
+				$selectedAttributes = $request->input('variant_attributes');
+				foreach ($selectedAttributes as $attributeName => $attributeValue) {
+					if ($attributeValue) {
+						$attributes[] = [
+							'attribute' => $attributeName,
+							'value' => $attributeValue,
+						];
 					}
 				}
 			}

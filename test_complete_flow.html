@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Complete Flow Test</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    </head>
+    <body>
+        <h1>Complete Purchase Flow Test</h1>
+
+        <div id="test-results"></div>
+
+        <script>
+            const baseUrl = "http://127.0.0.1:8000";
+            const productId = 133;
+
+            async function testCompleteFlow() {
+                const results = [];
+
+                try {
+                    // 1. Test Get Product Variants Options
+                    console.log("Testing variant options...");
+                    const variantOptionsResponse = await fetch(
+                        `${baseUrl}/api/products/${productId}/variants/options`
+                    );
+                    const variantOptions = await variantOptionsResponse.json();
+
+                    if (variantOptions.success) {
+                        results.push("✅ Variant Options API: SUCCESS");
+                        console.log("Variant Options:", variantOptions.data);
+                    } else {
+                        results.push("❌ Variant Options API: FAILED");
+                    }
+
+                    // 2. Test Find Variant by Attributes
+                    console.log("Testing variant by attributes...");
+                    const attributes = { Putih: "XL" };
+                    const variantByAttrResponse = await fetch(
+                        `${baseUrl}/api/products/${productId}/variant-by-attributes`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                            },
+                            body: JSON.stringify({ attributes }),
+                        }
+                    );
+
+                    const variantByAttr = await variantByAttrResponse.json();
+
+                    if (variantByAttr.success && variantByAttr.data) {
+                        results.push("✅ Variant by Attributes API: SUCCESS");
+                        console.log("Found Variant:", variantByAttr.data);
+
+                        const foundVariant = variantByAttr.data;
+
+                        // 3. Test Add to Cart (simulated)
+                        console.log("Testing cart simulation...");
+                        const cartData = {
+                            product_id: productId,
+                            variant_id: foundVariant.id,
+                            qty: 1,
+                        };
+
+                        results.push("✅ Cart Data Prepared: SUCCESS");
+                        console.log("Cart Data:", cartData);
+
+                        // 4. Test Product Detail Page Access
+                        console.log("Testing product detail page...");
+                        const detailResponse = await fetch(
+                            `${baseUrl}/shop/${productId}/detail`
+                        );
+
+                        if (detailResponse.ok) {
+                            results.push("✅ Product Detail Page: SUCCESS");
+                        } else {
+                            results.push("❌ Product Detail Page: FAILED");
+                        }
+                    } else {
+                        results.push("❌ Variant by Attributes API: FAILED");
+                    }
+
+                    // 5. Test Shop Page
+                    console.log("Testing shop page...");
+                    const shopResponse = await fetch(`${baseUrl}/shop`);
+
+                    if (shopResponse.ok) {
+                        results.push("✅ Shop Page: SUCCESS");
+                    } else {
+                        results.push("❌ Shop Page: FAILED");
+                    }
+                } catch (error) {
+                    results.push("❌ Test Error: " + error.message);
+                    console.error("Test Error:", error);
+                }
+
+                // Display results
+                document.getElementById("test-results").innerHTML =
+                    "<h2>Test Results:</h2><ul>" +
+                    results.map((result) => `<li>${result}</li>`).join("") +
+                    "</ul>";
+            }
+
+            // Run test when page loads
+            testCompleteFlow();
+        </script>
+    </body>
+</html>
