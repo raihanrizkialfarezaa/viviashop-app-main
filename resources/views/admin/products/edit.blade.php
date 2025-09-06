@@ -163,25 +163,25 @@
                                 <div class="col-md-3">
                                     <div class="form-group border-bottom pb-4">
                                         <label for="parent_weight" class="form-label">Berat (kg)</label>
-                                        <input type="number" step="0.01" class="form-control" name="weight" value="{{ old('weight', $product->weight) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_weight">
+                                        <input type="number" step="0.01" class="form-control" name="weight" value="{{ old('weight', $product->weight) }}" id="parent_weight">
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group border-bottom pb-4">
                                         <label for="parent_length" class="form-label">Panjang (cm)</label>
-                                        <input type="number" class="form-control" name="length" value="{{ old('length', $product->length) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_length">
+                                        <input type="number" class="form-control" name="length" value="{{ old('length', $product->length) }}" id="parent_length">
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group border-bottom pb-4">
                                         <label for="parent_width" class="form-label">Lebar (cm)</label>
-                                        <input type="number" class="form-control" name="width" value="{{ old('width', $product->width) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_width">
+                                        <input type="number" class="form-control" name="width" value="{{ old('width', $product->width) }}" id="parent_width">
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group border-bottom pb-4">
                                         <label for="parent_height" class="form-label">Tinggi (cm)</label>
-                                        <input type="number" class="form-control" name="height" value="{{ old('height', $product->height) }}" {{ $hasVariants ? 'readonly' : '' }} id="parent_height">
+                                        <input type="number" class="form-control" name="height" value="{{ old('height', $product->height) }}" id="parent_height">
                                     </div>
                                 </div>
                             </div>
@@ -563,15 +563,15 @@
 		function saveVariant() {
 			var formData = {
 				product_id: {{ $product->id }},
-				name: $('input[name="name"]').val(),
-				sku: $('input[name="sku"]').val(),
-				price: $('input[name="price"]').val(),
-				stock: $('input[name="stock"]').val(),
-				weight: $('input[name="weight"]').val() || {{ $product->weight ?? 0 }},
+				name: $('#variantModal input[name="name"]').val(),
+				sku: $('#variantModal input[name="sku"]').val(),
+				price: $('#variantModal input[name="price"]').val(),
+				stock: $('#variantModal input[name="stock"]').val(),
+				weight: $('#variantModal input[name="weight"]').val() || {{ $product->weight ?? 0 }},
 				attributes: []
 			};
 			
-			$('.attribute-row').each(function() {
+			$('#variantModal .attribute-row').each(function() {
 				var name = $(this).find('input[name="attribute_names[]"]').val();
 				var value = $(this).find('input[name="attribute_values[]"]').val();
 				if (name && value) {
@@ -609,7 +609,191 @@
 		}
 		
 		function editVariant(variantId) {
-			alert('Edit variant functionality coming soon');
+			$.get('/admin/variants/' + variantId, function(response) {
+				var variant = response.variant;
+				
+				var modal = `
+					<div class="modal fade show" id="editVariantModal" tabindex="-1" style="display: block; background-color: rgba(0,0,0,0.5);">
+						<div class="modal-dialog modal-lg">
+							<div class="modal-content">
+								<div class="modal-header">
+									<h5 class="modal-title">Edit Product Variant</h5>
+									<button type="button" class="close" onclick="closeEditVariantModal()">
+										<span>&times;</span>
+									</button>
+								</div>
+								<div class="modal-body">
+									<form id="editVariantForm">
+										<input type="hidden" id="edit_variant_id" value="${variant.id}">
+										<div class="row">
+											<div class="col-md-6">
+												<div class="form-group">
+													<label>Variant Name</label>
+													<input type="text" class="form-control" name="name" value="${variant.name}" required>
+												</div>
+											</div>
+											<div class="col-md-6">
+												<div class="form-group">
+													<label>SKU</label>
+													<input type="text" class="form-control" name="sku" value="${variant.sku}" required>
+												</div>
+											</div>
+										</div>
+										<div class="row">
+											<div class="col-md-6">
+												<div class="form-group">
+													<label>Price</label>
+													<input type="number" class="form-control" name="price" value="${variant.price}" step="0.01" required>
+												</div>
+											</div>
+											<div class="col-md-6">
+												<div class="form-group">
+													<label>Stock</label>
+													<input type="number" class="form-control" name="stock" value="${variant.stock}" required>
+												</div>
+											</div>
+										</div>
+										<div class="row">
+											<div class="col-md-6">
+												<div class="form-group">
+													<label>Weight (grams)</label>
+													<input type="number" class="form-control" name="weight" value="${variant.weight}">
+												</div>
+											</div>
+										</div>
+										<h6>Variant Attributes</h6>
+										<div id="editAttributeContainer">
+								`;
+								
+				if (variant.variant_attributes && variant.variant_attributes.length > 0) {
+					variant.variant_attributes.forEach(function(attr, index) {
+						modal += `
+							<div class="attribute-row row mb-2">
+								<div class="col-md-5">
+									<input type="text" class="form-control" name="attribute_names[]" value="${attr.attribute_name}" placeholder="Attribute Name">
+								</div>
+								<div class="col-md-5">
+									<input type="text" class="form-control" name="attribute_values[]" value="${attr.attribute_value}" placeholder="Attribute Value">
+								</div>
+								<div class="col-md-2">
+									<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
+								</div>
+							</div>
+						`;
+					});
+				} else {
+					modal += `
+						<div class="attribute-row row mb-2">
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name">
+							</div>
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value">
+							</div>
+							<div class="col-md-2">
+								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
+							</div>
+						</div>
+					`;
+				}
+				
+				modal += `
+										</div>
+										<button type="button" class="btn btn-sm btn-secondary" id="addEditAttribute">Add Attribute</button>
+									</form>
+								</div>
+								<div class="modal-footer">
+									<button type="button" class="btn btn-secondary" onclick="closeEditVariantModal()">Cancel</button>
+									<button type="button" class="btn btn-primary" id="updateVariant">Update Variant</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				`;
+				
+				$('body').append(modal);
+				document.body.classList.add('modal-open');
+				
+				$('#addEditAttribute').on('click', function() {
+					var newRow = `
+						<div class="attribute-row row mb-2">
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name">
+							</div>
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value">
+							</div>
+							<div class="col-md-2">
+								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
+							</div>
+						</div>
+					`;
+					$('#editAttributeContainer').append(newRow);
+				});
+				
+				$(document).on('click', '.remove-attribute', function() {
+					$(this).closest('.attribute-row').remove();
+				});
+				
+				$('#updateVariant').on('click', function() {
+					updateVariant();
+				});
+			}).fail(function() {
+				alert('Failed to load variant data');
+			});
+		}
+		
+		function closeEditVariantModal() {
+			$('#editVariantModal').remove();
+			document.body.classList.remove('modal-open');
+		}
+		
+		function updateVariant() {
+			var variantId = $('#edit_variant_id').val();
+			var formData = {
+				name: $('#editVariantModal input[name="name"]').val(),
+				sku: $('#editVariantModal input[name="sku"]').val(),
+				price: $('#editVariantModal input[name="price"]').val(),
+				stock: $('#editVariantModal input[name="stock"]').val(),
+				weight: $('#editVariantModal input[name="weight"]').val() || {{ $product->weight ?? 0 }},
+				attributes: []
+			};
+			
+			$('#editVariantModal .attribute-row').each(function() {
+				var name = $(this).find('input[name="attribute_names[]"]').val();
+				var value = $(this).find('input[name="attribute_values[]"]').val();
+				if (name && value) {
+					formData.attributes.push({
+						attribute_name: name,
+						attribute_value: value
+					});
+				}
+			});
+			
+			if (formData.attributes.length === 0) {
+				alert('Please add at least one attribute for the variant');
+				return;
+			}
+			
+			$.ajax({
+				url: '/admin/variants/' + variantId,
+				method: 'PUT',
+				data: formData,
+				headers: {
+					'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+				},
+				success: function(response) {
+					closeEditVariantModal();
+					location.reload();
+				},
+				error: function(xhr) {
+					var message = 'Error updating variant';
+					if (xhr.responseJSON && xhr.responseJSON.message) {
+						message = xhr.responseJSON.message;
+					}
+					alert(message);
+				}
+			});
 		}
 </script>
 @endpush

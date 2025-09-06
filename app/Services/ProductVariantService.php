@@ -307,6 +307,7 @@ class ProductVariantService
 
             $this->createVariantAttributesFromArray($variant, $attributes);
 
+            $product->update(['type' => 'configurable']);
             $this->updateBasePrice($product);
 
             return $variant->load('variantAttributes');

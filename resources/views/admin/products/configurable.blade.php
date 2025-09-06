@@ -1,6 +1,6 @@
 <p class="text-primary mt-4">Product Variants</p>
 <hr/>
- @foreach ($product->variants as $variant)
+ @foreach ($product->productVariants as $variant)
     <div class="row mb-3">
     <input type="hidden" value="{{ $variant->id }}" name="variants[{{ $variant->id }}][id]">
         <div class="col-md-3">
@@ -30,7 +30,7 @@
         <div class="col-md-2">
             <div class="form-group border-bottom pb-4">
                 <label for="qty" class="form-label">Jumlah</label>
-                <input type="number" class="form-control" name="variants[{{ $variant->id }}][qty]" value="{{ old('qty', ($variant->productInventory) ? $variant->productInventory->qty : null) }}" id="qty">
+                <input type="number" class="form-control" name="variants[{{ $variant->id }}][stock]" value="{{ old('stock', $variant->stock) }}" id="qty">
             </div>
         </div>
     </div>

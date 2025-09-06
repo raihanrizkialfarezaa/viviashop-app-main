@@ -25,7 +25,7 @@ class ProductVariantController extends Controller
             $request->validate([
                 'product_id' => 'required|exists:products,id',
                 'name' => 'required|string|max:255',
-                'sku' => 'required|string|max:100|unique:product_variants,sku',
+                'sku' => 'required|string|max:100',
                 'price' => 'required|numeric|min:0',
                 'stock' => 'required|integer|min:0',
                 'weight' => 'nullable|numeric|min:0',
@@ -36,9 +36,17 @@ class ProductVariantController extends Controller
 
             $product = Product::findOrFail($request->product_id);
             
+            $sku = $request->sku;
+            $existingProduct = Product::where('sku', $sku)->first();
+            $existingVariant = ProductVariant::where('sku', $sku)->first();
+            
+            if ($existingProduct || $existingVariant) {
+                $sku = $this->generateUniqueSku($request->sku, $product);
+            }
+            
             $variantData = [
                 'name' => $request->name,
-                'sku' => $request->sku,
+                'sku' => $sku,
                 'price' => $request->price,
                 'stock' => $request->stock,
                 'weight' => $request->weight ?? $product->weight ?? 0,
@@ -66,6 +74,19 @@ class ProductVariantController extends Controller
             ], 500);
         }
     }
+    
+    private function generateUniqueSku($baseSku, $product)
+    {
+        $counter = 1;
+        do {
+            $newSku = $baseSku . '-V' . $counter;
+            $existsInProducts = Product::where('sku', $newSku)->exists();
+            $existsInVariants = ProductVariant::where('sku', $newSku)->exists();
+            $counter++;
+        } while (($existsInProducts || $existsInVariants) && $counter < 1000);
+        
+        return $newSku;
+    }
 
     public function index($productId)
     {
@@ -79,7 +100,7 @@ class ProductVariantController extends Controller
 
     public function show($id)
     {
-        $variant = ProductVariant::with('attributes')->findOrFail($id);
+        $variant = ProductVariant::with('variantAttributes')->findOrFail($id);
         
         return response()->json([
             'variant' => $variant
@@ -93,7 +114,7 @@ class ProductVariantController extends Controller
             
             $request->validate([
                 'name' => 'required|string|max:255',
-                'sku' => 'required|string|max:100|unique:product_variants,sku,' . $id,
+                'sku' => 'required|string|max:100',
                 'price' => 'required|numeric|min:0',
                 'stock' => 'required|integer|min:0',
                 'weight' => 'nullable|numeric|min:0',
@@ -102,9 +123,17 @@ class ProductVariantController extends Controller
                 'attributes.*.attribute_value' => 'required|string|max:100',
             ]);
 
+            $sku = $request->sku;
+            $existingProduct = Product::where('sku', $sku)->where('id', '!=', $variant->product_id)->first();
+            $existingVariant = ProductVariant::where('sku', $sku)->where('id', '!=', $id)->first();
+            
+            if ($existingProduct || $existingVariant) {
+                $sku = $this->generateUniqueSku($request->sku, $variant->product);
+            }
+
             $variantData = [
                 'name' => $request->name,
-                'sku' => $request->sku,
+                'sku' => $sku,
                 'price' => $request->price,
                 'stock' => $request->stock,
                 'weight' => $request->weight ?? $variant->product->weight ?? 0,
