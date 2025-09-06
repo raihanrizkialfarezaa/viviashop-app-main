@@ -57,7 +57,7 @@ class ProductRequest extends FormRequest
                         'link2' => 'nullable',
                         'link3' => 'nullable',
                         'short_description' => 'required',
-                        'description' => 'required',
+                        'description' => 'nullable',
                         'barcode' => 'nullable',
                         'name' => ['required', 'max:255', 'unique:products,name,'.$this->route()->product->id],
                         'sku' => ['required', 'max:255', 'unique:products,sku,'. $this->route()->product->id],
