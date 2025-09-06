@@ -151,19 +151,10 @@ class ProductController extends Controller
 
     public function show(Product $product)
     {
-        if (!$product->configurable()) {
-            return view('frontend.products.show', compact('product'));
-        }
+        // Load relationships for new variant system
+        $product->load(['productVariants.variantAttributes', 'productImages', 'categories']);
 
-        $attributeHierarchy = [];
-        $configurableAttributes = $product->configurableAttributes();
-        
-        foreach ($configurableAttributes as $attribute) {
-            $hierarchy = ProductAttributeValue::getAttributeHierarchy($product, $attribute->code);
-            $attributeHierarchy[$attribute->code] = $hierarchy;
-        }
-
-        return view('frontend.products.show', compact('product', 'attributeHierarchy'));
+        return view('frontend.products.show', compact('product'));
     }
 
     public function quickView(Product $product)

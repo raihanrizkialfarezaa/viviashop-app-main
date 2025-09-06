@@ -21,28 +21,30 @@ class CartController extends Controller
     {
         $this->productVariantService = $productVariantService;
     }
-
     public function index()
     {
-        $items = Cart::content();
-        $cart = Cart::content()->count();
+		// Cart::destroy();
+		$items = Cart::content();
+		// dd($items);
+		$cart = Cart::content()->count();
         $setting = Setting::first();
         view()->share('setting', $setting);
-        view()->share('countCart', $cart);
+		view()->share('countCart', $cart);
+		// dd($items);
 
-        return view('frontend.carts.index', compact('items'));
+		return view('frontend.carts.index', compact('items'));
     }
 
     private function _getItemQuantity($itemQty)
-    {
-        $items = Cart::content();
-        $itemQuantity = $itemQty;
-        if ($items) {
-            foreach ($items as $item) {
-                $itemQuantity += $item->qty;
-            }
-        }
-        return $itemQuantity;
+	{
+		$items = Cart::content();
+		$itemQuantity = $itemQty;
+		if ($items) {
+			foreach ($items as $item) {
+				$itemQuantity += $item->qty;
+			}
+		}
+		return $itemQuantity;
     }
 
     public function store(Request $request)
@@ -177,27 +179,108 @@ class CartController extends Controller
         $item = Cart::content()->get($productId);
         return $item ? $item->qty : 0;
     }
+				// throw new \App\Exceptions\OutOfStockException('The product '. $product->sku .' is out of stock');
+				return response()->json([
+					'status' => 'stok_habis',
+				]);
+			} else {
+				Cart::add(
+					$product->id,
+					$productName,
+					(int)$params['qty'],
+					(float)$product->price,
+					['options' => $attributes]
+				)->associate('App\Models\Product');
+				// dd($cart);
 
-    public function update(Request $request)
-    {
-        $cartItemId = $request->input('cart_item_id');
-        $quantity = $request->input('quantity');
+				return response()->json([
+					'status' => 'success',
+				]);
+			}
+		} else {
+			return redirect()->route('login');
+		}
 
-        Cart::update($cartItemId, $quantity);
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Cart updated successfully'
-        ]);
-    }
+	}
 
-    public function destroy($id)
-    {
-        Cart::remove($id);
+	public function update(Request $request)
+	{
+		$params = $request->except('_token');
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Item removed from cart'
-        ]);
-    }
+		Cart::update($request->productId, $request->qty);
+
+		Session::flash('success', 'The cart has been updated');
+		return redirect('carts');
+	}
+
+	public function destroy($id)
+	{
+		Cart::remove($id);
+
+		return redirect()->back()->with([
+			'message' => 'Produk berhasil di hapus !',
+			'alert-type' => 'danger'
+		]);
+	}
+
+	private function _findProductVariant($parentProductId, $selectedAttributes)
+	{
+		// Get all variants of the parent product
+		$variants = Product::where('parent_id', $parentProductId)
+			->with(['productAttributeValues.attribute_option'])
+			->get();
+
+		foreach ($variants as $variant) {
+			$variantMatches = true;
+			
+			// Check if this variant has all the selected attributes
+			foreach ($selectedAttributes as $variantId => $optionId) {
+				$hasAttribute = $variant->productAttributeValues->contains(function ($value) use ($optionId) {
+					return $value->attribute_option_id == $optionId;
+				});
+				
+				if (!$hasAttribute) {
+					$variantMatches = false;
+					break;
+				}
+			}
+			
+			if ($variantMatches) {
+				return $variant;
+			}
+		}
+
+		return null;
+	}
+
+	private function _findProductVariantByOptions($parentProductId, $selectedAttributes)
+	{
+		$variants = Product::where('parent_id', $parentProductId)
+			->with(['productAttributeValues.attribute_option'])
+			->get();
+
+		foreach ($variants as $variant) {
+			$variantMatches = true;
+			
+			foreach ($selectedAttributes as $attributeCode => $data) {
+				if (is_array($data) && isset($data['option_id'])) {
+					$hasAttribute = $variant->productAttributeValues->contains(function ($value) use ($data) {
+						return $value->attribute_option_id == $data['option_id'];
+					});
+					
+					if (!$hasAttribute) {
+						$variantMatches = false;
+						break;
+					}
+				}
+			}
+			
+			if ($variantMatches) {
+				return $variant;
+			}
+		}
+
+		return null;
+	}
 }
