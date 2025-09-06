@@ -103,7 +103,17 @@
                             @if($parentProduct->productInventory && $parentProduct->productInventory->qty)
                                 <p class="mb-3">Stock: {{ $parentProduct->productInventory->qty }}</p>
                             @endif
-                            <h5 class="fw-bold mb-3" id="product-price">Rp. {{ number_format($parentProduct->price) }}</h5>
+                            <h5 class="fw-bold mb-3" id="product-price">
+                @if($variants && $variants->count() > 0 && $priceRange)
+                    @if($priceRange['same'])
+                        Rp. {{ number_format($priceRange['min']) }}
+                    @else
+                        Rp. {{ number_format($priceRange['min']) }} - Rp. {{ number_format($priceRange['max']) }}
+                    @endif
+                @else
+                    Rp. {{ number_format($parentProduct->price) }}
+                @endif
+            </h5>
                             <div class="d-flex mb-4">
                             </div>
                             <b class="mb-4">{{ $parentProduct->short_description }}</b>
@@ -111,7 +121,7 @@
                                 <p id="stock-info">Stok : {{ $parentProduct->productInventory->qty }}</p>
                             @endif
                             
-                            @if($parentProduct->type == 'configurable' && $variants->count() > 0)
+                            @if(($parentProduct->type == 'configurable' || ($parentProduct->type == 'simple' && $variants->count() > 0)) && $variants->count() > 0)
                                 <div class="product-variants mb-4">
                                     <h6>Pilih Varian Produk:</h6>
                                     
@@ -131,18 +141,18 @@
                                         </div>
                                     @endforeach
                                     
-                                    <div class="price-range mb-3">
-                                        <h5 id="price-display" class="text-primary">
-                                            @if($variants->count() > 1)
-                                                Rp {{ number_format($variants->min('price'), 0, ',', '.') }} - 
-                                                Rp {{ number_format($variants->max('price'), 0, ',', '.') }}
-                                            @else
-                                                Rp {{ number_format($parentProduct->price, 0, ',', '.') }}
-                                            @endif
-                                        </h5>
-                                    </div>
-                                    
-                                    <div id="variant-info" class="mt-3" style="display: none;">
+                    <div class="price-range mb-3">
+                        <h5 id="price-display" class="text-primary">
+                            @if($priceRange && !$priceRange['same'])
+                                Rp {{ number_format($priceRange['min'], 0, ',', '.') }} - 
+                                Rp {{ number_format($priceRange['max'], 0, ',', '.') }}
+                            @elseif($priceRange)
+                                Rp {{ number_format($priceRange['min'], 0, ',', '.') }}
+                            @else
+                                Rp {{ number_format($parentProduct->price, 0, ',', '.') }}
+                            @endif
+                        </h5>
+                    </div>                                    <div id="variant-info" class="mt-3" style="display: none;">
                                         <div class="alert alert-success">
                                             <h6 class="mb-2"><i class="fas fa-check-circle"></i> <strong>Varian Terpilih:</strong></h6>
                                             <div class="variant-name mb-2">
@@ -166,7 +176,7 @@
                                     </div>
                                     
                                     <div id="selection-message" class="alert alert-warning mt-2">
-                                        <i class="fas fa-info-circle"></i> Pilih semua varian untuk melanjutkan
+                                        <i class="fas fa-info-circle"></i> Pilih varian untuk melanjutkan
                                     </div>
                                 </div>
                             @endif
@@ -180,9 +190,9 @@
                                     data-product-id="{{ $parentProduct->id }}" 
                                     data-product-type="{{ $parentProduct->type }}" 
                                     data-product-slug="{{ $parentProduct->slug }}"
-                                    @if($parentProduct->type == 'configurable') disabled @endif>
+                                    @if($parentProduct->type == 'configurable' || ($parentProduct->type == 'simple' && $variants->count() > 0)) disabled @endif>
                                 <i class="fa fa-shopping-bag me-2"></i>
-                                @if($parentProduct->type == 'configurable')
+                                @if($parentProduct->type == 'configurable' || ($parentProduct->type == 'simple' && $variants->count() > 0))
                                     Pilih varian terlebih dahulu
                                 @else
                                     Tambah ke Keranjang
@@ -413,7 +423,10 @@
                 const selectedCount = Object.keys(selectedAttributes).length;
                 const isComplete = selectedCount === totalAttributes;
                 
-                if (@json($parentProduct->type) === 'configurable') {
+                const hasVariants = @json($parentProduct->type) === 'configurable' || 
+                                  (@json($parentProduct->type) === 'simple' && @json($variants->count()) > 0);
+                
+                if (hasVariants) {
                     addToCartBtn.disabled = !isComplete;
                     
                     if (isComplete) {
@@ -462,7 +475,8 @@
                     return;
                 }
                 
-                if (@json($parentProduct->type) === 'configurable') {
+                if (@json($parentProduct->type) === 'configurable' || 
+                    (@json($parentProduct->type) === 'simple' && @json($variants->count()) > 0)) {
                     const exactVariant = findExactVariant();
                     if (!exactVariant) {
                         alert('Varian tidak ditemukan');

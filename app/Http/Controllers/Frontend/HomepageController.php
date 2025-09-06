@@ -93,18 +93,30 @@ class HomepageController extends Controller
             if ($variants->count() > 0) {
                 try {
                     $variantOptions = $parentProduct->getVariantOptions();
+                    
+                    $minPrice = $variants->min('price');
+                    $maxPrice = $variants->max('price');
+                    $priceRange = [
+                        'min' => $minPrice,
+                        'max' => $maxPrice,
+                        'same' => $minPrice == $maxPrice
+                    ];
                 } catch (Exception $e) {
-                    // If getVariantOptions fails, set empty array
                     $variantOptions = [];
+                    $priceRange = null;
                 }
+            } else {
+                $priceRange = null;
             }
+        } else {
+            $priceRange = null;
         }
         
         $cart = Cart::content()->count();
         $setting = Setting::first();
         view()->share('setting', $setting);
         view()->share('countCart', $cart);
-        return view('frontend.shop.detail', compact('parentProduct', 'productCategory', 'configurable_attributes', 'variants', 'variantOptions'));
+        return view('frontend.shop.detail', compact('parentProduct', 'productCategory', 'configurable_attributes', 'variants', 'variantOptions', 'priceRange'));
     }
 
     public function reports(Request $request)
