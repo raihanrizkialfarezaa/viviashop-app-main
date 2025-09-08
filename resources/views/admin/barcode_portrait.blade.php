@@ -80,7 +80,7 @@
 
         .barcode-code {
             font-family: 'Courier New', monospace;
-            font-size: 5pt;
+            font-size: 7pt;
             letter-spacing: 0.5px;
             margin-top: 0.5mm;
         }
@@ -116,7 +116,7 @@
                 </div>
                 <div class="barcode-section">
                     @if($produk->barcode)
-                        {!! DNS1D::getBarcodeHTML($produk->barcode, 'C128', 0.6, 8) !!}
+                        {!! DNS1D::getBarcodeHTML($produk->barcode, 'C128', 0.9, 12) !!}
                         <div class="barcode-code">{{ $produk->barcode }}</div>
                     @else
                         <div style="font-size: 6pt; color: #999;">No Barcode</div>
