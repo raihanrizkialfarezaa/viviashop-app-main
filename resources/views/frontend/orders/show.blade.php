@@ -88,7 +88,7 @@
 										if ($attributes) {
 											$showAttributes .= '<ul class="item-attributes">';
 											foreach ($attributes as $key => $attribute) {
-												if(count($attribute) != 0){
+												if(is_array($attribute) && count($attribute) != 0){
 													foreach($attribute as $value => $attr){
 														$showAttributes .= '<li>'.$value . ': <span>' . $attr . '</span><li>';
 													}

@@ -238,14 +238,16 @@ view()->share('setting', $setting);
                 try {
                     $shippingOptions = $rajaOngkir->calculateShippingCost($origin, $destination, $weight, $courier);
                     
-                    if (!empty($shippingOptions)) {
+                    if (is_array($shippingOptions) && !empty($shippingOptions)) {
                         foreach ($shippingOptions as $option) {
-                            $results[] = [
-                                'service' => strtoupper($courier) . ' - ' . $option['service'],
-                                'cost' => $option['cost'],
-                                'etd' => $option['etd'],
-                                'courier' => $courier,
-                            ];
+                            if (is_array($option) && isset($option['service'], $option['cost'])) {
+                                $results[] = [
+                                    'service' => strtoupper($courier) . ' - ' . $option['service'],
+                                    'cost' => $option['cost'],
+                                    'etd' => $option['etd'] ?? '',
+                                    'courier' => $courier,
+                                ];
+                            }
                         }
                     }
                 } catch (\Exception $e) {
@@ -292,34 +294,37 @@ view()->share('setting', $setting);
         $shippingOptions = $this->_getShippingCost($destination, $this->_getTotalWeight());
 
         // Log all available shipping options
-        Log::info('Available shipping options count: ' . count($shippingOptions['results']));
+        $resultsCount = is_array($shippingOptions['results']) ? count($shippingOptions['results']) : 0;
+        Log::info('Available shipping options count: ' . $resultsCount);
 
         $selectedShipping = null;
 
-        if (count($shippingOptions['results']) == 0) {
+        if ($resultsCount == 0) {
             // No shipping options available
             Log::error('No shipping options available for destination: ' . $destination);
-        } else if (count($shippingOptions['results']) == 1) {
+        } else if ($resultsCount == 1) {
             // Only one option, select it
-            $selectedShipping = $shippingOptions['results'][0];
+            $selectedShipping = is_array($shippingOptions['results']) && isset($shippingOptions['results'][0]) ? $shippingOptions['results'][0] : null;
             Log::info('Selected the only shipping option available', $selectedShipping);
         } else {
             // Multiple options, find the requested one
-            foreach ($shippingOptions['results'] as $shippingOption) {
-                // Compare with and without spaces to be more flexible
-                if (str_replace(' ', '', $shippingOption['service']) == str_replace(' ', '', $shippingService)) {
-                    $selectedShipping = $shippingOption;
-                    Log::info('Found matching shipping option', $selectedShipping);
-                    break;
+            if (is_array($shippingOptions['results'])) {
+                foreach ($shippingOptions['results'] as $shippingOption) {
+                    // Compare with and without spaces to be more flexible
+                    if (str_replace(' ', '', $shippingOption['service']) == str_replace(' ', '', $shippingService)) {
+                        $selectedShipping = $shippingOption;
+                        Log::info('Found matching shipping option', $selectedShipping);
+                        break;
+                    }
                 }
-            }
 
-            // If no match found, log the issue
-            if (!$selectedShipping) {
-                Log::warning('Requested shipping service not found', [
-                    'requested' => $shippingService,
-                    'available' => array_column($shippingOptions['results'], 'service')
-                ]);
+                // If no match found, log the issue
+                if (!$selectedShipping) {
+                    Log::warning('Requested shipping service not found', [
+                        'requested' => $shippingService,
+                        'available' => array_column($shippingOptions['results'], 'service')
+                    ]);
+                }
             }
         }
 
@@ -478,13 +483,17 @@ view()->share('setting', $setting);
 			}
 		}
 		
-		if (count($shippingOptions['results']) <= 1) {
-			$selectedShipping = $shippingOptions['results'][0] ?? null;
-		} elseif(count($shippingOptions['results']) > 1) {
-			foreach ($shippingOptions['results'] as $shippingOption) {
-				if (str_replace(' ', '', $shippingOption['service']) == str_replace(' ', '', $shippingService)) {
-					$selectedShipping = $shippingOption;
-					break;
+		$resultsCount = is_array($shippingOptions['results']) ? count($shippingOptions['results']) : 0;
+		
+		if ($resultsCount <= 1) {
+			$selectedShipping = ($resultsCount > 0 && isset($shippingOptions['results'][0])) ? $shippingOptions['results'][0] : null;
+		} elseif($resultsCount > 1) {
+			if (is_array($shippingOptions['results'])) {
+				foreach ($shippingOptions['results'] as $shippingOption) {
+					if (str_replace(' ', '', $shippingOption['service']) == str_replace(' ', '', $shippingService)) {
+						$selectedShipping = $shippingOption;
+						break;
+					}
 				}
 			}
 		}
@@ -560,7 +569,9 @@ view()->share('setting', $setting);
 			'email' => $params['email'],
 		];
 
-		auth()->user()->update($user_profile);
+		DB::table('users')
+			->where('id', auth()->id())
+			->update($user_profile);
 
 		if ($params['attachments'] != null || isset($params['payment_slip'])) {
 			$orderParams = [
