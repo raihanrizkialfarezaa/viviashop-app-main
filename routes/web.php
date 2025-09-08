@@ -245,6 +245,7 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
         return response()->download(public_path('template.xlsx'));
         // dd(public_path('/file'));
     })->name('downloadTemplate');
+    
     Route::get('/barcode/download' , [ProductController::class, 'downloadBarcode'])->name('barcode.download');
     Route::get('/barcode/downloadSingle/{id}' , [ProductController::class, 'downloadSingleBarcode'])->name('barcode.downloadSingle');
     Route::get('/laporan/export', [ReportController::class, 'exportExcel'])->name('laporan.exportExcel');
@@ -356,3 +357,7 @@ Route::get('/api/attribute-options/{attributeId}/{variantId}', function($attribu
     $options = \App\Models\AttributeOption::where('attribute_variant_id', $variantId)->get();
     return response()->json(['options' => $options]);
 })->name('api.attribute-options');
+
+Route::get('/barcode-test-preview', function() {
+    return view('test_barcode_preview');
+})->name('barcode.test.preview');

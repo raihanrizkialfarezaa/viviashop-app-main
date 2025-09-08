@@ -94,21 +94,25 @@ class ProductController extends Controller
 
     public function downloadBarcode()
     {
-        $data = Product::all();
+        $data = Product::whereNotNull('barcode')->get();
         $pdf  = Pdf::loadView('admin.barcode', compact('data'));
         $pdf->setPaper('a4', 'landscape');
-        return $pdf->stream('barcode.pdf');
-        // return view('admin.barcode', compact('data'));
+        return $pdf->stream('all-products-barcode.pdf');
     }
 
     public function downloadSingleBarcode($id)
     {
-        $dataSingle = Product::where('id', $id)->first();
-        // dd($data->barcode);
-        $pdf  = Pdf::loadView('admin.barcodeSingle', compact('dataSingle'));
+        $dataSingle = Product::where('id', $id)->whereNotNull('barcode')->first();
+        
+        if (!$dataSingle) {
+            Alert::error('Error', 'Produk tidak ditemukan atau barcode belum dibuat.');
+            return redirect()->back();
+        }
+        
+        $pdf = Pdf::loadView('admin.barcodeSingle', compact('dataSingle'));
         $pdf->setPaper('a4', 'landscape');
-        return $pdf->stream('barcode.pdf');
-        // return view('admin.barcode', compact('data'));
+        $filename = 'barcode-' . $dataSingle->sku . '.pdf';
+        return $pdf->stream($filename);
     }
 
     public function generateBarcodeAll()
