@@ -246,7 +246,11 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
         // dd(public_path('/file'));
     })->name('downloadTemplate');
     
-    Route::get('/barcode/download' , [ProductController::class, 'downloadBarcode'])->name('barcode.download');
+    Route::get('/barcode/preview' , [ProductController::class, 'previewBarcode'])->name('barcode.preview');
+    Route::get('/barcode/preview/landscape' , [ProductController::class, 'previewBarcodeLandscape'])->name('barcode.preview.landscape');
+    Route::get('/barcode/preview/portrait' , [ProductController::class, 'previewBarcodePortrait'])->name('barcode.preview.portrait');
+    Route::get('/barcode/print/landscape' , [ProductController::class, 'printBarcodeLandscape'])->name('barcode.print.landscape');
+    Route::get('/barcode/print/portrait' , [ProductController::class, 'printBarcodePortrait'])->name('barcode.print.portrait');
     Route::get('/barcode/downloadSingle/{id}' , [ProductController::class, 'downloadSingleBarcode'])->name('barcode.downloadSingle');
     Route::get('/laporan/export', [ReportController::class, 'exportExcel'])->name('laporan.exportExcel');
     // Route::get('/laporan/dataTotal/{awal}/{akhir}', [HomepageController::class, 'getReportsData'])->name('laporan.data');

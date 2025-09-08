@@ -13,7 +13,7 @@
                 <h3 class="card-title">Data Produk</h3>
                 <div class="">
                     <a href="{{ route('admin.products.create')}}" class="btn btn-info shadow-sm float-right ml-2"> <i class="fa fa-plus"></i> Tambah </a>
-                    <a href="{{ route('admin.barcode.download')}}" class="btn btn-info shadow-sm float-right ml-2"> <i class="fa fa-plus"></i> Download Barcode </a>
+                    <a href="{{ route('admin.barcode.preview')}}" class="btn btn-info shadow-sm float-right ml-2"> <i class="fa fa-eye"></i> Preview Barcode </a>
                     <button onclick="addForm();" class="btn btn-success shadow-sm float-right ml-2"> <i class="fa fa-plus"></i> Excel </button>
                 </div>
               </div>

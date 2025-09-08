@@ -92,12 +92,34 @@ class ProductController extends Controller
 		return $result;
     }
 
-    public function downloadBarcode()
+    public function previewBarcode()
     {
         $data = Product::whereNotNull('barcode')->get();
-        $pdf  = Pdf::loadView('admin.barcode', compact('data'));
-        $pdf->setPaper('a4', 'landscape');
-        return $pdf->stream('all-products-barcode.pdf');
+        return view('admin.barcode_preview_menu', compact('data'));
+    }
+
+    public function previewBarcodeLandscape()
+    {
+        $data = Product::whereNotNull('barcode')->get();
+        return view('admin.barcode_preview_landscape', compact('data'));
+    }
+
+    public function previewBarcodePortrait()
+    {
+        $data = Product::whereNotNull('barcode')->get();
+        return view('admin.barcode_preview_portrait', compact('data'));
+    }
+
+    public function printBarcodeLandscape()
+    {
+        $data = Product::whereNotNull('barcode')->get();
+        return view('admin.barcode_landscape', compact('data'));
+    }
+
+    public function printBarcodePortrait()
+    {
+        $data = Product::whereNotNull('barcode')->get();
+        return view('admin.barcode_portrait', compact('data'));
     }
 
     public function downloadSingleBarcode($id)
