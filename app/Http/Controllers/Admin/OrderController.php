@@ -314,8 +314,28 @@ class OrderController extends Controller
 				
 				if ($orderItem) {
 					try {
-						ProductInventory::reduceStock($itemData['product_id'], $itemData['qty']);
+						if ($itemData['variant_id']) {
+							$variant = \App\Models\ProductVariant::find($itemData['variant_id']);
+							if ($variant) {
+								if ($variant->stock < $itemData['qty']) {
+									throw new OutOfStockException('The variant ' . $variant->sku . ' is out of stock. Available: ' . $variant->stock . ', Requested: ' . $itemData['qty']);
+								}
+								$variant->stock = max(0, $variant->stock - $itemData['qty']);
+								$variant->save();
+							} else {
+								throw new \Exception('Variant not found: ' . $itemData['variant_id']);
+							}
+						} else {
+							ProductInventory::reduceStock($itemData['product_id'], $itemData['qty']);
+						}
 					} catch (\Exception $e) {
+						Log::error('Stock reduction failed', [
+							'product_id' => $itemData['product_id'],
+							'variant_id' => $itemData['variant_id'],
+							'qty' => $itemData['qty'],
+							'error' => $e->getMessage()
+						]);
+						throw $e;
 					}
 				}
 			}
