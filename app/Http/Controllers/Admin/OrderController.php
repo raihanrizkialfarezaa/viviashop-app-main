@@ -530,21 +530,17 @@ class OrderController extends Controller
 					$variant = \App\Models\ProductVariant::with('variantAttributes')->find($variantId);
 					if ($variant && $variant->product_id == $product->id) {
 						foreach ($variant->variantAttributes as $variantAttribute) {
-							$attributes[] = [
-								'attribute' => $variantAttribute->attribute_name,
-								'value' => $variantAttribute->attribute_value,
-							];
+							$attributes[$variantAttribute->attribute_name] = $variantAttribute->attribute_value;
 						}
 					}
 				}
 			} elseif ($request->has('variant_attributes') && is_array($request->input('variant_attributes'))) {
-				$selectedAttributes = $request->input('variant_attributes');
-				foreach ($selectedAttributes as $attributeName => $attributeValue) {
-					if ($attributeValue) {
-						$attributes[] = [
-							'attribute' => $attributeName,
-							'value' => $attributeValue,
-						];
+				$variantAttributesInput = $request->input('variant_attributes');
+				if (isset($variantAttributesInput[$itemIndex]) && is_array($variantAttributesInput[$itemIndex])) {
+					foreach ($variantAttributesInput[$itemIndex] as $attributeName => $attributeValue) {
+						if ($attributeValue) {
+							$attributes[$attributeName] = $attributeValue;
+						}
 					}
 				}
 			}

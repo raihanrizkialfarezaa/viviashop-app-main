@@ -18,6 +18,7 @@ use App\Http\Requests\Admin\ProductRequest;
 use App\Services\ProductVariantService;
 use App\Imports\ProdukImport;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Exception;
 use RealRashid\SweetAlert\Facades\Alert;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProductTemplateExport;
@@ -322,6 +323,60 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'data' => $variantOptions
+        ]);
+    }
+
+    public function getAllVariants($id)
+    {
+        $product = Product::find($id);
+        
+        if (!$product) {
+            return response()->json(['success' => false, 'message' => 'Product not found'], 404);
+        }
+
+        // Check if product is configurable or simple with variants (like frontend)
+        $hasVariants = $product->activeVariants()->count() > 0;
+        $isConfigurable = $product->type == 'configurable' || 
+                         ($product->type == 'simple' && $hasVariants);
+
+        if (!$isConfigurable) {
+            return response()->json(['success' => false, 'message' => 'Product has no variants', 'data' => []]);
+        }
+
+        // Use activeVariants() like frontend and get variant's own stock
+        $variants = $product->activeVariants()
+            ->with(['variantAttributes'])
+            ->get()
+            ->map(function($variant) {
+                return [
+                    'id' => $variant->id,
+                    'sku' => $variant->sku,
+                    'name' => $variant->name,
+                    'price' => $variant->price,
+                    'formatted_price' => number_format($variant->price, 0, ',', '.'),
+                    'stock' => $variant->stock, // Use variant's own stock column
+                    'weight' => $variant->weight ?? 0,
+                    'variant_attributes' => $variant->variantAttributes->map(function($attr) {
+                        return [
+                            'attribute_name' => $attr->attribute_name,
+                            'attribute_value' => $attr->attribute_value
+                        ];
+                    })->toArray()
+                ];
+            });
+
+        // Get variant options like frontend
+        $variantOptions = [];
+        try {
+            $variantOptions = $product->getVariantOptions()->toArray();
+        } catch (Exception $e) {
+            $variantOptions = [];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $variants,
+            'variantOptions' => $variantOptions
         ]);
     }
 

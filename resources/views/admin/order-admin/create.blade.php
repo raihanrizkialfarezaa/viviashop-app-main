@@ -385,63 +385,429 @@ $('#product-table').on('click', '.select-product', function(){
 });
 
 function loadAttributesForProduct(productId, itemIndex) {
-    $.ajax({
-        url: `/admin/products/${productId}/variant-options`,
-        type: 'GET',
-        success: function(response) {
-            if (response.success && response.data && Object.keys(response.data).length > 0) {
-                renderVariantOptions(response.data, itemIndex, productId);
-            } else {
-                $(`#attribute-section-${itemIndex}`).html('<p class="text-muted"><small>No variants available for this product</small></p>');
-            }
-        },
-        error: function() {
-            $(`#attribute-section-${itemIndex}`).html('<p class="text-danger"><small>Error loading variants</small></p>');
+    console.log('Loading variants for product:', productId);
+    
+    // Fetch variants using the updated API
+    fetch(`/admin/products/${productId}/all-variants`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Variants API response:', data);
+        if (data.success && data.data.length > 0) {
+            console.log('Using frontend-style variant selection with', data.data.length, 'variants');
+            renderFrontendStyleVariants(data.data, data.variantOptions, itemIndex, productId);
+        } else {
+            console.log('No variants found or not configurable');
+            $(`#attribute-section-${itemIndex}`).html('<p class="text-muted"><small>No variants available for this product</small></p>');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading variants:', error);
+        $(`#attribute-section-${itemIndex}`).html('<p class="text-danger"><small>Error loading variants</small></p>');
     });
 }
 
-function renderVariantOptions(variantOptions, itemIndex, productId) {
-    let attributeHtml = '<div class="border-top pt-3"><h6>Product Variants:</h6>';
+function renderFrontendStyleVariants(variants, variantOptions, itemIndex, productId) {
+    if (!variants || variants.length === 0) {
+        $(`#attribute-section-${itemIndex}`).html('<p class="text-muted"><small>No variants available for this product</small></p>');
+        return;
+    }
+
+    let variantHtml = '<div class="border-top pt-3"><h6>Select Product Variant:</h6>';
     
-    Object.keys(variantOptions).forEach(attributeName => {
-        const options = variantOptions[attributeName];
-        attributeHtml += `
-            <div class="form-group mb-3">
-                <label class="font-weight-bold">${attributeName.charAt(0).toUpperCase() + attributeName.slice(1)}:</label>
-                <select class="form-control variant-attribute-select" 
-                        name="variant_attributes[${itemIndex}][${attributeName}]" 
-                        data-attribute="${attributeName}" 
-                        data-item-index="${itemIndex}" 
-                        data-product-id="${productId}" 
-                        required>
-                    <option value="">Pilih ${attributeName}</option>
-        `;
-        
-        options.forEach(option => {
-            attributeHtml += `<option value="${option}">${option}</option>`;
+    // Create variant option buttons like frontend
+    if (variantOptions && Object.keys(variantOptions).length > 0) {
+        Object.entries(variantOptions).forEach(([attributeName, options]) => {
+            variantHtml += `
+                <div class="variant-group mb-3">
+                    <label class="form-label fw-bold">${attributeName.charAt(0).toUpperCase() + attributeName.slice(1)}:</label>
+                    <div class="variant-options d-flex flex-wrap gap-2" data-attribute="${attributeName}">
+            `;
+            
+            options.forEach(option => {
+                variantHtml += `
+                    <button type="button" 
+                            class="btn btn-outline-secondary variant-option" 
+                            data-attribute="${attributeName}" 
+                            data-value="${option}"
+                            data-item-index="${itemIndex}">
+                        ${option}
+                    </button>
+                `;
+            });
+            
+            variantHtml += `
+                    </div>
+                </div>
+            `;
         });
         
-        attributeHtml += `
-                </select>
+        variantHtml += `
+            <div id="variant-info-${itemIndex}" class="mt-3" style="display: none;">
+                <div class="alert alert-success">
+                    <h6 class="mb-2"><i class="fas fa-check-circle"></i> <strong>Varian Terpilih:</strong></h6>
+                    <div class="variant-name mb-2">
+                        <strong>Nama:</strong> <span id="variant-name-${itemIndex}" class="text-dark">-</span>
+                    </div>
+                    <div class="variant-attributes mb-2">
+                        <strong>Spesifikasi:</strong> <span id="variant-attributes-${itemIndex}" class="text-muted">-</span>
+                    </div>
+                    <div class="row">
+                        <div class="col-4">
+                            <small><strong>SKU:</strong> <span id="variant-sku-${itemIndex}">-</span></small>
+                        </div>
+                        <div class="col-4">
+                            <small><strong>Stok:</strong> <span id="variant-stock-${itemIndex}">-</span></small>
+                        </div>
+                        <div class="col-4">
+                            <small><strong>Harga:</strong> <span id="variant-price-${itemIndex}">-</span></small>
+                        </div>
+                    </div>
+                </div>
             </div>
+            
+            <div id="selection-message-${itemIndex}" class="alert alert-warning mt-2">
+                <i class="fas fa-info-circle"></i> Pilih varian untuk melanjutkan
+            </div>
+            
+            <input type="hidden" name="variant_id[${itemIndex}]" id="selected-variant-id-${itemIndex}" value="">
         `;
+    } else {
+        // Fallback to simple dropdown if no variant options
+        variantHtml += renderSimpleVariantDropdown(variants, itemIndex);
+    }
+    
+    variantHtml += '</div>';
+    
+    $(`#attribute-section-${itemIndex}`).html(variantHtml);
+    
+    // Initialize variant system for this item
+    initializeVariantSystem(itemIndex, variants, variantOptions);
+}
+
+function renderSimpleVariantDropdown(variants, itemIndex) {
+    let html = `
+        <div class="form-group mb-3">
+            <label class="font-weight-bold">Available Variants:</label>
+            <select class="form-control variant-select" 
+                    name="variant_id[${itemIndex}]" 
+                    data-item-index="${itemIndex}" 
+                    required>
+                <option value="">Select Variant</option>
+    `;
+    
+    variants.forEach(variant => {
+        let variantLabel = variant.sku;
+        if (variant.variant_attributes && variant.variant_attributes.length > 0) {
+            const attrs = variant.variant_attributes.map(attr => `${attr.attribute_name}: ${attr.attribute_value}`).join(', ');
+            variantLabel += ` (${attrs})`;
+        }
+        variantLabel += ` - Rp ${new Intl.NumberFormat('id-ID').format(variant.price)}`;
+        if (variant.stock !== undefined) {
+            variantLabel += ` (Stock: ${variant.stock})`;
+        }
+        
+        html += `<option value="${variant.id}" data-price="${variant.price}" data-sku="${variant.sku}" data-stock="${variant.stock || 0}">${variantLabel}</option>`;
     });
     
-    attributeHtml += `
+    html += `
+            </select>
+        </div>
+    `;
+    
+    return html;
+}
+
+function initializeVariantSystem(itemIndex, allVariants, variantOptions) {
+    if (!variantOptions || Object.keys(variantOptions).length === 0) {
+        // Simple dropdown mode
+        $(`.variant-select[data-item-index="${itemIndex}"]`).on('change', function() {
+            const selectedOption = $(this).find('option:selected');
+            if (selectedOption.val()) {
+                updatePriceField(itemIndex, selectedOption.data('price'));
+            }
+        });
+        return;
+    }
+    
+    // Frontend-style variant selection
+    let selectedAttributes = {};
+    
+    $(`.variant-option[data-item-index="${itemIndex}"]`).on('click', function() {
+        const attributeName = $(this).data('attribute');
+        const value = $(this).data('value');
+        const currentItemIndex = $(this).data('item-index');
+        
+        if ($(this).hasClass('disabled')) return;
+        
+        // Toggle selection
+        if (selectedAttributes[attributeName] === value) {
+            delete selectedAttributes[attributeName];
+            $(this).removeClass('btn-primary').addClass('btn-outline-secondary');
+        } else {
+            // Clear other selections for this attribute
+            $(`.variant-option[data-attribute="${attributeName}"][data-item-index="${currentItemIndex}"]`)
+                .removeClass('btn-primary').addClass('btn-outline-secondary');
+            
+            selectedAttributes[attributeName] = value;
+            $(this).removeClass('btn-outline-secondary').addClass('btn-primary');
+        }
+        
+        updateAvailableOptions(currentItemIndex, selectedAttributes, allVariants, variantOptions);
+    });
+}
+
+function updateAvailableOptions(itemIndex, selectedAttributes, allVariants, variantOptions) {
+    const possibleVariants = filterPossibleVariants(selectedAttributes, allVariants);
+    const newAvailableOptions = extractAvailableOptions(possibleVariants, variantOptions);
+    
+    // Update button states
+    Object.keys(variantOptions).forEach(attributeName => {
+        const buttons = $(`.variant-option[data-attribute="${attributeName}"][data-item-index="${itemIndex}"]`);
+        buttons.each(function() {
+            const value = $(this).data('value');
+            const isAvailable = newAvailableOptions[attributeName]?.includes(value);
+            const isSelected = selectedAttributes[attributeName] === value;
+            
+            $(this).prop('disabled', !isAvailable && !isSelected);
+            
+            if (!isAvailable && !isSelected) {
+                $(this).removeClass('btn-outline-secondary btn-primary').addClass('btn-outline-danger');
+                $(this).attr('title', 'Tidak tersedia untuk kombinasi yang dipilih');
+            } else if (!isSelected) {
+                $(this).removeClass('btn-primary btn-outline-danger').addClass('btn-outline-secondary');
+                $(this).removeAttr('title');
+            }
+        });
+    });
+    
+    // Check for exact variant match
+    const exactVariant = findExactVariant(selectedAttributes, allVariants);
+    
+    if (exactVariant) {
+        updateVariantDisplay(itemIndex, exactVariant);
+        updatePriceField(itemIndex, exactVariant.price);
+    } else {
+        resetVariantDisplay(itemIndex);
+    }
+}
+
+function filterPossibleVariants(selectedAttributes, allVariants) {
+    return allVariants.filter(variant => {
+        return Object.entries(selectedAttributes).every(([attrName, attrValue]) => {
+            return variant.variant_attributes.some(attr => 
+                attr.attribute_name === attrName && attr.attribute_value === attrValue
+            );
+        });
+    });
+}
+
+function extractAvailableOptions(variants, variantOptions) {
+    const options = {};
+    Object.keys(variantOptions).forEach(attributeName => {
+        options[attributeName] = [...new Set(
+            variants.flatMap(variant => 
+                variant.variant_attributes
+                    .filter(attr => attr.attribute_name === attributeName)
+                    .map(attr => attr.attribute_value)
+            )
+        )];
+    });
+    return options;
+}
+
+function findExactVariant(selectedAttributes, allVariants) {
+    if (Object.keys(selectedAttributes).length === 0) {
+        return null;
+    }
+    
+    return allVariants.find(variant => {
+        return Object.entries(selectedAttributes).every(([attrName, attrValue]) => {
+            return variant.variant_attributes.some(attr => 
+                attr.attribute_name === attrName && attr.attribute_value === attrValue
+            );
+        });
+    });
+}
+
+function updateVariantDisplay(itemIndex, variant) {
+    $(`#variant-name-${itemIndex}`).text(variant.name);
+    $(`#variant-sku-${itemIndex}`).text(variant.sku);
+    $(`#variant-stock-${itemIndex}`).text(variant.stock);
+    $(`#variant-price-${itemIndex}`).text(`Rp ${new Intl.NumberFormat('id-ID').format(variant.price)}`);
+    
+    const attributesList = variant.variant_attributes
+        .map(attr => `${attr.attribute_name}: ${attr.attribute_value}`)
+        .join(', ');
+    $(`#variant-attributes-${itemIndex}`).text(attributesList);
+    
+    $(`#selected-variant-id-${itemIndex}`).val(variant.id);
+    
+    $(`#variant-info-${itemIndex}`).show();
+    $(`#selection-message-${itemIndex}`).hide();
+}
+
+function resetVariantDisplay(itemIndex) {
+    $(`#selected-variant-id-${itemIndex}`).val('');
+    $(`#variant-info-${itemIndex}`).hide();
+    $(`#selection-message-${itemIndex}`).show();
+}
+
+function updatePriceField(itemIndex, price) {
+    // Update any price fields if they exist
+    const priceField = $(`#price-${itemIndex}`);
+    if (priceField.length) {
+        priceField.val(price);
+    }
+}
+
+function renderVariantDropdown(variants, itemIndex, productId) {
+    if (!variants || variants.length === 0) {
+        $(`#attribute-section-${itemIndex}`).html('<p class="text-muted"><small>No variants available for this product</small></p>');
+        return;
+    }
+
+    let variantHtml = '<div class="border-top pt-3"><h6>Select Product Variant:</h6>';
+    
+    variantHtml += `
+        <div class="form-group mb-3">
+            <label class="font-weight-bold">Available Variants (Select One Only):</label>
+            <select class="form-control variant-select" 
+                    name="variant_id[${itemIndex}]" 
+                    data-item-index="${itemIndex}" 
+                    data-product-id="${productId}" 
+                    required>
+                <option value="">Pilih Variant</option>
+    `;
+    
+    variants.forEach(variant => {
+        let variantLabel = variant.sku;
+        if (variant.variant_attributes && variant.variant_attributes.length > 0) {
+            const attrs = variant.variant_attributes.map(attr => `${attr.attribute_name}: ${attr.attribute_value}`).join(', ');
+            variantLabel += ` (${attrs})`;
+        }
+        variantLabel += ` - Rp ${new Intl.NumberFormat('id-ID').format(variant.price)}`;
+        if (variant.stock !== undefined) {
+            variantLabel += ` (Stock: ${variant.stock})`;
+        }
+        
+        const isDisabled = selectedVariants.has(variant.id) ? 'disabled' : '';
+        const disabledText = selectedVariants.has(variant.id) ? ' (Already Selected)' : '';
+        
+        variantHtml += `<option value="${variant.id}" data-price="${variant.price}" data-sku="${variant.sku}" data-stock="${variant.stock || 0}" ${isDisabled}>${variantLabel}${disabledText}</option>`;
+    });
+    
+    variantHtml += `
+            </select>
+            <small class="text-muted">Note: Only one variant can be selected per order item.</small>
+        </div>
         <div class="variant-info mt-3" id="variant-info-${itemIndex}" style="display: none;">
             <div class="alert alert-info">
                 <strong>Selected Variant:</strong><br>
                 <span id="variant-details-${itemIndex}"></span>
             </div>
-            <input type="hidden" name="variant_id[${itemIndex}]" id="variant-id-${itemIndex}">
         </div>
     </div>`;
     
-    $(`#attribute-section-${itemIndex}`).html(attributeHtml);
+    $(`#attribute-section-${itemIndex}`).html(variantHtml);
     
-    $(`.variant-attribute-select[data-item-index="${itemIndex}"]`).on('change', function() {
-        updateVariantSelection(itemIndex, productId);
+    $(`.variant-select[data-item-index="${itemIndex}"]`).on('change', function() {
+        updateSelectedVariant(itemIndex);
+    });
+}
+
+function updateSelectedVariant(itemIndex) {
+    const variantSelect = $(`.variant-select[data-item-index="${itemIndex}"]`);
+    const selectedOption = variantSelect.find('option:selected');
+    const previousVariantId = variantSelect.data('previous-variant-id');
+    
+    if (previousVariantId) {
+        selectedVariants.delete(previousVariantId);
+    }
+    
+    if (selectedOption.val()) {
+        const variantId = selectedOption.val();
+        const price = selectedOption.data('price');
+        const sku = selectedOption.data('sku');
+        const stock = selectedOption.data('stock');
+        
+        selectedVariants.add(variantId);
+        variantSelect.data('previous-variant-id', variantId);
+        
+        $(`#variant-details-${itemIndex}`).html(`
+            SKU: ${sku}<br>
+            Price: Rp ${new Intl.NumberFormat('id-ID').format(price)}<br>
+            Stock: ${stock}
+        `);
+        $(`#variant-info-${itemIndex}`).show();
+        
+        const qtyInput = $(`#qty-${itemIndex}`);
+        if (qtyInput.length) {
+            qtyInput.attr('max', stock);
+            if (stock === 0) {
+                qtyInput.val(0).prop('disabled', true);
+            } else {
+                qtyInput.prop('disabled', false);
+                if (qtyInput.val() > stock) {
+                    qtyInput.val(stock);
+                }
+            }
+        }
+        
+        updateAllVariantDropdowns();
+    } else {
+        variantSelect.removeData('previous-variant-id');
+        $(`#variant-info-${itemIndex}`).hide();
+        const qtyInput = $(`#qty-${itemIndex}`);
+        if (qtyInput.length) {
+            qtyInput.removeAttr('max').prop('disabled', false);
+        }
+        
+        updateAllVariantDropdowns();
+    }
+}
+
+function resetVariantSelections() {
+    selectedVariants.clear();
+    $('.variant-select').each(function() {
+        const itemIndex = $(this).data('item-index');
+        $(this).val('').trigger('change');
+        $(`#variant-info-${itemIndex}`).hide();
+    });
+    $('.variant-attribute-select').each(function() {
+        const itemIndex = $(this).data('item-index');
+        $(this).val('').trigger('change');
+        $(`#variant-info-${itemIndex}`).hide();
+        $(`#variant-id-${itemIndex}`).val('');
+    });
+}
+
+function updateAllVariantDropdowns() {
+    $('.variant-select').each(function() {
+        const currentSelect = $(this);
+        const currentValue = currentSelect.val();
+        
+        currentSelect.find('option').each(function() {
+            const option = $(this);
+            const variantId = option.val();
+            
+            if (variantId && variantId !== currentValue) {
+                if (selectedVariants.has(variantId)) {
+                    option.prop('disabled', true);
+                    if (!option.text().includes('(Already Selected)')) {
+                        option.text(option.text() + ' (Already Selected)');
+                    }
+                } else {
+                    option.prop('disabled', false);
+                    option.text(option.text().replace(' (Already Selected)', ''));
+                }
+            }
+        });
     });
 }
 
@@ -523,7 +889,7 @@ function addProductToOrder(product) {
                 </div>
                 <div class="col-md-3">
                     <label>Qty</label>
-                    <input type="number" name="qty[]" class="form-control" value="1" min="1" required>
+                    <input type="number" name="qty[]" id="qty-${itemIndex}" class="form-control" value="1" min="1" required>
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
                     <button type="button" class="btn btn-danger btn-sm remove-item">Remove</button>
@@ -541,12 +907,31 @@ function addProductToOrder(product) {
 }
 
   $('#order-items').on('click','.remove-item', function(){
-    $(this).closest('.order-item').remove();
+    const orderItem = $(this).closest('.order-item');
+    const variantSelect = orderItem.find('.variant-select');
+    
+    if (variantSelect.length) {
+        const variantId = variantSelect.val();
+        if (variantId) {
+            selectedVariants.delete(variantId);
+        }
+    }
+    
+    orderItem.remove();
+    updateAllVariantDropdowns();
   });
 
   document.addEventListener('click', function(e) {
     if (e.target.classList.contains('remove-item')) {
-        e.target.closest('.order-item').remove();
+        const orderItem = e.target.closest('.order-item');
+        const variantSelect = orderItem.querySelector('.variant-select');
+        
+        if (variantSelect && variantSelect.value) {
+            selectedVariants.delete(variantSelect.value);
+        }
+        
+        orderItem.remove();
+        updateAllVariantDropdowns();
     }
   });
 </script>
@@ -572,6 +957,7 @@ $("#image").on("change", function () {
 
 $(document).ready(function() {
     let productIndex = 1;
+    let selectedVariants = new Set();
 
     // Initialize button visibility based on default payment method
     const initialPaymentMethod = $('#payment_method').val();
@@ -635,6 +1021,21 @@ function validateForm() {
         alert('Please add at least one product to the order');
         return false;
     }
+    
+    const selectedVariantIds = [];
+    const variantSelects = document.querySelectorAll('.variant-select');
+    
+    for (let select of variantSelects) {
+        const variantId = select.value;
+        if (variantId) {
+            if (selectedVariantIds.includes(variantId)) {
+                alert('You cannot select the same product variant multiple times. Please choose different variants.');
+                return false;
+            }
+            selectedVariantIds.push(variantId);
+        }
+    }
+    
     return true;
 }
 
