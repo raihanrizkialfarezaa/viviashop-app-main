@@ -130,7 +130,8 @@ class EmployeePerformanceController extends Controller
 
     public function bonusForm(Request $request)
     {
-        return view('admin.employee-performance.bonus');
+        $employees = EmployeePerformance::getEmployeeList();
+        return view('admin.employee-performance.bonus', compact('employees'));
     }
 
     public function giveBonus(Request $request)
@@ -162,6 +163,139 @@ class EmployeePerformanceController extends Controller
         return response()->json([
             'success' => true,
             'message' => $message
+        ]);
+    }
+
+    public function bonusList()
+    {
+        $employees = EmployeePerformance::getEmployeeList();
+        return view('admin.employee-performance.bonus-list', compact('employees'));
+    }
+
+    public function bonusData(Request $request)
+    {
+        $query = EmployeeBonus::with('givenBy');
+
+        if ($request->has('employee') && $request->employee) {
+            if ($request->employee === 'general') {
+                $query->whereNull('employee_name');
+            } else {
+                $query->where('employee_name', $request->employee);
+            }
+        }
+
+        if ($request->has('period') && $request->period) {
+            $period = $request->period;
+            $now = Carbon::now();
+            
+            switch ($period) {
+                case 'today':
+                    $query->whereDate('given_at', $now->toDateString());
+                    break;
+                case 'week':
+                    $query->whereBetween('given_at', [$now->startOfWeek(), $now->endOfWeek()]);
+                    break;
+                case 'month':
+                    $query->whereMonth('given_at', $now->month)
+                          ->whereYear('given_at', $now->year);
+                    break;
+                case 'year':
+                    $query->whereYear('given_at', $now->year);
+                    break;
+            }
+        }
+
+        if ($request->has('description') && $request->description) {
+            $query->where('description', 'like', '%' . $request->description . '%');
+        }
+
+        return DataTables::of($query)
+            ->addColumn('employee_display', function ($row) {
+                return $row->employee_name ?: 'All Active Employees';
+            })
+            ->addColumn('formatted_amount', function ($row) {
+                return 'Rp ' . number_format($row->bonus_amount, 0, ',', '.');
+            })
+            ->addColumn('period_display', function ($row) {
+                $start = $row->period_start ? $row->period_start->format('d/m/Y') : '-';
+                $end = $row->period_end ? $row->period_end->format('d/m/Y') : '-';
+                return $start . ' - ' . $end;
+            })
+            ->addColumn('given_by_name', function ($row) {
+                return $row->givenBy ? $row->givenBy->name : 'Unknown';
+            })
+            ->addColumn('formatted_given_at', function ($row) {
+                return $row->given_at ? $row->given_at->format('d/m/Y H:i') : '-';
+            })
+            ->addColumn('actions', function ($row) {
+                return '<div class="btn-group">
+                    <a href="' . route('admin.employee-performance.bonusDetail', $row->id) . '" class="btn btn-sm btn-info">
+                        <i class="fas fa-eye"></i> Detail
+                    </a>
+                    <a href="' . route('admin.employee-performance.bonusEdit', $row->id) . '" class="btn btn-sm btn-warning">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                </div>';
+            })
+            ->rawColumns(['actions'])
+            ->make(true);
+    }
+
+    public function bonusDetail($id)
+    {
+        $bonus = EmployeeBonus::with('givenBy')->findOrFail($id);
+        return view('admin.employee-performance.bonus-detail', compact('bonus'));
+    }
+
+    public function bonusEdit($id)
+    {
+        $bonus = EmployeeBonus::with('givenBy')->findOrFail($id);
+        $employees = EmployeePerformance::getEmployeeList();
+        return view('admin.employee-performance.bonus-edit', compact('bonus', 'employees'));
+    }
+
+    public function bonusUpdate(Request $request, $id)
+    {
+        $request->validate([
+            'employee_name' => 'nullable|string|max:255',
+            'amount' => 'required|numeric|min:1000',
+            'period_start' => 'required|date',
+            'period_end' => 'required|date|after_or_equal:period_start',
+            'description' => 'required|string|max:500',
+            'notes' => 'nullable|string|max:1000'
+        ]);
+
+        $bonus = EmployeeBonus::findOrFail($id);
+        
+        $bonus->update([
+            'employee_name' => $request->employee_name ?: null,
+            'bonus_amount' => $request->amount,
+            'period_start' => $request->period_start,
+            'period_end' => $request->period_end,
+            'description' => $request->description,
+            'notes' => $request->notes,
+        ]);
+
+        $message = $request->employee_name 
+            ? "Bonus untuk {$request->employee_name} berhasil diupdate!" 
+            : "Bonus untuk semua karyawan berhasil diupdate!";
+
+        return response()->json([
+            'success' => true,
+            'message' => $message
+        ]);
+    }
+
+    public function bonusDelete($id)
+    {
+        $bonus = EmployeeBonus::findOrFail($id);
+        $employeeName = $bonus->employee_name ?: 'semua karyawan';
+        
+        $bonus->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Bonus untuk {$employeeName} berhasil dihapus!"
         ]);
     }
 

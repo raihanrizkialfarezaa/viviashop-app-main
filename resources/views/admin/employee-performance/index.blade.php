@@ -69,9 +69,14 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <a href="{{ route('admin.employee-performance.bonus') }}" class="btn btn-success">
-                                    <i class="fas fa-gift"></i> Give Bonus
-                                </a>
+                                <div class="btn-group w-100">
+                                    <a href="{{ route('admin.employee-performance.bonus') }}" class="btn btn-success">
+                                        <i class="fas fa-gift"></i> Give Bonus
+                                    </a>
+                                    <a href="{{ route('admin.employee-performance.bonusList') }}" class="btn btn-info">
+                                        <i class="fas fa-list"></i> Manage Bonuses
+                                    </a>
+                                </div>
                             </div>
                         </div>
 

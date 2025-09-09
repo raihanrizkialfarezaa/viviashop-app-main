@@ -77,6 +77,22 @@ Route::get('/test-employee-performance-bonus-form', function () {
     return $response;
 })->name('test-employee-performance-bonus-form');
 
+Route::get('/test-bonus-management', function () {
+    $admin = \App\Models\User::where('is_admin', 1)->first();
+    if (!$admin) {
+        return response()->json(['error' => 'No admin user found'], 404);
+    }
+    
+    \Illuminate\Support\Facades\Auth::login($admin);
+    
+    $controller = new \App\Http\Controllers\Admin\EmployeePerformanceController();
+    
+    $request = \Illuminate\Http\Request::create('/admin/employee-performance/bonus/list', 'GET');
+    $response = $controller->bonusList();
+    
+    return $response;
+})->name('test-bonus-management');
+
 Route::get('/test-employee-performance-view', function () {
     $totalTransactions = \App\Models\EmployeePerformance::count();
     $totalRevenue = \App\Models\EmployeePerformance::sum('transaction_value');
@@ -882,6 +898,12 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     Route::get('employee-performance', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'index'])->name('employee-performance.index');
     Route::get('employee-performance/data', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'data'])->name('employee-performance.data');
     Route::get('employee-performance/bonus', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'bonusForm'])->name('employee-performance.bonus');
+    Route::get('employee-performance/bonus/list', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'bonusList'])->name('employee-performance.bonusList');
+    Route::get('employee-performance/bonus/data', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'bonusData'])->name('employee-performance.bonusData');
+    Route::get('employee-performance/bonus/{id}/detail', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'bonusDetail'])->name('employee-performance.bonusDetail');
+    Route::get('employee-performance/bonus/{id}/edit', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'bonusEdit'])->name('employee-performance.bonusEdit');
+    Route::put('employee-performance/bonus/{id}', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'bonusUpdate'])->name('employee-performance.bonusUpdate');
+    Route::delete('employee-performance/bonus/{id}', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'bonusDelete'])->name('employee-performance.bonusDelete');
     Route::get('employee-performance/{employee}', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'show'])->name('employee-performance.show');
     Route::post('employee-performance/bonus', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'giveBonus'])->name('employee-performance.giveBonus');
     Route::get('employee-performance-bonus-history', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'bonusHistory'])->name('employee-performance.bonusHistory');
