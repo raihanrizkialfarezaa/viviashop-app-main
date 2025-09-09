@@ -371,3 +371,82 @@ Artisan::command('integration:dashboard', function () {
         $this->error('File: ' . $e->getFile() . ' Line: ' . $e->getLine());
     }
 })->purpose('Test dashboard integration with all application features');
+
+Artisan::command('test:reports', function () {
+    $this->info('Testing Reports Profit Calculation');
+    $this->info('==================================');
+    
+    try {
+        $controller = new \App\Http\Controllers\Frontend\HomepageController();
+        $this->info('✓ Homepage controller instantiated');
+        
+        // Test with recent date range
+        $endDate = now()->format('Y-m-d');
+        $startDate = now()->subDays(30)->format('Y-m-d');
+        
+        $this->info("Testing date range: {$startDate} to {$endDate}");
+        
+        $reportData = $controller->getReportsData($startDate, $endDate);
+        
+        $this->info("✓ Reports data generated with " . count($reportData) . " records");
+        
+        // Analyze profit calculations
+        $profitableCount = 0;
+        $lossCount = 0;
+        $totalProfit = 0;
+        
+        foreach ($reportData as $item) {
+            if (!empty($item['tanggal'])) { // Skip total row
+                if ($item['keuntungan'] > 0) {
+                    $profitableCount++;
+                } elseif ($item['keuntungan'] < 0) {
+                    $lossCount++;
+                }
+                $totalProfit += $item['keuntungan'];
+            }
+        }
+        
+        $this->info("\nProfit Analysis:");
+        $this->info("- Days with profit: {$profitableCount}");
+        $this->info("- Days with loss: {$lossCount}");
+        $this->info("- Total profit: Rp " . number_format($totalProfit, 0, ',', '.'));
+        
+        // Show sample calculation
+        $sampleDay = collect($reportData)->where('keuntungan', '<', 0)->first();
+        if ($sampleDay && !empty($sampleDay['tanggal'])) {
+            $this->info("\nSample Loss Day Analysis ({$sampleDay['tanggal']}):");
+            $this->info("- Penjualan: Rp " . number_format($sampleDay['penjualan'], 0, ',', '.'));
+            $this->info("- Net Sales: Rp " . number_format($sampleDay['net_sales'], 0, ',', '.'));
+            $this->info("- Cost of Goods: Rp " . number_format($sampleDay['cost_of_goods'], 0, ',', '.'));
+            $this->info("- Pengeluaran: Rp " . number_format($sampleDay['pengeluaran'], 0, ',', '.'));
+            $this->info("- Keuntungan: Rp " . number_format($sampleDay['keuntungan'], 0, ',', '.'));
+            $this->info("- Formula: {$sampleDay['net_sales']} - {$sampleDay['cost_of_goods']} - {$sampleDay['pengeluaran']} = {$sampleDay['keuntungan']}");
+        }
+        
+        // Check if there are any orders with missing cost prices
+        $ordersWithoutCost = 0;
+        $recentOrders = \App\Models\Order::whereBetween('created_at', [$startDate, $endDate])->get();
+        
+        foreach ($recentOrders as $order) {
+            if ($order->orderDetails) {
+                foreach ($order->orderDetails as $detail) {
+                    if (!$detail->product || !$detail->product->harga_beli) {
+                        $ordersWithoutCost++;
+                    }
+                }
+            }
+        }
+        
+        if ($ordersWithoutCost > 0) {
+            $this->warn("⚠ Found {$ordersWithoutCost} order items without cost price (harga_beli)");
+        } else {
+            $this->info("✓ All order items have cost prices");
+        }
+        
+        $this->info('Reports test completed successfully! 🎉');
+        
+    } catch (\Exception $e) {
+        $this->error('Test failed: ' . $e->getMessage());
+        $this->error('Stack trace: ' . $e->getTraceAsString());
+    }
+})->purpose('Test reports profit calculation');

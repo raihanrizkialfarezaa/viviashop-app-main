@@ -154,59 +154,77 @@ class HomepageController extends Controller
         $total_penjualan_seluruh = 0;
         $total_pengeluaran_seluruh = 0;
 
-        while (strtotime($awal) <= strtotime($akhir)) {
-            $tanggal = $awal;
-            $awal = date('Y-m-d', strtotime("+1 day", strtotime($awal)));
+        $currentDate = $awal;
+        while (strtotime($currentDate) <= strtotime($akhir)) {
+            $tanggal = $currentDate;
+            $currentDate = date('Y-m-d', strtotime("+1 day", strtotime($currentDate)));
 
-            $total_penjualan = Order::where('payment_status', 'paid')->where('order_date', 'LIKE', "$tanggal%")->orWhere('created_at', 'LIKE', "%$tanggal")->sum('grand_total');
-            $order = Order::where('payment_status', 'paid')->where('order_date', 'LIKE', "$tanggal%")->orWhere('created_at', 'LIKE', "%$tanggal")->get();
-            $total_pembelian = Pembelian::where('waktu', 'LIKE', "%$tanggal%")->orWhere('created_at', 'LIKE', "%$tanggal%")->sum('bayar');
-            $total_pengeluaran = Pengeluaran::where('created_at', 'LIKE', "%$tanggal%")->sum('nominal');
-            $total_shipping = Order::where('payment_status', 'paid')->where('order_date', 'LIKE', "$tanggal%")->sum('shipping_cost');
-            $total_base_price = 0;
-            // dd($order->count());
+            $total_penjualan = Order::where('payment_status', 'paid')
+                ->where('grand_total', '>', 0)
+                ->whereDate('created_at', $tanggal)
+                ->sum('grand_total');
 
-            if ($order->count() > 1) {
-                foreach ($order as $orders) {
-                    $order_items = OrderItem::where('order_id', $orders->id)->get();
+            $orders = Order::where('payment_status', 'paid')
+                ->where('grand_total', '>', 0)
+                ->whereDate('created_at', $tanggal)
+                ->with('orderItems.product')
+                ->get();
 
-                    foreach($order_items as $orderr) {
-                        $base_price = $orderr->product->harga_beli * $orderr->qty;
-                        $total_base_price += $base_price;
+            $total_pembelian = Pembelian::whereDate('created_at', $tanggal)
+                ->sum('total_harga');
+
+            $total_pengeluaran = Pengeluaran::whereDate('created_at', $tanggal)
+                ->sum('nominal');
+
+            $total_shipping = Order::where('payment_status', 'paid')
+                ->where('grand_total', '>', 0)
+                ->whereDate('created_at', $tanggal)
+                ->sum('shipping_cost');
+
+            $total_cost_of_goods = 0;
+            $total_profit_margin = 0;
+
+            foreach ($orders as $order) {
+                if ($order->orderItems) {
+                    foreach ($order->orderItems as $orderItem) {
+                        if ($orderItem->product && $orderItem->product->harga_beli) {
+                            $cost_price = $orderItem->product->harga_beli;
+                            $selling_price = $orderItem->base_price;
+                            
+                            if ($selling_price <= 0 || $selling_price < ($cost_price * 0.1)) {
+                                $selling_price = $orderItem->product->price;
+                            }
+                            
+                            $qty = $orderItem->qty;
+                            
+                            $total_cost_of_goods += ($cost_price * $qty);
+                            $profit_per_item = $selling_price - $cost_price;
+                            $total_profit_margin += ($profit_per_item * $qty);
+                        }
                     }
-                }
-            } elseif($order->count() < 1 || $order->count() == 0) {
-                $total_base_price = 0;
-            } else {
-                // dd($order[0]->id);
-                $order_items = OrderItem::where('order_id', $order[0]->id)->get();
-
-                foreach($order_items as $order) {
-                    $base_price = $order->product->price * $order->qty;
-                    $total_base_price += ($order->base_total - $base_price);
                 }
             }
 
-            $keuntungan = ($total_penjualan - $total_shipping) - $total_base_price;
-            $total_keuntungan += $keuntungan;
+            $net_sales = $total_penjualan - $total_shipping;
+            $keuntungan = $total_profit_margin - $total_pengeluaran;
 
+            $total_keuntungan += $keuntungan;
             $pendapatan = $total_penjualan;
             $total_pendapatan += $pendapatan;
-
             $total_pembelian_seluruh += $total_pembelian;
             $total_penjualan_seluruh += $total_penjualan;
             $total_pengeluaran_seluruh += $total_pengeluaran;
 
             $row = array();
             $row['DT_RowIndex'] = $no++;
-            $row['tanggal'] = tanggal_indonesia($tanggal, false);
-            $row['penjualan'] = format_uang($total_penjualan);
-            $row['pembelian'] = format_uang($total_pembelian);
-            $row['pengeluaran'] = format_uang($total_pengeluaran);
-            $row['pendapatan'] = format_uang($pendapatan);
-            $row['keuntungan'] = format_uang($keuntungan);
             $row['tanggal'] = $tanggal;
-            $row['total_base_price'] = $total_base_price;
+            $row['penjualan'] = $total_penjualan;
+            $row['pembelian'] = $total_pembelian;
+            $row['pengeluaran'] = $total_pengeluaran;
+            $row['pendapatan'] = $pendapatan;
+            $row['keuntungan'] = $keuntungan;
+            $row['cost_of_goods'] = $total_cost_of_goods;
+            $row['net_sales'] = $net_sales;
 
             $data[] = $row;
         }
@@ -214,11 +232,13 @@ class HomepageController extends Controller
         $data[] = [
             'DT_RowIndex' => '',
             'tanggal' => '',
-            'penjualan' => format_uang($total_penjualan_seluruh),
-            'pembelian' => format_uang($total_pembelian_seluruh),
-            'pengeluaran' => format_uang($total_pengeluaran_seluruh),
-            'pendapatan' => format_uang($total_pendapatan),
-            'keuntungan' => format_uang($total_keuntungan),
+            'penjualan' => $total_penjualan_seluruh,
+            'pembelian' => $total_pembelian_seluruh,
+            'pengeluaran' => $total_pengeluaran_seluruh,
+            'pendapatan' => $total_pendapatan,
+            'keuntungan' => $total_keuntungan,
+            'cost_of_goods' => 0,
+            'net_sales' => 0,
         ];
 
         return $data;
@@ -226,10 +246,57 @@ class HomepageController extends Controller
 
     public function data($awal, $akhir)
     {
-        $data = $this->getReportsData($awal, $akhir);
+        $rawData = $this->getReportsData($awal, $akhir);
+        
+        $formattedData = collect($rawData)->map(function($item) {
+            if (empty($item['tanggal'])) {
+                return [
+                    'DT_RowIndex' => '<strong>TOTAL</strong>',
+                    'tanggal' => '<strong>TOTAL</strong>',
+                    'penjualan' => '<strong>' . format_uang($item['penjualan']) . '</strong>',
+                    'pembelian' => '<strong>' . format_uang($item['pembelian']) . '</strong>',
+                    'pengeluaran' => '<strong>' . format_uang($item['pengeluaran']) . '</strong>',
+                    'pendapatan' => '<strong>' . format_uang($item['pendapatan']) . '</strong>',
+                    'keuntungan' => '<strong>' . format_uang($item['keuntungan']) . '</strong>',
+                ];
+            }
+            
+            $profitMargin = $item['penjualan'] > 0 ? (($item['keuntungan'] / $item['penjualan']) * 100) : 0;
+            $profitStatus = $item['keuntungan'] > 0 ? 'profit' : ($item['keuntungan'] < 0 ? 'loss' : 'break-even');
+            
+            return [
+                'DT_RowIndex' => $item['DT_RowIndex'],
+                'tanggal' => tanggal_indonesia($item['tanggal'], false),
+                'penjualan' => format_uang($item['penjualan']),
+                'pembelian' => format_uang($item['pembelian']),
+                'pengeluaran' => format_uang($item['pengeluaran']),
+                'pendapatan' => format_uang($item['pendapatan']),
+                'keuntungan' => '<span class="badge badge-' . 
+                               ($profitStatus == 'profit' ? 'success' : 
+                                ($profitStatus == 'loss' ? 'danger' : 'warning')) . '">' . 
+                               format_uang($item['keuntungan']) . 
+                               ' (' . number_format($profitMargin, 1) . '%)</span>',
+                'detail' => [
+                    'gross_sales' => format_uang($item['penjualan']),
+                    'shipping_cost' => format_uang($item['penjualan'] - $item['net_sales']),
+                    'net_sales' => format_uang($item['net_sales']),
+                    'cost_of_goods' => format_uang($item['cost_of_goods']),
+                    'expenses' => format_uang($item['pengeluaran']),
+                    'profit_margin' => format_uang($item['keuntungan']),
+                    'profit_percentage' => number_format($profitMargin, 2) . '%',
+                    'breakdown' => "Penjualan Kotor: " . format_uang($item['penjualan']) . 
+                                 " - Ongkir: " . format_uang($item['penjualan'] - $item['net_sales']) .
+                                 " = Penjualan Bersih: " . format_uang($item['net_sales']) .
+                                 " - HPP: " . format_uang($item['cost_of_goods']) .
+                                 " - Pengeluaran: " . format_uang($item['pengeluaran']) .
+                                 " = Keuntungan: " . format_uang($item['keuntungan'])
+                ]
+            ];
+        });
 
         return datatables()
-            ->of(collect($data))
+            ->of($formattedData)
+            ->rawColumns(['DT_RowIndex', 'tanggal', 'penjualan', 'pembelian', 'pengeluaran', 'pendapatan', 'keuntungan'])
             ->make(true);
     }
 
