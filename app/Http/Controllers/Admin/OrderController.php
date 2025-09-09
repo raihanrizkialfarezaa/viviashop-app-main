@@ -126,7 +126,10 @@ class OrderController extends Controller
 				: 'https://app.sandbox.midtrans.com/snap/snap.js'
 		];
 		
-		return view('admin.orders.show', compact('order', 'paymentData'));
+		// Get employee list for dropdown
+		$employees = EmployeePerformance::getEmployeeList();
+		
+		return view('admin.orders.show', compact('order', 'paymentData', 'employees'));
 	}
 
     public function invoices($id)
@@ -859,6 +862,10 @@ class OrderController extends Controller
 			'handled_by' => $handledBy,
 			'use_employee_tracking' => $useTracking
 		]);
+
+		if ($order->status === 'completed' && $useTracking && $handledBy) {
+			$this->saveEmployeePerformance($order);
+		}
 
 		return response()->json([
 			'success' => true,

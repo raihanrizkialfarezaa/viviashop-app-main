@@ -90,8 +90,25 @@
                                 <div id="employeeNameSection" style="display: {{ $order->use_employee_tracking ? 'block' : 'none' }}">
                                     <div class="form-group">
                                         <label for="employeeName">Nama Karyawan/Admin yang Handle:</label>
-                                        <input type="text" id="employeeName" class="form-control" 
-                                               value="{{ $order->handled_by }}" placeholder="Masukkan nama karyawan">
+                                        
+                                        <!-- Dropdown for existing employees -->
+                                        <select id="employeeDropdown" class="form-control mb-2">
+                                            <option value="">-- Pilih Karyawan Terdaftar --</option>
+                                            @foreach($employees as $employee)
+                                                <option value="{{ $employee }}" {{ $order->handled_by == $employee ? 'selected' : '' }}>
+                                                    {{ $employee }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        
+                                        <!-- Manual input for new employees -->
+                                        <div class="mt-2">
+                                            <label for="employeeName" class="small text-muted">Atau tambah karyawan baru:</label>
+                                            <input type="text" id="employeeName" class="form-control" 
+                                                   value="{{ !in_array($order->handled_by, $employees->toArray()) ? $order->handled_by : '' }}" 
+                                                   placeholder="Masukkan nama karyawan baru">
+                                        </div>
+                                        
                                         <small class="text-danger" id="employeeNameError" style="display: none;">
                                             Nama karyawan harus diisi untuk menyelesaikan transaksi
                                         </small>
@@ -497,8 +514,9 @@
             const isChecked = $(this).is(':checked');
             $('#employeeNameSection').toggle(isChecked);
             
-            // If disabled, clear employee name
+            // If disabled, clear both inputs
             if (!isChecked) {
+                $('#employeeDropdown').val('');
                 $('#employeeName').val('');
                 updateEmployeeName('');
             }
@@ -507,10 +525,29 @@
             updateTrackingStatus(isChecked);
         });
 
+        // Handle dropdown selection
+        $('#employeeDropdown').change(function() {
+            const selectedEmployee = $(this).val();
+            if (selectedEmployee) {
+                $('#employeeName').val('');
+                updateEmployeeName(selectedEmployee);
+            }
+        });
+
+        // Handle manual input
+        $('#employeeName').on('input', function() {
+            const manualInput = $(this).val().trim();
+            if (manualInput) {
+                $('#employeeDropdown').val('');
+            }
+        });
+
         // Validate before order completion
         function validateEmployeeTracking() {
             const useTracking = $('#useEmployeeTracking').is(':checked');
-            const employeeName = $('#employeeName').val().trim();
+            const dropdownValue = $('#employeeDropdown').val().trim();
+            const manualValue = $('#employeeName').val().trim();
+            const employeeName = dropdownValue || manualValue;
             
             if (useTracking && !employeeName) {
                 $('#employeeNameError').show();
@@ -521,10 +558,15 @@
             return true;
         }
 
-        // Update employee name
+        // Update employee name on blur
         $('#employeeName').on('blur', function() {
-            const name = $(this).val().trim();
-            updateEmployeeName(name);
+            const manualValue = $(this).val().trim();
+            const dropdownValue = $('#employeeDropdown').val().trim();
+            const finalName = dropdownValue || manualValue;
+            
+            if (manualValue && !dropdownValue) {
+                updateEmployeeName(manualValue);
+            }
         });
 
         // Update completion forms to validate employee tracking
@@ -532,6 +574,15 @@
             if (!validateEmployeeTracking()) {
                 e.preventDefault();
                 return false;
+            }
+            
+            // Ensure the final employee name is set before submission
+            const dropdownValue = $('#employeeDropdown').val().trim();
+            const manualValue = $('#employeeName').val().trim();
+            const finalName = dropdownValue || manualValue;
+            
+            if (finalName && $('#useEmployeeTracking').is(':checked')) {
+                updateEmployeeName(finalName);
             }
         });
 
