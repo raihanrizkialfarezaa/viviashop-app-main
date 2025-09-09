@@ -40,6 +40,65 @@ Route::get('/test-add-cart', function() {
 
 // Route::get('/debug-midtrans', [OrderController::class, 'debug']);
 
+Route::get('/test-bootstrap3-modal', function () {
+    return view('test-bootstrap3-modal');
+});
+
+Route::get('/test-employee-performance-final', function () {
+    $admin = \App\Models\User::where('is_admin', 1)->first();
+    if (!$admin) {
+        return response()->json(['error' => 'No admin user found'], 404);
+    }
+    
+    \Illuminate\Support\Facades\Auth::login($admin);
+    
+    $controller = new \App\Http\Controllers\Admin\EmployeePerformanceController();
+    
+    $request = \Illuminate\Http\Request::create('/admin/employee-performance', 'GET');
+    $response = $controller->index();
+    
+    return $response;
+})->name('test-employee-performance-final');
+
+Route::get('/test-employee-performance-bonus-form', function () {
+    $admin = \App\Models\User::where('is_admin', 1)->first();
+    if (!$admin) {
+        return response()->json(['error' => 'No admin user found'], 404);
+    }
+    
+    \Illuminate\Support\Facades\Auth::login($admin);
+    
+    $controller = new \App\Http\Controllers\Admin\EmployeePerformanceController();
+    
+    $request = \Illuminate\Http\Request::create('/admin/employee-performance/bonus', 'GET');
+    $request->merge(['employee' => request('employee')]);
+    $response = $controller->bonusForm($request);
+    
+    return $response;
+})->name('test-employee-performance-bonus-form');
+
+Route::get('/test-employee-performance-view', function () {
+    $totalTransactions = \App\Models\EmployeePerformance::count();
+    $totalRevenue = \App\Models\EmployeePerformance::sum('transaction_value');
+    $averageTransaction = \App\Models\EmployeePerformance::avg('transaction_value');
+    $topEmployee = \App\Models\EmployeePerformance::select('employee_name')
+        ->selectRaw('SUM(transaction_value) as total_revenue')
+        ->groupBy('employee_name')
+        ->orderBy('total_revenue', 'desc')
+        ->first();
+    
+    return view('admin.employee-performance.index', compact(
+        'totalTransactions', 
+        'totalRevenue', 
+        'averageTransaction', 
+        'topEmployee'
+    ));
+});
+
+Route::get('/test-bonus-modal', function () {
+    return view('test-bonus-modal');
+});
+
 Route::get('/debug-view-error', function () {
     try {
         $employeeName = 'Reza';
@@ -822,6 +881,7 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     
     Route::get('employee-performance', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'index'])->name('employee-performance.index');
     Route::get('employee-performance/data', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'data'])->name('employee-performance.data');
+    Route::get('employee-performance/bonus', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'bonusForm'])->name('employee-performance.bonus');
     Route::get('employee-performance/{employee}', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'show'])->name('employee-performance.show');
     Route::post('employee-performance/bonus', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'giveBonus'])->name('employee-performance.giveBonus');
     Route::get('employee-performance-bonus-history', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'bonusHistory'])->name('employee-performance.bonusHistory');

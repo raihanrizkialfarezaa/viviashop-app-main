@@ -102,9 +102,9 @@ class EmployeePerformanceController extends Controller
                     <a href="' . route('admin.employee-performance.show', $row->employee_name) . '" class="btn btn-sm btn-info">
                         <i class="fas fa-eye"></i> Detail
                     </a>
-                    <button type="button" class="btn btn-sm btn-success" onclick="showBonusModal(\'' . $row->employee_name . '\')">
+                    <a href="' . route('admin.employee-performance.bonus', ['employee' => $row->employee_name]) . '" class="btn btn-sm btn-success">
                         <i class="fas fa-gift"></i> Bonus
-                    </button>
+                    </a>
                 </div>';
             })
             ->rawColumns(['actions'])
@@ -128,29 +128,40 @@ class EmployeePerformanceController extends Controller
         return view('admin.employee-performance.show', compact('employeeName', 'performances', 'bonuses', 'stats'));
     }
 
+    public function bonusForm(Request $request)
+    {
+        return view('admin.employee-performance.bonus');
+    }
+
     public function giveBonus(Request $request)
     {
         $request->validate([
-            'employee_name' => 'required|string|max:255',
-            'bonus_amount' => 'required|numeric|min:0',
+            'employee_name' => 'nullable|string|max:255',
+            'amount' => 'required|numeric|min:1000',
             'period_start' => 'required|date',
             'period_end' => 'required|date|after_or_equal:period_start',
-            'notes' => 'nullable|string'
+            'description' => 'required|string|max:500',
+            'notes' => 'nullable|string|max:1000'
         ]);
 
         EmployeeBonus::create([
-            'employee_name' => $request->employee_name,
-            'bonus_amount' => $request->bonus_amount,
+            'employee_name' => $request->employee_name ?: null,
+            'bonus_amount' => $request->amount,
             'period_start' => $request->period_start,
             'period_end' => $request->period_end,
+            'description' => $request->description,
             'notes' => $request->notes,
             'given_by' => Auth::id(),
             'given_at' => now()
         ]);
 
+        $message = $request->employee_name 
+            ? "Bonus berhasil diberikan kepada {$request->employee_name}!" 
+            : "Bonus berhasil diberikan kepada semua karyawan aktif!";
+
         return response()->json([
             'success' => true,
-            'message' => 'Bonus berhasil diberikan!'
+            'message' => $message
         ]);
     }
 

@@ -69,9 +69,9 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <button type="button" class="btn btn-success" data-toggle="modal" data-target="#bonusModal">
+                                <a href="{{ route('admin.employee-performance.bonus') }}" class="btn btn-success">
                                     <i class="fas fa-gift"></i> Give Bonus
-                                </button>
+                                </a>
                             </div>
                         </div>
 
@@ -97,53 +97,6 @@
     </div>
 </section>
 
-<!-- Bonus Modal -->
-<div class="modal fade" id="bonusModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Give Bonus</h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <form id="bonusForm">
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="bonusEmployeeName">Employee Name:</label>
-                        <input type="text" id="bonusEmployeeName" name="employee_name" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="bonusAmount">Bonus Amount:</label>
-                        <input type="number" id="bonusAmount" name="bonus_amount" class="form-control" min="0" step="1000" required>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="periodStart">Period Start:</label>
-                                <input type="date" id="periodStart" name="period_start" class="form-control" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="periodEnd">Period End:</label>
-                                <input type="date" id="periodEnd" name="period_end" class="form-control" required>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="bonusNotes">Notes (Optional):</label>
-                        <textarea id="bonusNotes" name="notes" class="form-control" rows="3"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Give Bonus</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 @endsection
 
 @push('style-alt')
@@ -155,7 +108,6 @@
 <script src="https://cdn.datatables.net/1.13.3/js/dataTables.bootstrap4.min.js"></script>
 <script>
 $(document).ready(function() {
-    // DataTables initialization with server-side processing
     var table = $('#performanceTable').DataTable({
         processing: true,
         serverSide: true,
@@ -177,41 +129,9 @@ $(document).ready(function() {
         ]
     });
 
-    // Filter change handlers
     $('#periodFilter, #employeeFilter, #sortFilter').change(function() {
         table.ajax.reload();
     });
-
-    // Bonus form submission
-    $('#bonusForm').submit(function(e) {
-        e.preventDefault();
-        
-        var formData = $(this).serialize();
-        formData += '&_token={{ csrf_token() }}';
-        
-        $.ajax({
-            url: '{{ route("admin.employee-performance.giveBonus") }}',
-            type: 'POST',
-            data: formData,
-            success: function(response) {
-                if (response.success) {
-                    alert(response.message);
-                    $('#bonusModal').modal('hide');
-                    $('#bonusForm')[0].reset();
-                    table.ajax.reload();
-                }
-            },
-            error: function(xhr, status, error) {
-                alert('Error giving bonus: ' + error);
-            }
-        });
-    });
 });
-
-// Show bonus modal for specific employee
-function showBonusModal(employeeName) {
-    $('#bonusEmployeeName').val(employeeName);
-    $('#bonusModal').modal('show');
-}
 </script>
 @endpush

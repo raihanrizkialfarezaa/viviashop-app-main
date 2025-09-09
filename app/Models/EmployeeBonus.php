@@ -14,6 +14,7 @@ class EmployeeBonus extends Model
         'bonus_amount',
         'period_start',
         'period_end',
+        'description',
         'notes',
         'given_by',
         'given_at'
