@@ -159,16 +159,33 @@ class HomepageController extends Controller
             $tanggal = $currentDate;
             $currentDate = date('Y-m-d', strtotime("+1 day", strtotime($currentDate)));
 
-            $total_penjualan = Order::where('payment_status', 'paid')
-                ->where('grand_total', '>', 0)
-                ->whereDate('created_at', $tanggal)
-                ->sum('grand_total');
-
             $orders = Order::where('payment_status', 'paid')
                 ->where('grand_total', '>', 0)
                 ->whereDate('created_at', $tanggal)
                 ->with('orderItems.product')
                 ->get();
+
+            $validOrders = $orders->filter(function($order) {
+                if (!$order->orderItems || count($order->orderItems) == 0) {
+                    return false;
+                }
+                
+                $order_net_sales = $order->grand_total - $order->shipping_cost;
+                if ($order_net_sales <= 0) {
+                    return false;
+                }
+                
+                $order_total_cost = 0;
+                foreach ($order->orderItems as $orderItem) {
+                    if ($orderItem->product && $orderItem->product->harga_beli) {
+                        $order_total_cost += ($orderItem->product->harga_beli * $orderItem->qty);
+                    }
+                }
+                
+                return $order_net_sales >= ($order_total_cost * 0.1);
+            });
+            
+            $total_penjualan = $validOrders->sum('grand_total');
 
             $total_pembelian = Pembelian::whereDate('created_at', $tanggal)
                 ->sum('total_harga');
@@ -176,29 +193,45 @@ class HomepageController extends Controller
             $total_pengeluaran = Pengeluaran::whereDate('created_at', $tanggal)
                 ->sum('nominal');
 
-            $total_shipping = Order::where('payment_status', 'paid')
-                ->where('grand_total', '>', 0)
-                ->whereDate('created_at', $tanggal)
-                ->sum('shipping_cost');
+            $total_shipping = $validOrders->sum('shipping_cost');
 
             $total_cost_of_goods = 0;
             $total_profit_margin = 0;
 
-            foreach ($orders as $order) {
-                if ($order->orderItems) {
+            foreach ($validOrders as $order) {
+                if ($order->orderItems && count($order->orderItems) > 0) {
+                    $order_total_base_price = $order->orderItems->sum(function($item) {
+                        return $item->base_price * $item->qty;
+                    });
+                    
+                    $order_net_sales = $order->grand_total - $order->shipping_cost;
+                    
+                    if ($order_total_base_price <= 0 || $order_net_sales <= 0) {
+                        continue;
+                    }
+                    
+                    $order_total_cost = 0;
+                    foreach ($order->orderItems as $orderItem) {
+                        if ($orderItem->product && $orderItem->product->harga_beli) {
+                            $order_total_cost += ($orderItem->product->harga_beli * $orderItem->qty);
+                        }
+                    }
+                    
+                    if ($order_net_sales < ($order_total_cost * 0.1)) {
+                        continue;
+                    }
+                    
                     foreach ($order->orderItems as $orderItem) {
                         if ($orderItem->product && $orderItem->product->harga_beli) {
                             $cost_price = $orderItem->product->harga_beli;
-                            $selling_price = $orderItem->base_price;
-                            
-                            if ($selling_price <= 0 || $selling_price < ($cost_price * 0.1)) {
-                                $selling_price = $orderItem->product->price;
-                            }
-                            
+                            $base_price = $orderItem->base_price;
                             $qty = $orderItem->qty;
                             
+                            $item_proportion = ($base_price * $qty) / $order_total_base_price;
+                            $actual_selling_price = ($order_net_sales * $item_proportion) / $qty;
+                            
                             $total_cost_of_goods += ($cost_price * $qty);
-                            $profit_per_item = $selling_price - $cost_price;
+                            $profit_per_item = $actual_selling_price - $cost_price;
                             $total_profit_margin += ($profit_per_item * $qty);
                         }
                     }
