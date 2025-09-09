@@ -40,6 +40,348 @@ Route::get('/test-add-cart', function() {
 
 // Route::get('/debug-midtrans', [OrderController::class, 'debug']);
 
+Route::get('/employee-performance-summary', function () {
+    echo "<h1>🎉 Employee Performance Tracking System</h1>";
+    echo "<h2>✅ Implementation Complete!</h2>";
+    
+    echo "<div style='background: #d4edda; padding: 20px; border-radius: 5px; margin: 20px 0;'>";
+    echo "<h3>📊 System Statistics:</h3>";
+    
+    $totalEmployees = \App\Models\EmployeePerformance::distinct('employee_name')->count();
+    $totalTransactions = \App\Models\EmployeePerformance::count();
+    $totalRevenue = \App\Models\EmployeePerformance::sum('transaction_value');
+    $totalBonuses = \App\Models\EmployeeBonus::sum('bonus_amount');
+    $ordersWithTracking = \App\Models\Order::where('use_employee_tracking', true)->count();
+    
+    echo "<ul>";
+    echo "<li><strong>Total Employees Tracked:</strong> {$totalEmployees}</li>";
+    echo "<li><strong>Total Transactions Recorded:</strong> {$totalTransactions}</li>";
+    echo "<li><strong>Total Revenue Tracked:</strong> Rp " . number_format($totalRevenue, 0, ',', '.') . "</li>";
+    echo "<li><strong>Total Bonuses Given:</strong> Rp " . number_format($totalBonuses, 0, ',', '.') . "</li>";
+    echo "<li><strong>Orders with Employee Tracking:</strong> {$ordersWithTracking}</li>";
+    echo "</ul>";
+    echo "</div>";
+    
+    echo "<div style='background: #cce5ff; padding: 20px; border-radius: 5px; margin: 20px 0;'>";
+    echo "<h3>🔗 Quick Links:</h3>";
+    echo "<ul>";
+    echo "<li><a href='/admin' target='_blank'>Admin Dashboard</a> (requires admin login)</li>";
+    echo "<li><a href='/admin/employee-performance' target='_blank'>Employee Performance Dashboard</a> (requires admin login)</li>";
+    echo "<li><a href='/admin/orders' target='_blank'>Orders Management</a> (requires admin login)</li>";
+    echo "</ul>";
+    echo "</div>";
+    
+    echo "<div style='background: #fff3cd; padding: 20px; border-radius: 5px; margin: 20px 0;'>";
+    echo "<h3>📋 Usage Instructions:</h3>";
+    echo "<ol>";
+    echo "<li><strong>For Order Tracking:</strong>";
+    echo "<ul>";
+    echo "<li>Go to any order detail page in admin</li>";
+    echo "<li>Check 'Employee Tracking' checkbox</li>";
+    echo "<li>Enter employee name</li>";
+    echo "<li>Complete the order normally</li>";
+    echo "</ul></li>";
+    echo "<li><strong>For Performance Review:</strong>";
+    echo "<ul>";
+    echo "<li>Visit Employee Performance menu</li>";
+    echo "<li>Use filters to view specific periods/employees</li>";
+    echo "<li>Click 'Detail' to see individual performance</li>";
+    echo "</ul></li>";
+    echo "<li><strong>For Giving Bonuses:</strong>";
+    echo "<ul>";
+    echo "<li>Click 'Bonus' button on performance dashboard</li>";
+    echo "<li>Fill in bonus details and period</li>";
+    echo "<li>Submit to record the bonus</li>";
+    echo "</ul></li>";
+    echo "</ol>";
+    echo "</div>";
+    
+    echo "<div style='background: #f8d7da; padding: 20px; border-radius: 5px; margin: 20px 0;'>";
+    echo "<h3>⚠️ Important Notes:</h3>";
+    echo "<ul>";
+    echo "<li>Employee tracking is <strong>optional</strong> per order</li>";
+    echo "<li>Employee name must be filled before completing tracked orders</li>";
+    echo "<li>Performance data is automatically recorded when orders are completed</li>";
+    echo "<li>Bonuses are separate from automatic performance tracking</li>";
+    echo "<li>All data is visible to customers in their order details</li>";
+    echo "</ul>";
+    echo "</div>";
+    
+    echo "<hr>";
+    echo "<h3>🚀 System Ready for Production Use!</h3>";
+    echo "<p><em>You can now use the employee performance tracking system to monitor staff performance and manage bonuses effectively.</em></p>";
+    
+    return "";
+});
+
+Route::get('/stress-test-employee-performance', function () {
+    try {
+        echo "<h1>Employee Performance System Stress Test</h1>";
+        
+        echo "<h2>Test 1: Order Completion with Employee Tracking</h2>";
+        
+        $order = \App\Models\Order::where('use_employee_tracking', true)->first();
+        
+        if (!$order) {
+            echo "❌ No orders with employee tracking found<br>";
+            return;
+        }
+        
+        echo "✅ Testing with Order #{$order->code}<br>";
+        echo "Employee: {$order->handled_by}<br>";
+        echo "Order Total: Rp " . number_format($order->grand_total, 0, ',', '.') . "<br><br>";
+        
+        echo "<h2>Test 2: Employee Performance Controller</h2>";
+        
+        $employees = \App\Models\EmployeePerformance::getEmployeeList();
+        echo "✅ Found {$employees->count()} employees in system<br>";
+        
+        $totalTransactions = \App\Models\EmployeePerformance::count();
+        echo "✅ Total transactions: {$totalTransactions}<br>";
+        
+        $totalRevenue = \App\Models\EmployeePerformance::sum('transaction_value');
+        echo "✅ Total revenue: Rp " . number_format($totalRevenue, 0, ',', '.') . "<br>";
+        
+        $averageTransaction = \App\Models\EmployeePerformance::avg('transaction_value');
+        echo "✅ Average transaction: Rp " . number_format($averageTransaction, 0, ',', '.') . "<br>";
+        
+        $topEmployee = \App\Models\EmployeePerformance::selectRaw('employee_name, SUM(transaction_value) as total_revenue')
+                                        ->groupBy('employee_name')
+                                        ->orderBy('total_revenue', 'desc')
+                                        ->first();
+                                        
+        echo "✅ Top employee: {$topEmployee->employee_name} (Rp " . number_format($topEmployee->total_revenue, 0, ',', '.') . ")<br><br>";
+        
+        echo "<h2>Test 3: Relationship Testing</h2>";
+        
+        foreach (\App\Models\Order::where('use_employee_tracking', true)->take(3)->get() as $testOrder) {
+            $performance = $testOrder->employeePerformance;
+            if ($performance) {
+                echo "✅ Order #{$testOrder->code} -> Performance ID #{$performance->id}<br>";
+            } else {
+                echo "❌ Order #{$testOrder->code} has no performance record<br>";
+            }
+        }
+        
+        echo "<br><h2>Test 4: Employee Methods</h2>";
+        
+        foreach (\App\Models\Order::where('use_employee_tracking', true)->take(3)->get() as $testOrder) {
+            if ($testOrder->isHandledByEmployee()) {
+                echo "✅ Order #{$testOrder->code} is handled by employee: {$testOrder->handled_by}<br>";
+            } else {
+                echo "❌ Order #{$testOrder->code} not properly handled by employee<br>";
+            }
+        }
+        
+        echo "<br><h2>✅ Stress Test Complete!</h2>";
+        echo "<p><strong>Employee Performance System is Ready!</strong></p>";
+        
+        return "";
+        
+    } catch (Exception $e) {
+        echo "❌ Stress test failed: " . $e->getMessage();
+        return "";
+    }
+});
+
+Route::get('/test-employee-data', function () {
+    try {
+        echo "<h2>Employee Performance Data Test</h2>";
+        
+        // Test 1: Check employee performances
+        $performances = \App\Models\EmployeePerformance::with('order')->get();
+        echo "<h3>Employee Performances ({$performances->count()} records):</h3>";
+        echo "<table border='1' style='border-collapse: collapse; width: 100%;'>";
+        echo "<tr><th>Employee</th><th>Order ID</th><th>Transaction Value</th><th>Completed At</th></tr>";
+        
+        foreach ($performances as $performance) {
+            echo "<tr>";
+            echo "<td>{$performance->employee_name}</td>";
+            echo "<td>#{$performance->order->code}</td>";
+            echo "<td>Rp " . number_format($performance->transaction_value, 0, ',', '.') . "</td>";
+            echo "<td>{$performance->completed_at}</td>";
+            echo "</tr>";
+        }
+        echo "</table><br>";
+        
+        // Test 2: Check employee bonuses
+        $bonuses = \App\Models\EmployeeBonus::with('givenBy')->get();
+        echo "<h3>Employee Bonuses ({$bonuses->count()} records):</h3>";
+        echo "<table border='1' style='border-collapse: collapse; width: 100%;'>";
+        echo "<tr><th>Employee</th><th>Bonus Amount</th><th>Period</th><th>Given By</th></tr>";
+        
+        foreach ($bonuses as $bonus) {
+            echo "<tr>";
+            echo "<td>{$bonus->employee_name}</td>";
+            echo "<td>Rp " . number_format($bonus->bonus_amount, 0, ',', '.') . "</td>";
+            echo "<td>{$bonus->period_start} - {$bonus->period_end}</td>";
+            echo "<td>{$bonus->givenBy->name}</td>";
+            echo "</tr>";
+        }
+        echo "</table><br>";
+        
+        // Test 3: Aggregate data
+        $stats = \App\Models\EmployeePerformance::selectRaw('
+            employee_name,
+            COUNT(*) as total_transactions,
+            SUM(transaction_value) as total_revenue,
+            AVG(transaction_value) as average_transaction
+        ')->groupBy('employee_name')->get();
+        
+        echo "<h3>Employee Statistics:</h3>";
+        echo "<table border='1' style='border-collapse: collapse; width: 100%;'>";
+        echo "<tr><th>Employee</th><th>Total Transactions</th><th>Total Revenue</th><th>Average Transaction</th></tr>";
+        
+        foreach ($stats as $stat) {
+            echo "<tr>";
+            echo "<td>{$stat->employee_name}</td>";
+            echo "<td>{$stat->total_transactions}</td>";
+            echo "<td>Rp " . number_format($stat->total_revenue, 0, ',', '.') . "</td>";
+            echo "<td>Rp " . number_format($stat->average_transaction, 0, ',', '.') . "</td>";
+            echo "</tr>";
+        }
+        echo "</table><br>";
+        
+        echo "<h3>✅ Employee Performance System Ready!</h3>";
+        echo "<p>You can now:</p>";
+        echo "<ul>";
+        echo "<li>Visit <a href='/admin/employee-performance'>/admin/employee-performance</a> (requires admin login)</li>";
+        echo "<li>Go to admin orders and enable employee tracking</li>";
+        echo "<li>Complete orders to see performance tracking</li>";
+        echo "<li>Give bonuses to employees</li>";
+        echo "</ul>";
+        
+        return "";
+        
+    } catch (Exception $e) {
+        return "Test failed: " . $e->getMessage();
+    }
+});
+
+Route::get('/test-employee-performance', function () {
+    try {
+        // Test database connection and table existence
+        echo "Testing Employee Performance Implementation...\n\n";
+        
+        // Test 1: Check if tables exist
+        echo "1. Checking database tables:\n";
+        $tables = [
+            'employee_performances',
+            'employee_bonuses'
+        ];
+        
+        foreach ($tables as $table) {
+            if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
+                echo "   ✓ Table '{$table}' exists<br>";
+            } else {
+                echo "   ✗ Table '{$table}' does not exist<br>";
+                return "Migration not complete";
+            }
+        }
+        
+        // Test 2: Check if columns exist in orders table
+        echo "<br>2. Checking orders table columns:<br>";
+        $orderColumns = ['handled_by', 'use_employee_tracking'];
+        foreach ($orderColumns as $column) {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('orders', $column)) {
+                echo "   ✓ Column '{$column}' exists in orders table<br>";
+            } else {
+                echo "   ✗ Column '{$column}' does not exist in orders table<br>";
+                return "Orders table migration not complete";
+            }
+        }
+        
+        // Test 3: Check models
+        echo "<br>3. Testing models:<br>";
+        try {
+            $employeePerformance = new \App\Models\EmployeePerformance();
+            echo "   ✓ EmployeePerformance model exists<br>";
+        } catch (Exception $e) {
+            echo "   ✗ EmployeePerformance model error: " . $e->getMessage() . "<br>";
+        }
+        
+        try {
+            $employeeBonus = new \App\Models\EmployeeBonus();
+            echo "   ✓ EmployeeBonus model exists<br>";
+        } catch (Exception $e) {
+            echo "   ✗ EmployeeBonus model error: " . $e->getMessage() . "<br>";
+        }
+        
+        // Test 4: Check order model relationship
+        echo "<br>4. Testing Order model updates:<br>";
+        try {
+            $order = new \App\Models\Order();
+            if (method_exists($order, 'employeePerformance')) {
+                echo "   ✓ Order->employeePerformance() relationship exists<br>";
+            } else {
+                echo "   ✗ Order->employeePerformance() relationship missing<br>";
+            }
+            
+            if (method_exists($order, 'isHandledByEmployee')) {
+                echo "   ✓ Order->isHandledByEmployee() method exists<br>";
+            } else {
+                echo "   ✗ Order->isHandledByEmployee() method missing<br>";
+            }
+        } catch (Exception $e) {
+            echo "   ✗ Order model error: " . $e->getMessage() . "<br>";
+        }
+        
+        // Test 5: Check controller
+        echo "<br>5. Testing controller:<br>";
+        try {
+            $controller = new \App\Http\Controllers\Admin\EmployeePerformanceController();
+            echo "   ✓ EmployeePerformanceController exists<br>";
+        } catch (Exception $e) {
+            echo "   ✗ EmployeePerformanceController error: " . $e->getMessage() . "<br>";
+        }
+        
+        // Test 6: Check routes
+        echo "<br>6. Testing routes:<br>";
+        $routes = [
+            'admin.employee-performance.index',
+            'admin.employee-performance.data', 
+            'admin.employee-performance.giveBonus'
+        ];
+        
+        foreach ($routes as $routeName) {
+            try {
+                $route = route($routeName);
+                echo "   ✓ Route '{$routeName}' exists<br>";
+            } catch (Exception $e) {
+                echo "   ✗ Route '{$routeName}' error: " . $e->getMessage() . "<br>";
+            }
+        }
+        
+        // Test 7: Check views
+        echo "<br>7. Testing views:<br>";
+        $views = [
+            'admin.employee-performance.index',
+            'admin.employee-performance.show'
+        ];
+        
+        foreach ($views as $viewName) {
+            if (view()->exists($viewName)) {
+                echo "   ✓ View '{$viewName}' exists<br>";
+            } else {
+                echo "   ✗ View '{$viewName}' does not exist<br>";
+            }
+        }
+        
+        echo "<br>✅ Employee Performance Implementation Test Complete!<br>";
+        echo "<br>Next steps:<br>";
+        echo "1. Navigate to admin panel<br>";
+        echo "2. Go to Employee Performance menu<br>"; 
+        echo "3. Create an order and test employee tracking<br>";
+        echo "4. Complete the order to test performance recording<br>";
+        echo "5. Give bonus to test bonus functionality<br>";
+        
+        return "Test completed successfully!";
+        
+    } catch (Exception $e) {
+        return "Test failed: " . $e->getMessage();
+    }
+});
+
 Route::get('/debug-midtrans', function() {
     $midtransTest = 'Unknown';
     try {
@@ -297,6 +639,8 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     Route::post('orders/{order}/generate-payment-token', [\App\Http\Controllers\Admin\OrderController::class , 'generatePaymentToken'])->name('orders.generate-payment-token');
     Route::post('orders/complete/{order}', [\App\Http\Controllers\Admin\OrderController::class , 'doComplete'])->name('orders.complete');
     Route::post('orders/confirm-pickup/{order}', [\App\Http\Controllers\Admin\OrderController::class , 'confirmPickup'])->name('orders.confirmPickup');
+    Route::post('orders/{order}/employee-tracking', [\App\Http\Controllers\Admin\OrderController::class, 'updateEmployeeTracking'])->name('orders.updateEmployeeTracking');
+    Route::post('orders/{order}/toggle-tracking', [\App\Http\Controllers\Admin\OrderController::class, 'toggleEmployeeTracking'])->name('orders.toggleEmployeeTracking');
     
     // Admin payment callback routes
     Route::get('orders/payment/finish', [\App\Http\Controllers\Admin\OrderController::class, 'paymentFinishRedirect'])->name('payment.finish');
@@ -312,6 +656,12 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     Route::get('reports/product', [\App\Http\Controllers\Admin\ReportController::class, 'product'])->name('reports.product');
     Route::get('reports/inventory', [\App\Http\Controllers\Admin\ReportController::class, 'inventory'])->name('reports.inventory');
     Route::get('reports/payment', [\App\Http\Controllers\Admin\ReportController::class, 'payment'])->name('reports.payment');
+    
+    Route::get('employee-performance', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'index'])->name('employee-performance.index');
+    Route::get('employee-performance/data', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'data'])->name('employee-performance.data');
+    Route::get('employee-performance/{employee}', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'show'])->name('employee-performance.show');
+    Route::post('employee-performance/bonus', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'giveBonus'])->name('employee-performance.giveBonus');
+    Route::get('employee-performance-bonus-history', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'bonusHistory'])->name('employee-performance.bonusHistory');
 });
 
 

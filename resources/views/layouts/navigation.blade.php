@@ -148,6 +148,14 @@
                     </li>
                 </ul>
             </li>
+            <li class="nav-item">
+                <a href="{{ route('admin.employee-performance.index') }}" class="nav-link">
+                    <i class="nav-icon fas fa-chart-line"></i>
+                    <p>
+                        Employee Performance
+                    </p>
+                </a>
+            </li>
         </ul>
     </nav>
     <!-- /.sidebar-menu -->

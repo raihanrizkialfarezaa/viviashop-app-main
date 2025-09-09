@@ -62,9 +62,46 @@
                             <br> Payment Status: {{ $order->payment_status }}
                             <br> Payment Method: {{ $order->payment_method }}
                             <br> Shipped by: {{ $order->shipping_service_name }}
+                            @if($order->handled_by)
+                                <br> Handled by: {{ $order->handled_by }}
+                            @endif
                         </address>
                     </div>
                 </div>
+                
+                <!-- Employee Tracking Section -->
+                <div class="row pt-3 mb-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Employee Performance Tracking</h5>
+                            </div>
+                            <div class="card-body">
+                                <!-- Checkbox to enable/disable tracking -->
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" class="form-check-input" id="useEmployeeTracking" 
+                                           {{ $order->use_employee_tracking ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="useEmployeeTracking">
+                                        Gunakan Employee Tracking (untuk bonus & performance)
+                                    </label>
+                                </div>
+                                
+                                <!-- Employee name input (conditional) -->
+                                <div id="employeeNameSection" style="display: {{ $order->use_employee_tracking ? 'block' : 'none' }}">
+                                    <div class="form-group">
+                                        <label for="employeeName">Nama Karyawan/Admin yang Handle:</label>
+                                        <input type="text" id="employeeName" class="form-control" 
+                                               value="{{ $order->handled_by }}" placeholder="Masukkan nama karyawan">
+                                        <small class="text-danger" id="employeeNameError" style="display: none;">
+                                            Nama karyawan harus diisi untuk menyelesaikan transaksi
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="table-responsive">
                     <table id="data-table" class="table table-bordered table-striped">
                         <thead>
@@ -454,6 +491,78 @@
                 }, 10000); // 10 second timeout for snap loading
             });
         @endif
+        
+        // Employee tracking functionality
+        $('#useEmployeeTracking').change(function() {
+            const isChecked = $(this).is(':checked');
+            $('#employeeNameSection').toggle(isChecked);
+            
+            // AJAX call to update order tracking status
+            updateTrackingStatus(isChecked);
+        });
+
+        // Validate before order completion
+        function validateEmployeeTracking() {
+            const useTracking = $('#useEmployeeTracking').is(':checked');
+            const employeeName = $('#employeeName').val().trim();
+            
+            if (useTracking && !employeeName) {
+                $('#employeeNameError').show();
+                return false;
+            }
+            
+            $('#employeeNameError').hide();
+            return true;
+        }
+
+        // Update employee name
+        $('#employeeName').on('blur', function() {
+            const name = $(this).val().trim();
+            updateEmployeeName(name);
+        });
+
+        // Update completion forms to validate employee tracking
+        $('form[action*="complete"], form[action*="confirmPickup"]').on('submit', function(e) {
+            if (!validateEmployeeTracking()) {
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // AJAX functions
+        function updateTrackingStatus(enabled) {
+            $.ajax({
+                url: '{{ route("admin.orders.toggleEmployeeTracking", $order->id) }}',
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    use_employee_tracking: enabled
+                },
+                success: function(response) {
+                    console.log('Tracking status updated');
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error updating tracking status:', error);
+                }
+            });
+        }
+
+        function updateEmployeeName(name) {
+            $.ajax({
+                url: '{{ route("admin.orders.updateEmployeeTracking", $order->id) }}',
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    handled_by: name
+                },
+                success: function(response) {
+                    console.log('Employee name updated');
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error updating employee name:', error);
+                }
+            });
+        }
     });
     </script>
 @endpush

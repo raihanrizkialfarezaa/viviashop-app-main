@@ -63,6 +63,9 @@
 									$resi = \App\Models\Shipment::where('order_id', $order->id)->pluck('track_number')->first();
 								@endphp
 								<br> Tracking Number: {{ $resi }}
+								@if($order->handled_by)
+									<br> Handled by: {{ $order->handled_by }}
+								@endif
 							</address>
 						</div>
 					</div>

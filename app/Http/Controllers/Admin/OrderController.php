@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Exceptions\OutOfStockException;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\EmployeePerformance;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -722,12 +723,19 @@ class OrderController extends Controller
 
     public function doComplete(Request $request,Order $order)
 	{
+		if ($order->use_employee_tracking && empty($order->handled_by)) {
+			Alert::error('Error', 'Employee name must be filled before completing the order.');
+			return redirect()->back();
+		}
+
 		// For offline store orders (toko) - can be completed directly after payment
 		if ($order->isOfflineStoreOrder() && $order->isPaid()) {
 			$order->status = Order::COMPLETED;
 			$order->approved_by = auth()->id();
 			$order->approved_at = now();
 			$order->notes = $order->notes . "\nOrder completed for offline store purchase";
+
+			$this->saveEmployeePerformance($order);
 
 			if ($order->save()) {
 				Alert::success('Success', 'Offline store order has been completed successfully!');
@@ -741,6 +749,8 @@ class OrderController extends Controller
 			$order->approved_at = now();
 			$order->notes = $order->notes . "\nCOD order completed after payment confirmation";
 
+			$this->saveEmployeePerformance($order);
+
 			if ($order->save()) {
 				Alert::success('Success', 'COD order has been completed successfully!');
 				return redirect()->back();
@@ -751,6 +761,8 @@ class OrderController extends Controller
 			$order->status = Order::COMPLETED;
 			$order->approved_by = auth()->id();
 			$order->approved_at = now();
+
+			$this->saveEmployeePerformance($order);
 
 			if ($order->save()) {
 				Alert::success('Success', 'Order has been completed successfully!');
@@ -804,6 +816,11 @@ class OrderController extends Controller
 
 	public function confirmPickup(Request $request, Order $order)
 	{
+		if ($order->use_employee_tracking && empty($order->handled_by)) {
+			Alert::error('Error', 'Employee name must be filled before confirming pickup.');
+			return redirect()->back();
+		}
+
 		if ($order->shipping_service_name == 'Self Pickup' && $order->isPaid()) {
 			if ($order->shipment) {
 				$order->shipment->status = Shipment::SHIPPED;
@@ -817,6 +834,8 @@ class OrderController extends Controller
 			$order->approved_at = now();
 			$order->notes = $order->notes . "\nSelf pickup confirmed by admin - customer has collected items from store";
 
+			$this->saveEmployeePerformance($order);
+
 			if ($order->save()) {
 				Alert::success('Success', 'Self pickup confirmed! Order marked as completed.');
 				return redirect()->back();
@@ -825,5 +844,52 @@ class OrderController extends Controller
 
 		Alert::error('Error', 'Cannot confirm pickup for this order.');
 		return redirect()->back();
+	}
+
+	public function updateEmployeeTracking(Request $request, Order $order)
+	{
+		$request->validate([
+			'handled_by' => 'nullable|string|max:255',
+		]);
+
+		$order->update([
+			'handled_by' => $request->handled_by
+		]);
+
+		return response()->json([
+			'success' => true,
+			'message' => 'Employee name updated successfully'
+		]);
+	}
+
+	public function toggleEmployeeTracking(Request $request, Order $order)
+	{
+		$request->validate([
+			'use_employee_tracking' => 'required|boolean',
+		]);
+
+		$order->update([
+			'use_employee_tracking' => $request->use_employee_tracking,
+			'handled_by' => $request->use_employee_tracking ? $order->handled_by : null
+		]);
+
+		return response()->json([
+			'success' => true,
+			'message' => 'Employee tracking status updated successfully'
+		]);
+	}
+
+	private function saveEmployeePerformance(Order $order)
+	{
+		if ($order->use_employee_tracking && !empty($order->handled_by)) {
+			EmployeePerformance::updateOrCreate(
+				['order_id' => $order->id],
+				[
+					'employee_name' => $order->handled_by,
+					'transaction_value' => $order->grand_total,
+					'completed_at' => now()
+				]
+			);
+		}
 	}
 }

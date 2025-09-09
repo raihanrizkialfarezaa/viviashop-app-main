@@ -121,6 +121,16 @@ class Order extends Model
 		return $query->where('user_id', $user->id);
 	}
 
+	public function employeePerformance()
+	{
+		return $this->hasOne(EmployeePerformance::class);
+	}
+
+	public function isHandledByEmployee()
+	{
+		return $this->use_employee_tracking && !empty($this->handled_by);
+	}
+
 	public function isOfflineStoreOrder()
 	{
 		// Check if order was created by admin (offline store order)
