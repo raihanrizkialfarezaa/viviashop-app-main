@@ -17,8 +17,9 @@ class EmployeePerformance extends Model
         'completed_at'
     ];
 
-    protected $dates = [
-        'completed_at'
+    protected $casts = [
+        'completed_at' => 'datetime',
+        'transaction_value' => 'decimal:2'
     ];
 
     public function order()

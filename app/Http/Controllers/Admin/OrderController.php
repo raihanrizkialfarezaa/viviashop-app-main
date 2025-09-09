@@ -852,13 +852,18 @@ class OrderController extends Controller
 			'handled_by' => 'nullable|string|max:255',
 		]);
 
+		$handledBy = $request->handled_by;
+		$useTracking = !empty($handledBy);
+
 		$order->update([
-			'handled_by' => $request->handled_by
+			'handled_by' => $handledBy,
+			'use_employee_tracking' => $useTracking
 		]);
 
 		return response()->json([
 			'success' => true,
-			'message' => 'Employee name updated successfully'
+			'message' => 'Employee name updated successfully',
+			'use_employee_tracking' => $useTracking
 		]);
 	}
 
@@ -868,9 +873,11 @@ class OrderController extends Controller
 			'use_employee_tracking' => 'required|boolean',
 		]);
 
+		$useTracking = $request->use_employee_tracking;
+
 		$order->update([
-			'use_employee_tracking' => $request->use_employee_tracking,
-			'handled_by' => $request->use_employee_tracking ? $order->handled_by : null
+			'use_employee_tracking' => $useTracking,
+			'handled_by' => $useTracking ? $order->handled_by : null
 		]);
 
 		return response()->json([

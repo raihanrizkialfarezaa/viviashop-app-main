@@ -19,10 +19,11 @@ class EmployeeBonus extends Model
         'given_at'
     ];
 
-    protected $dates = [
-        'period_start',
-        'period_end',
-        'given_at'
+    protected $casts = [
+        'period_start' => 'date',
+        'period_end' => 'date',
+        'given_at' => 'datetime',
+        'bonus_amount' => 'decimal:2'
     ];
 
     public function givenBy()

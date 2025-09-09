@@ -40,12 +40,227 @@ Route::get('/test-add-cart', function() {
 
 // Route::get('/debug-midtrans', [OrderController::class, 'debug']);
 
-Route::get('/employee-performance-summary', function () {
-    echo "<h1>🎉 Employee Performance Tracking System</h1>";
-    echo "<h2>✅ Implementation Complete!</h2>";
+Route::get('/debug-view-error', function () {
+    try {
+        $employeeName = 'Reza';
+        
+        $performances = \App\Models\EmployeePerformance::where('employee_name', $employeeName)
+                                         ->with('order')
+                                         ->orderBy('completed_at', 'desc')
+                                         ->paginate(20);
+
+        $bonuses = \App\Models\EmployeeBonus::where('employee_name', $employeeName)
+                               ->with('givenBy')
+                               ->orderBy('given_at', 'desc')
+                               ->get();
+
+        $stats = \App\Models\EmployeePerformance::getMonthlyStats($employeeName);
+        
+        foreach ($performances as $performance) {
+            echo "Testing performance #{$performance->id}<br>";
+            echo "Order ID: {$performance->order_id}<br>";
+            echo "Completed At Raw: " . $performance->getRawOriginal('completed_at') . "<br>";
+            echo "Completed At Object: " . $performance->completed_at . "<br>";
+            echo "Type: " . gettype($performance->completed_at) . "<br>";
+            
+            try {
+                $formatted = $performance->completed_at ? $performance->completed_at->format('d/m/Y H:i') : '-';
+                echo "Format Test SUCCESS: {$formatted}<br>";
+            } catch (\Exception $e) {
+                echo "Format Test ERROR: " . $e->getMessage() . "<br>";
+            }
+            echo "<hr>";
+        }
+        
+        foreach ($bonuses as $bonus) {
+            echo "Testing bonus #{$bonus->id}<br>";
+            try {
+                $start = $bonus->period_start ? $bonus->period_start->format('d/m/Y') : '-';
+                $end = $bonus->period_end ? $bonus->period_end->format('d/m/Y') : '-';
+                echo "Bonus Format Test SUCCESS: {$start} - {$end}<br>";
+            } catch (\Exception $e) {
+                echo "Bonus Format Test ERROR: " . $e->getMessage() . "<br>";
+            }
+            echo "<hr>";
+        }
+        
+        echo "<h2>All format tests completed successfully</h2>";
+        
+        return "";
+    } catch (\Exception $e) {
+        echo "Global Error: " . $e->getMessage() . "<br>";
+        echo "File: " . $e->getFile() . "<br>";
+        echo "Line: " . $e->getLine() . "<br>";
+        echo "<pre>" . $e->getTraceAsString() . "</pre>";
+        return "";
+    }
+});
+
+Route::get('/test-admin-employee-reza', function () {
+    try {
+        $request = \Illuminate\Http\Request::create('/admin/employee-performance/Reza', 'GET');
+        
+        $app = app();
+        $response = $app->handle($request);
+        
+        echo "Status Code: " . $response->getStatusCode() . "<br>";
+        echo "Content Type: " . $response->headers->get('content-type') . "<br>";
+        
+        if ($response->getStatusCode() != 200) {
+            echo "Response: " . $response->getContent() . "<br>";
+        } else {
+            echo "Success: Admin employee performance page loads correctly<br>";
+        }
+        
+        return "";
+    } catch (\Exception $e) {
+        echo "Error: " . $e->getMessage() . "<br>";
+        echo "File: " . $e->getFile() . "<br>";
+        echo "Line: " . $e->getLine() . "<br>";
+        return "";
+    }
+});
+
+Route::get('/test-employee-show-reza', function () {
+    try {
+        $employeeName = 'Reza';
+        
+        $performances = \App\Models\EmployeePerformance::where('employee_name', $employeeName)
+                                         ->with('order')
+                                         ->orderBy('completed_at', 'desc')
+                                         ->paginate(20);
+
+        $bonuses = \App\Models\EmployeeBonus::where('employee_name', $employeeName)
+                               ->with('givenBy')
+                               ->orderBy('given_at', 'desc')
+                               ->get();
+
+        $stats = \App\Models\EmployeePerformance::getMonthlyStats($employeeName);
+        
+        return view('admin.employee-performance.show', compact('employeeName', 'performances', 'bonuses', 'stats'));
+        
+    } catch (\Exception $e) {
+        echo "Error: " . $e->getMessage() . "<br>";
+        echo "File: " . $e->getFile() . "<br>";
+        echo "Line: " . $e->getLine() . "<br>";
+        echo "<pre>" . $e->getTraceAsString() . "</pre>";
+        return "";
+    }
+});
+
+Route::get('/test-employee-reza', function () {
+    try {
+        $employeeName = 'Reza';
+        
+        $performances = \App\Models\EmployeePerformance::where('employee_name', $employeeName)
+                                         ->with('order')
+                                         ->orderBy('completed_at', 'desc')
+                                         ->get();
+
+        $bonuses = \App\Models\EmployeeBonus::where('employee_name', $employeeName)
+                               ->with('givenBy')
+                               ->orderBy('given_at', 'desc')
+                               ->get();
+
+        $stats = \App\Models\EmployeePerformance::getMonthlyStats($employeeName);
+        
+        echo "<h1>Employee Performance Test - {$employeeName}</h1>";
+        
+        echo "<h2>Statistics</h2>";
+        echo "<pre>";
+        print_r($stats);
+        echo "</pre>";
+        
+        echo "<h2>Performances (" . $performances->count() . ")</h2>";
+        foreach ($performances as $perf) {
+            echo "<div style='border: 1px solid #ccc; padding: 10px; margin: 5px;'>";
+            echo "Order ID: " . $perf->order_id . "<br>";
+            echo "Transaction Value: " . $perf->transaction_value . "<br>";
+            echo "Completed At: " . ($perf->completed_at ? $perf->completed_at->format('d/m/Y H:i') : 'NULL') . "<br>";
+            echo "Completed At Type: " . gettype($perf->completed_at) . "<br>";
+            if ($perf->completed_at) {
+                echo "Is Carbon: " . (is_a($perf->completed_at, 'Carbon\\Carbon') ? 'Yes' : 'No') . "<br>";
+            }
+            echo "</div>";
+        }
+        
+        echo "<h2>Bonuses (" . $bonuses->count() . ")</h2>";
+        foreach ($bonuses as $bonus) {
+            echo "<div style='border: 1px solid #ccc; padding: 10px; margin: 5px;'>";
+            echo "Amount: " . $bonus->bonus_amount . "<br>";
+            echo "Period Start: " . ($bonus->period_start ? $bonus->period_start->format('d/m/Y') : 'NULL') . "<br>";
+            echo "Period End: " . ($bonus->period_end ? $bonus->period_end->format('d/m/Y') : 'NULL') . "<br>";
+            echo "</div>";
+        }
+        
+        return "";
+    } catch (\Exception $e) {
+        echo "Error: " . $e->getMessage() . "<br>";
+        echo "File: " . $e->getFile() . "<br>";
+        echo "Line: " . $e->getLine() . "<br>";
+        echo "<pre>" . $e->getTraceAsString() . "</pre>";
+        return "";
+    }
+});
+
+Route::get('/check-order-142', function () {
+    $order = \App\Models\Order::find(142);
     
-    echo "<div style='background: #d4edda; padding: 20px; border-radius: 5px; margin: 20px 0;'>";
-    echo "<h3>📊 System Statistics:</h3>";
+    if (!$order) {
+        echo "<h1>❌ Order 142 Not Found</h1>";
+        return "";
+    }
+    
+    echo "<h1>🔍 Order 142 Debug Information</h1>";
+    echo "<div style='background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0;'>";
+    echo "<h3>📊 Order Details:</h3>";
+    echo "<ul>";
+    echo "<li><strong>Order ID:</strong> {$order->id}</li>";
+    echo "<li><strong>Status:</strong> {$order->status}</li>";
+    echo "<li><strong>Handled by:</strong> " . ($order->handled_by ?: 'Not set') . "</li>";
+    echo "<li><strong>Use Employee Tracking:</strong> " . ($order->use_employee_tracking ? 'Yes (true)' : 'No (false)') . "</li>";
+    echo "<li><strong>Grand Total:</strong> Rp " . number_format($order->grand_total, 0, ',', '.') . "</li>";
+    echo "<li><strong>Updated At:</strong> {$order->updated_at}</li>";
+    echo "</ul>";
+    echo "</div>";
+    
+    $performance = \App\Models\EmployeePerformance::where('order_id', 142)->first();
+    
+    echo "<div style='background: " . ($performance ? "#d4edda" : "#f8d7da") . "; padding: 15px; border-radius: 5px; margin: 10px 0;'>";
+    echo "<h3>� Performance Record:</h3>";
+    if ($performance) {
+        echo "<ul>";
+        echo "<li><strong>Employee Name:</strong> {$performance->employee_name}</li>";
+        echo "<li><strong>Transaction Value:</strong> Rp " . number_format($performance->transaction_value, 0, ',', '.') . "</li>";
+        echo "<li><strong>Completed At:</strong> {$performance->completed_at}</li>";
+        echo "<li><strong>Created At:</strong> {$performance->created_at}</li>";
+        echo "</ul>";
+    } else {
+        echo "<p><strong>❌ No performance record found for this order!</strong></p>";
+        echo "<p>This indicates the performance was not saved during order completion.</p>";
+    }
+    echo "</div>";
+    
+    $allPerformances = \App\Models\EmployeePerformance::orderBy('created_at', 'desc')->limit(5)->get();
+    echo "<div style='background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 10px 0;'>";
+    echo "<h3>📋 Last 5 Performance Records:</h3>";
+    if ($allPerformances->count() > 0) {
+        echo "<ul>";
+        foreach ($allPerformances as $perf) {
+            echo "<li>Order #{$perf->order_id} - {$perf->employee_name} - Rp " . number_format($perf->transaction_value, 0, ',', '.') . " - {$perf->created_at}</li>";
+        }
+        echo "</ul>";
+    } else {
+        echo "<p>No performance records found.</p>";
+    }
+    echo "</div>";
+    
+    return "";
+});
+
+Route::get('/employee-performance-summary', function () {
+    echo "Employee Performance Tracking System<br>";
+    echo "Implementation Complete!<br>";
     
     $totalEmployees = \App\Models\EmployeePerformance::distinct('employee_name')->count();
     $totalTransactions = \App\Models\EmployeePerformance::count();
@@ -53,63 +268,11 @@ Route::get('/employee-performance-summary', function () {
     $totalBonuses = \App\Models\EmployeeBonus::sum('bonus_amount');
     $ordersWithTracking = \App\Models\Order::where('use_employee_tracking', true)->count();
     
-    echo "<ul>";
-    echo "<li><strong>Total Employees Tracked:</strong> {$totalEmployees}</li>";
-    echo "<li><strong>Total Transactions Recorded:</strong> {$totalTransactions}</li>";
-    echo "<li><strong>Total Revenue Tracked:</strong> Rp " . number_format($totalRevenue, 0, ',', '.') . "</li>";
-    echo "<li><strong>Total Bonuses Given:</strong> Rp " . number_format($totalBonuses, 0, ',', '.') . "</li>";
-    echo "<li><strong>Orders with Employee Tracking:</strong> {$ordersWithTracking}</li>";
-    echo "</ul>";
-    echo "</div>";
-    
-    echo "<div style='background: #cce5ff; padding: 20px; border-radius: 5px; margin: 20px 0;'>";
-    echo "<h3>🔗 Quick Links:</h3>";
-    echo "<ul>";
-    echo "<li><a href='/admin' target='_blank'>Admin Dashboard</a> (requires admin login)</li>";
-    echo "<li><a href='/admin/employee-performance' target='_blank'>Employee Performance Dashboard</a> (requires admin login)</li>";
-    echo "<li><a href='/admin/orders' target='_blank'>Orders Management</a> (requires admin login)</li>";
-    echo "</ul>";
-    echo "</div>";
-    
-    echo "<div style='background: #fff3cd; padding: 20px; border-radius: 5px; margin: 20px 0;'>";
-    echo "<h3>📋 Usage Instructions:</h3>";
-    echo "<ol>";
-    echo "<li><strong>For Order Tracking:</strong>";
-    echo "<ul>";
-    echo "<li>Go to any order detail page in admin</li>";
-    echo "<li>Check 'Employee Tracking' checkbox</li>";
-    echo "<li>Enter employee name</li>";
-    echo "<li>Complete the order normally</li>";
-    echo "</ul></li>";
-    echo "<li><strong>For Performance Review:</strong>";
-    echo "<ul>";
-    echo "<li>Visit Employee Performance menu</li>";
-    echo "<li>Use filters to view specific periods/employees</li>";
-    echo "<li>Click 'Detail' to see individual performance</li>";
-    echo "</ul></li>";
-    echo "<li><strong>For Giving Bonuses:</strong>";
-    echo "<ul>";
-    echo "<li>Click 'Bonus' button on performance dashboard</li>";
-    echo "<li>Fill in bonus details and period</li>";
-    echo "<li>Submit to record the bonus</li>";
-    echo "</ul></li>";
-    echo "</ol>";
-    echo "</div>";
-    
-    echo "<div style='background: #f8d7da; padding: 20px; border-radius: 5px; margin: 20px 0;'>";
-    echo "<h3>⚠️ Important Notes:</h3>";
-    echo "<ul>";
-    echo "<li>Employee tracking is <strong>optional</strong> per order</li>";
-    echo "<li>Employee name must be filled before completing tracked orders</li>";
-    echo "<li>Performance data is automatically recorded when orders are completed</li>";
-    echo "<li>Bonuses are separate from automatic performance tracking</li>";
-    echo "<li>All data is visible to customers in their order details</li>";
-    echo "</ul>";
-    echo "</div>";
-    
-    echo "<hr>";
-    echo "<h3>🚀 System Ready for Production Use!</h3>";
-    echo "<p><em>You can now use the employee performance tracking system to monitor staff performance and manage bonuses effectively.</em></p>";
+    echo "Total Employees Tracked: " . $totalEmployees . "<br>";
+    echo "Total Transactions Recorded: " . $totalTransactions . "<br>";
+    echo "Total Revenue Tracked: Rp " . number_format($totalRevenue, 0, ',', '.') . "<br>";
+    echo "Total Bonuses Given: Rp " . number_format($totalBonuses, 0, ',', '.') . "<br>";
+    echo "Orders with Employee Tracking: " . $ordersWithTracking . "<br>";
     
     return "";
 });

@@ -497,6 +497,12 @@
             const isChecked = $(this).is(':checked');
             $('#employeeNameSection').toggle(isChecked);
             
+            // If disabled, clear employee name
+            if (!isChecked) {
+                $('#employeeName').val('');
+                updateEmployeeName('');
+            }
+            
             // AJAX call to update order tracking status
             updateTrackingStatus(isChecked);
         });
@@ -557,6 +563,16 @@
                 },
                 success: function(response) {
                     console.log('Employee name updated');
+                    
+                    // Auto-sync checkbox based on employee name
+                    const hasName = name.trim() !== '';
+                    const checkbox = $('#useEmployeeTracking');
+                    const nameSection = $('#employeeNameSection');
+                    
+                    if (response.use_employee_tracking !== checkbox.is(':checked')) {
+                        checkbox.prop('checked', response.use_employee_tracking);
+                        nameSection.toggle(response.use_employee_tracking);
+                    }
                 },
                 error: function(xhr, status, error) {
                     console.error('Error updating employee name:', error);

@@ -68,7 +68,7 @@
                                                             </a>
                                                         </td>
                                                         <td>Rp {{ number_format($performance->transaction_value, 0, ',', '.') }}</td>
-                                                        <td>{{ $performance->completed_at->format('d/m/Y H:i') }}</td>
+                                                        <td>{{ $performance->completed_at ? $performance->completed_at->format('d/m/Y H:i') : '-' }}</td>
                                                         <td>
                                                             <a href="{{ route('admin.orders.show', $performance->order_id) }}" class="btn btn-sm btn-info">
                                                                 View Order
@@ -102,7 +102,7 @@
                                         <div class="mb-3 p-3 border rounded">
                                             <h6 class="text-success">Rp {{ number_format($bonus->bonus_amount, 0, ',', '.') }}</h6>
                                             <small class="text-muted">
-                                                {{ $bonus->period_start->format('d/m/Y') }} - {{ $bonus->period_end->format('d/m/Y') }}
+                                                {{ $bonus->period_start ? $bonus->period_start->format('d/m/Y') : '-' }} - {{ $bonus->period_end ? $bonus->period_end->format('d/m/Y') : '-' }}
                                             </small>
                                             <br>
                                             <small>Given by: {{ $bonus->givenBy->name ?? 'Unknown' }}</small>
