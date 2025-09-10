@@ -195,9 +195,9 @@ class CartController extends Controller
     {
         Cart::remove($id);
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Item removed from cart'
+        return redirect()->route('carts.index')->with([
+            'message' => 'Item removed from cart successfully',
+            'alert-type' => 'success'
         ]);
     }
 }

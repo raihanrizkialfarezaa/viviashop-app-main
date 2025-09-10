@@ -121,7 +121,7 @@
                                 <p id="stock-info">Stok : {{ $parentProduct->productInventory->qty }}</p>
                             @endif
                             
-                            @if(($parentProduct->type == 'configurable' || ($parentProduct->type == 'simple' && $variants->count() > 0)) && $variants->count() > 0)
+                            @if($parentProduct->type == 'configurable' && $variants->count() > 0)
                                 <div class="product-variants mb-4">
                                     <h6>Pilih Varian Produk:</h6>
                                     
@@ -190,9 +190,9 @@
                                     data-product-id="{{ $parentProduct->id }}" 
                                     data-product-type="{{ $parentProduct->type }}" 
                                     data-product-slug="{{ $parentProduct->slug }}"
-                                    @if($parentProduct->type == 'configurable' || ($parentProduct->type == 'simple' && $variants->count() > 0)) disabled @endif>
+                                    @if($parentProduct->type == 'configurable' && $variants->count() > 0) disabled @endif>
                                 <i class="fa fa-shopping-bag me-2"></i>
-                                @if($parentProduct->type == 'configurable' || ($parentProduct->type == 'simple' && $variants->count() > 0))
+                                @if($parentProduct->type == 'configurable' && $variants->count() > 0)
                                     Pilih varian terlebih dahulu
                                 @else
                                     Tambah ke Keranjang
@@ -294,7 +294,7 @@
             const quantityInput = document.getElementById('quantity');
             
             let selectedAttributes = {};
-            let allVariants = @json($variants->load('variantAttributes')->values());
+            let allVariants = @json($variants && $variants->count() > 0 ? $variants->values() : []);
             let availableOptions = @json($variantOptions ?? []);
             
             function initializeVariantSystem() {
@@ -425,8 +425,7 @@
             }
             
             function updateCartButton() {
-                const hasVariants = @json($parentProduct->type) === 'configurable' || 
-                                  (@json($parentProduct->type) === 'simple' && @json($variants->count()) > 0);
+                const hasVariants = @json($parentProduct->type) === 'configurable' && @json($variants->count()) > 0;
                 
                 if (hasVariants) {
                     const selectedCount = Object.keys(selectedAttributes).length;
@@ -488,8 +487,7 @@
                     return;
                 }
                 
-                if (@json($parentProduct->type) === 'configurable' || 
-                    (@json($parentProduct->type) === 'simple' && @json($variants->count()) > 0)) {
+                if (@json($parentProduct->type) === 'configurable' && @json($variants->count()) > 0) {
                     const exactVariant = findExactVariant();
                     if (!exactVariant) {
                         alert('Varian tidak ditemukan');

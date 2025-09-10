@@ -1,6 +1,11 @@
 @extends('frontend.layouts')
 @section('content')
-    <!-- Single Page Header start -->
+                                   } else {
+                                    $product = \App\Models\Product::find($item->options['product_id']);
+                                    $image = !empty($product && $product->productImages->first()) ? asset('storage/'.$product->productImages->first()->path) : asset('themes/ezone/assets/img/cart/3.jpg');
+                                    $maxQty = $product && $product->productInventory ? $product->productInventory->qty : 1;
+                                    $displayName = $product ? $product->name : $item->name;
+                                }Single Page Header start -->
     <div class="container-fluid page-header py-5">
         <h1 class="text-center text-white display-6">Cart</h1>
         <ol class="breadcrumb justify-content-center mb-0">
@@ -51,10 +56,10 @@
                                         $displayName .= ' (' . implode(', ', $attributes) . ')';
                                     }
                                 } else {
-                                    $product = $item->model;
-                                    $image = !empty($product->productImages->first()) ? asset('storage/'.$product->productImages->first()->path) : asset('themes/ezone/assets/img/cart/3.jpg');
-                                    $maxQty = $product->productInventory ? $product->productInventory->qty : 1;
-                                    $displayName = $product->name;
+                                    $product = \App\Models\Product::find($item->options['product_id']);
+                                    $image = !empty($product && $product->productImages->first()) ? asset('storage/'.$product->productImages->first()->path) : asset('themes/ezone/assets/img/cart/3.jpg');
+                                    $maxQty = $product && $product->productInventory ? $product->productInventory->qty : 1;
+                                    $displayName = $product ? $product->name : $item->name;
                                 }
                             @endphp
                             <tr>

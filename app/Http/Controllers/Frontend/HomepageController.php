@@ -78,13 +78,13 @@ class HomepageController extends Controller
         $variants = collect();
         $variantOptions = [];
         
-        // Handle edge case: simple products that have variants (data inconsistency)
-        // For simple products with variants, treat them as configurable
+        // Handle product types properly
         $hasVariants = $parentProduct->activeVariants()->count() > 0;
-        $isConfigurable = $parentProduct->type == 'configurable' || 
-                         ($parentProduct->type == 'simple' && $hasVariants);
         
-        if ($isConfigurable) {
+        // For simple products with variants (data inconsistency), 
+        // we should either clean up the variants or treat as configurable
+        // Here we'll ignore the variants for simple products to maintain consistency
+        if ($parentProduct->type == 'configurable' && $hasVariants) {
             $configurable_attributes = \App\Models\Attribute::where('is_configurable', true)
                 ->with(['attribute_variants.attribute_options'])
                 ->get();
