@@ -14,7 +14,7 @@
     <div class="container-fluid py-5">
         <div class="container py-5">
             <h1 class="mb-4">Billing details</h1>
-            <form action="{{ route('orders.checkout') }}" method="post" enctype="multipart/form-data" onsubmit="return handleFormSubmit(event)">
+            <form action="{{ route('orders.checkout') }}" method="post" enctype="multipart/form-data" id="checkout-form" onsubmit="return handleFormSubmit(event)">
                 @csrf
                 <div class="row g-5">
                     <div class="col-md-12 col-lg-6 col-xl-7">
@@ -260,7 +260,13 @@
                         </div>
                         <div class="row g-4 text-center align-items-center justify-content-center pt-4">
                             <input type="hidden" name="total_amount" class="total-amount-input" value="{{ (int)Cart::subtotal(0,'','') }}">
-                            <button type="submit" class="btn border-secondary py-3 px-4 text-uppercase w-100 text-primary">Place Order</button>
+                            <button type="submit" id="place-order-btn" class="btn border-secondary py-3 px-4 text-uppercase w-100 text-primary">Place Order</button>
+                            <div id="loading-indicator" style="display: none;" class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="sr-only">Processing...</span>
+                                </div>
+                                <p class="mt-2">Processing your order...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -522,6 +528,20 @@
         }
 
         $(document).ready(function(){
+            console.log('🚀 CHECKOUT PAGE INITIALIZED');
+            
+            // Setup error handlers
+            window.addEventListener('error', function(e) {
+                console.error('💥 JavaScript Error:', e.error);
+                console.error('Message:', e.message);
+                console.error('Filename:', e.filename);
+                console.error('Line:', e.lineno);
+            });
+            
+            window.addEventListener('unhandledrejection', function(e) {
+                console.error('💥 Unhandled Promise Rejection:', e.reason);
+            });
+            
             // Setup CSRF token for all AJAX requests
             $.ajaxSetup({
                 headers: {
@@ -529,6 +549,15 @@
                 }
             });
             
+            // Ensure form exists
+            if ($('#checkout-form').length === 0) {
+                console.error('❌ Checkout form not found!');
+                return;
+            }
+            
+            console.log('✅ Checkout form found');
+            
+            // Initialize form state
             $('#shipping-row').hide();
             $('.address-fields').hide();
             $('#shipping-cost-option').html('<option value="">-- Select Delivery Method First --</option>');
@@ -556,6 +585,8 @@
             console.log('Shipping cost option element exists:', $('#shipping-cost-option').length > 0);
             console.log('Delivery method elements count:', $('input[name="delivery_method"]').length);
             console.log('Currently selected delivery method:', $('input[name="delivery_method"]:checked').val());
+            console.log('Payment method elements count:', $('input[name="payment_method"]').length);
+            console.log('Currently selected payment method:', $('input[name="payment_method"]:checked').val());
             console.log('============================');
             
             $('#shipping-province').on('change', function() {
@@ -690,21 +721,71 @@
        });
        
        function handleFormSubmit(event) {
-           if (!validateForm()) {
+           console.log('🔍 FORM SUBMIT STARTED');
+           console.log('Event:', event);
+           console.log('Form action:', $('#checkout-form').attr('action'));
+           console.log('Form method:', $('#checkout-form').attr('method'));
+           
+           // Prevent double submission
+           var submitButton = $('#place-order-btn');
+           if (submitButton.prop('disabled')) {
+               console.log('❌ FORM ALREADY SUBMITTING - preventing double submit');
                event.preventDefault();
                return false;
            }
+           
+           // Validate form first
+           if (!validateForm()) {
+               console.log('❌ FORM VALIDATION FAILED - preventing submit');
+               event.preventDefault();
+               return false;
+           }
+           
+           console.log('✅ FORM VALIDATION PASSED');
+           
+           // Disable submit button to prevent double submission
+           var submitButton = $('#place-order-btn');
+           var loadingIndicator = $('#loading-indicator');
+           
+           submitButton.prop('disabled', true).hide();
+           loadingIndicator.show();
            
            var deliveryMethod = $('input[name="delivery_method"]:checked').val();
            console.log('Form submit - delivery method:', deliveryMethod);
            
            if (deliveryMethod === 'self') {
+               // Remove address field names for self pickup to avoid validation issues
                $('#shipping-province').removeAttr('name');
                $('#shipping-city').removeAttr('name');
                $('#shipping-district').removeAttr('name');
                $('#shipping-cost-option').removeAttr('name');
                console.log('Self pickup - removed address field names');
            }
+           
+           // Ensure all required hidden fields exist
+           if (!$('input[name="unique_code"]').length) {
+               $('<input>').attr({
+                   type: 'hidden',
+                   name: 'unique_code',
+                   value: '0'
+               }).appendTo('#checkout-form');
+               console.log('Added missing unique_code field');
+           }
+           
+           // Log all form data before submit
+           var formData = new FormData($('#checkout-form')[0]);
+           console.log('📝 FINAL FORM DATA:');
+           for (var pair of formData.entries()) {
+               console.log(pair[0] + ': ' + pair[1]);
+           }
+           
+           console.log('🚀 ALLOWING FORM SUBMIT');
+           
+           // Re-enable button after some time in case of errors (fallback)
+           setTimeout(function() {
+               submitButton.prop('disabled', false).show();
+               loadingIndicator.hide();
+           }, 15000);
            
            return true;
        }
@@ -713,55 +794,122 @@
            var deliveryMethod = $('input[name="delivery_method"]:checked').val();
            var paymentMethod = $('input[name="payment_method"]:checked').val();
            
-           console.log('Validating form...');
+           console.log('🔍 VALIDATING FORM...');
            console.log('Delivery method:', deliveryMethod);
            console.log('Payment method:', paymentMethod);
-           console.log('Name:', $('input[name="name"]').val());
-           console.log('Address1:', $('input[name="address1"]').val());
-           console.log('Phone:', $('input[name="phone"]').val());
-           console.log('Email:', $('input[name="email"]').val());
-           console.log('Postcode:', $('input[name="postcode"]').val());
+           
+           var name = $('input[name="name"]').val();
+           var address1 = $('input[name="address1"]').val();
+           var phone = $('input[name="phone"]').val();
+           var email = $('input[name="email"]').val();
+           var postcode = $('input[name="postcode"]').val();
+           
+           console.log('Form data:', {
+               name: name,
+               address1: address1,
+               phone: phone,
+               email: email,
+               postcode: postcode
+           });
+           
+           // Check for empty or whitespace-only values
+           if (!name || name.trim() === '') {
+               alert('❌ Please enter your name');
+               $('input[name="name"]').focus();
+               return false;
+           }
+           
+           if (!address1 || address1.trim() === '') {
+               alert('❌ Please enter your address');
+               $('input[name="address1"]').focus();
+               return false;
+           }
+           
+           if (!phone || phone.trim() === '') {
+               alert('❌ Please enter your phone number');
+               $('input[name="phone"]').focus();
+               return false;
+           }
+           
+           if (!email || email.trim() === '') {
+               alert('❌ Please enter your email address');
+               $('input[name="email"]').focus();
+               return false;
+           }
+           
+           // Simple email validation
+           var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+           if (!emailRegex.test(email.trim())) {
+               alert('❌ Please enter a valid email address');
+               $('input[name="email"]').focus();
+               return false;
+           }
+           
+           if (!postcode || postcode.trim() === '') {
+               alert('❌ Please enter your postcode');
+               $('input[name="postcode"]').focus();
+               return false;
+           }
            
            if (!deliveryMethod) {
-               alert('Please select a delivery method');
+               alert('❌ Please select a delivery method');
                return false;
            }
            
            if (!paymentMethod) {
-               alert('Please select a payment method');
+               alert('❌ Please select a payment method');
                return false;
            }
            
+           // Validate courier delivery specific fields
            if (deliveryMethod === 'courier') {
-               console.log('Province:', $('#shipping-province').val());
-               console.log('City:', $('#shipping-city').val());
-               console.log('District:', $('#shipping-district').val());
-               console.log('Shipping service:', $('#shipping-cost-option').val());
+               console.log('Validating courier delivery fields...');
                
-               if (!$('#shipping-province').val() || $('#shipping-province').val() === '') {
-                   alert('Please select a province for courier delivery');
+               var province = $('#shipping-province').val();
+               var city = $('#shipping-city').val();
+               var district = $('#shipping-district').val();
+               var shippingService = $('#shipping-cost-option').val();
+               
+               console.log('Courier fields:', {
+                   province: province,
+                   city: city,
+                   district: district,
+                   shippingService: shippingService
+               });
+               
+               if (!province || province === '') {
+                   alert('❌ Please select a province for courier delivery');
+                   $('#shipping-province').focus();
                    return false;
                }
-               if (!$('#shipping-city').val() || $('#shipping-city').val() === '') {
-                   alert('Please select a city for courier delivery');
+               
+               if (!city || city === '') {
+                   alert('❌ Please select a city for courier delivery');
+                   $('#shipping-city').focus();
                    return false;
                }
-               if (!$('#shipping-district').val() || $('#shipping-district').val() === '') {
-                   alert('Please select a district for courier delivery');
+               
+               if (!district || district === '') {
+                   alert('❌ Please select a district for courier delivery');
+                   $('#shipping-district').focus();
                    return false;
                }
-               if (!$('#shipping-cost-option').val() || $('#shipping-cost-option').val() === '') {
-                   alert('Please select a shipping service for courier delivery');
+               
+               if (!shippingService || shippingService === '') {
+                   alert('❌ Please select a shipping service for courier delivery');
+                   $('#shipping-cost-option').focus();
                    return false;
                }
            } else {
                console.log('Self pickup selected - skipping address validation');
            }
            
+           // Update total amount one final time
            updateTotalAmount();
            
-           console.log('Form validation passed');
+           console.log('✅ FORM VALIDATION PASSED');
            console.log('Final total amount:', $('.total-amount-input').val());
+           
            return true;
        }
     </script>

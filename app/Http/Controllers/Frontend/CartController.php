@@ -156,7 +156,7 @@ class CartController extends Controller
                 'slug' => $product->slug,
                 'image' => $product->productImages->first()?->path ?? '',
             ]
-        ]);
+        ], $product);
 
         return response()->json([
             'status' => 'success',

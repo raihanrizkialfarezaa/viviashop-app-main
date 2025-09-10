@@ -121,7 +121,22 @@ view()->share('setting', $setting);
 			if (isset($item->options['type']) && $item->options['type'] === 'configurable') {
 				$itemWeight = $item->weight ?? 0;
 			} else {
-				$itemWeight = $item->model ? ($item->model->weight ?? 0) : ($item->weight ?? 0);
+				// For simple products
+				if ($item->model) {
+					$itemWeight = $item->model->weight ?? 0;
+				} else {
+					// Fallback: use weight from cart item or load from product
+					$itemWeight = $item->weight ?? 0;
+					if ($itemWeight <= 0 && isset($item->options['product_id'])) {
+						$product = \App\Models\Product::find($item->options['product_id']);
+						$itemWeight = $product ? ($product->weight ?? 100) : 100; // Default 100g if no weight
+					}
+				}
+			}
+			
+			// Ensure minimum weight
+			if ($itemWeight <= 0) {
+				$itemWeight = 100; // Default 100 grams
 			}
 			
 			$totalWeight += ($item->qty * $itemWeight);
@@ -405,6 +420,27 @@ view()->share('setting', $setting);
 
 			Log::info('Checkout validation passed');
 
+			// Add detailed cart validation
+			if (Cart::count() <= 0) {
+				Log::error('Checkout failed: Cart is empty');
+				return redirect('carts')->with('error', 'Your cart is empty');
+			}
+
+			$cartItems = Cart::content();
+			Log::info('Cart items for checkout', [
+				'count' => $cartItems->count(),
+				'items' => $cartItems->map(function($item) {
+					return [
+						'id' => $item->id,
+						'name' => $item->name,
+						'qty' => $item->qty,
+						'price' => $item->price,
+						'type' => $item->options['type'] ?? 'unknown',
+						'model_exists' => $item->model ? true : false
+					];
+				})->toArray()
+			]);
+
 			$params = $request->except('_token');
 			$params['attachments'] = $request->file('attachments');
 			$params['payment_slip'] = $request->file('payment_slip');
@@ -445,6 +481,12 @@ view()->share('setting', $setting);
 				// Add success message
 				Session::flash('success', 'Thank you! Your order has been received!');
 
+				Log::info('Checkout successful, redirecting to order received page', [
+					'order_id' => $order->id,
+					'order_code' => $order->code,
+					'redirect_url' => 'orders/received/' . $order->id
+				]);
+
 				// Redirect to order received page
 				return redirect('orders/received/' . $order->id);
 
@@ -452,14 +494,21 @@ view()->share('setting', $setting);
 				// Rollback transaction on error
 				DB::rollBack();
 
-				Log::error('Checkout Error: ' . $e->getMessage());
+				Log::error('Checkout Error: ' . $e->getMessage(), [
+					'file' => $e->getFile(),
+					'line' => $e->getLine(),
+					'trace' => $e->getTraceAsString()
+				]);
 
 				// Redirect back with error message
 				return redirect()->back()->withInput()->with('error', 'There was an error processing your order: ' . $e->getMessage());
 			}
 		} catch (\Exception $e) {
-			Log::error('Checkout Input Validation Error: ' . $e->getMessage());
-			Log::error('Request data: ', $request->all());
+			Log::error('Checkout Input Validation Error: ' . $e->getMessage(), [
+				'file' => $e->getFile(),
+				'line' => $e->getLine(),
+				'request_data' => $request->all()
+			]);
 
 			return redirect()->back()->withInput()->withErrors($e->getMessage())->with('error', 'Please check your input: ' . $e->getMessage());
 		}
@@ -566,14 +615,20 @@ view()->share('setting', $setting);
 			'city_id' => $params['delivery_method'] == 'courier' ? ($params['shipping_city_id'] ?? auth()->user()->city_id) : auth()->user()->city_id,
 			'postcode' => $params['postcode'],
 			'phone' => $params['phone'],
-			'email' => $params['email'],
 		];
+
+		if ($params['email'] !== auth()->user()->email) {
+			$existingUser = DB::table('users')->where('email', $params['email'])->where('id', '!=', auth()->id())->first();
+			if (!$existingUser) {
+				$user_profile['email'] = $params['email'];
+			}
+		}
 
 		DB::table('users')
 			->where('id', auth()->id())
 			->update($user_profile);
 
-		if ($params['attachments'] != null || isset($params['payment_slip'])) {
+		if (isset($params['attachments']) && $params['attachments'] != null || isset($params['payment_slip']) && $params['payment_slip'] != null) {
 			$orderParams = [
 				'user_id' => auth()->id(),
 				'code' => Order::generateCode(),
@@ -581,7 +636,7 @@ view()->share('setting', $setting);
 				'order_date' => $orderDate,
 				'payment_due' => $paymentDue,
 				'payment_status' => Order::UNPAID,
-				'attachments' => $params['attachments'] ? $params['attachments']->store('assets/slides', 'public') : null,
+				'attachments' => isset($params['attachments']) && $params['attachments'] ? $params['attachments']->store('assets/slides', 'public') : null,
 				'payment_slip' => isset($params['payment_slip']) ? $params['payment_slip']->store('assets/payment_slips', 'public') : null,
 				'base_total_price' => $baseTotalPrice,
 				'tax_amount' => $taxAmount,
@@ -662,10 +717,18 @@ view()->share('setting', $setting);
 					$weight = $item->weight ?? 0;
 				} else {
 					// Simple item
-					$product = isset($item->model->parent) ? $item->model->parent : $item->model;
-					$productId = $item->model->id;
-					$sku = $item->model->sku;
-					$weight = $item->model->weight ?? 0;
+					if ($item->model) {
+						$product = isset($item->model->parent) ? $item->model->parent : $item->model;
+						$productId = $item->model->id;
+						$sku = $item->model->sku ?? '';
+						$weight = $item->model->weight ?? 0;
+					} else {
+						// Fallback for when model is null (load from options)
+						$product = \App\Models\Product::find($item->options['product_id'] ?? $item->id);
+						$productId = $item->options['product_id'] ?? $item->id;
+						$sku = $product ? $product->sku : '';
+						$weight = $product ? $product->weight : 0;
+					}
 				}
 
 				$orderItemParams = [

@@ -932,6 +932,28 @@ Route::get('/download-file/{id}', [\App\Http\Controllers\Frontend\OrderControlle
     Route::put('orders/confirmPaymentManual/{id}', [\App\Http\Controllers\Frontend\OrderController::class, 'confirmPayment'])->name('orders.confirmPayment');
     Route::get('orders/checkout', [\App\Http\Controllers\Frontend\OrderController::class, 'checkout'])->middleware('auth');
     Route::post('orders/checkout', [\App\Http\Controllers\Frontend\OrderController::class, 'doCheckout'])->name('orders.checkout')->middleware('auth');
+    Route::get('orders/test-simple-checkout', function() {
+        if (!\Gloudemans\Shoppingcart\Facades\Cart::count()) {
+            return redirect('carts')->with('error', 'Cart is empty');
+        }
+        
+        $request = new \Illuminate\Http\Request();
+        $request->merge([
+            'name' => auth()->user()->name,
+            'address1' => auth()->user()->address1 ?: 'Test Address 1',
+            'address2' => auth()->user()->address2 ?: 'Test Address 2',
+            'postcode' => auth()->user()->postcode ?: '12345',
+            'phone' => auth()->user()->phone ?: '081234567890',
+            'email' => auth()->user()->email,
+            'payment_method' => 'toko',
+            'delivery_method' => 'self',
+            'unique_code' => 0,
+            'note' => 'Test simple product checkout - direct route'
+        ]);
+        
+        $orderController = new \App\Http\Controllers\Frontend\OrderController();
+        return $orderController->doCheckout($request);
+    })->middleware('auth')->name('test.simple.checkout');
     Route::post('orders/shipping-cost', [\App\Http\Controllers\Frontend\OrderController::class, 'shippingCost'])->name('orders.shippingCost')->middleware('auth');
     Route::post('orders/set-shipping', [\App\Http\Controllers\Frontend\OrderController::class, 'setShipping'])->middleware('auth');
     Route::get('orders/received/{orderId}', [\App\Http\Controllers\Frontend\OrderController::class, 'received']);
