@@ -156,6 +156,14 @@
                     </p>
                 </a>
             </li>
+            <li class="nav-item">
+                <a href="{{ route('admin.print-service.index') }}" class="nav-link">
+                    <i class="nav-icon fas fa-print"></i>
+                    <p>
+                        Smart Print Service
+                    </p>
+                </a>
+            </li>
         </ul>
     </nav>
     <!-- /.sidebar-menu -->

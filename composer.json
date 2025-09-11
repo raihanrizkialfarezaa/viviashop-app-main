@@ -24,6 +24,7 @@
         "milon/barcode": "^12.0",
         "realrashid/sweet-alert": "^7.2",
         "simplehtmldom/simplehtmldom": "dev-master",
+        "simplesoftwareio/simple-qrcode": "^4.2",
         "socialiteproviders/instagram": "^5.1",
         "socialiteproviders/instagram-basic": "^4.2",
         "voku/simple_html_dom": "*",

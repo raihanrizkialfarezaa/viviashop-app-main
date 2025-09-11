@@ -907,8 +907,44 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     Route::get('employee-performance/{employee}', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'show'])->name('employee-performance.show');
     Route::post('employee-performance/bonus', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'giveBonus'])->name('employee-performance.giveBonus');
     Route::get('employee-performance-bonus-history', [\App\Http\Controllers\Admin\EmployeePerformanceController::class, 'bonusHistory'])->name('employee-performance.bonusHistory');
+    
+    Route::prefix('print-service')->name('print-service.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\PrintServiceController::class, 'index'])->name('index');
+        Route::get('/queue', [\App\Http\Controllers\Admin\PrintServiceController::class, 'queue'])->name('queue');
+        Route::get('/sessions', [\App\Http\Controllers\Admin\PrintServiceController::class, 'sessions'])->name('sessions');
+        Route::get('/orders', [\App\Http\Controllers\Admin\PrintServiceController::class, 'orders'])->name('orders');
+        Route::get('/reports', [\App\Http\Controllers\Admin\PrintServiceController::class, 'reports'])->name('reports');
+        Route::post('/generate-session', [\App\Http\Controllers\Admin\PrintServiceController::class, 'generateSession'])->name('generate-session');
+        Route::post('/orders/{id}/confirm-payment', [\App\Http\Controllers\Admin\PrintServiceController::class, 'confirmPayment'])->name('confirm-payment');
+        Route::post('/orders/{id}/print', [\App\Http\Controllers\Admin\PrintServiceController::class, 'printOrder'])->name('print-order');
+        Route::post('/orders/{id}/complete', [\App\Http\Controllers\Admin\PrintServiceController::class, 'completeOrder'])->name('complete-order');
+        Route::post('/orders/{id}/cancel', [\App\Http\Controllers\Admin\PrintServiceController::class, 'cancelOrder'])->name('cancel-order');
+        Route::get('/orders/{id}/payment-proof', [\App\Http\Controllers\Admin\PrintServiceController::class, 'downloadPaymentProof'])->name('payment-proof');
+    });
 });
 
+Route::get('/smart-print', function () {
+    $setting = App\Models\Setting::first();
+    view()->share('setting', $setting);
+    
+    $cart = Gloudemans\Shoppingcart\Facades\Cart::content()->count();
+    view()->share('countCart', $cart);
+    
+    return view('frontend.smart-print.index');
+})->name('frontend.print-service');
+
+Route::prefix('print-service')->group(function () {
+    Route::get('/{token}', [\App\Http\Controllers\PrintServiceController::class, 'index'])->name('print-service.customer');
+    Route::post('/upload', [\App\Http\Controllers\PrintServiceController::class, 'upload'])->name('print-service.upload');
+    Route::get('/products', [\App\Http\Controllers\PrintServiceController::class, 'getProducts'])->name('print-service.products');
+    Route::post('/calculate', [\App\Http\Controllers\PrintServiceController::class, 'calculate'])->name('print-service.calculate');
+    Route::post('/checkout', [\App\Http\Controllers\PrintServiceController::class, 'checkout'])->name('print-service.checkout');
+    Route::get('/status/{orderCode}', [\App\Http\Controllers\PrintServiceController::class, 'status'])->name('print-service.status');
+    Route::post('/print/{orderCode}', [\App\Http\Controllers\PrintServiceController::class, 'print'])->name('print-service.print');
+    Route::post('/complete/{orderCode}', [\App\Http\Controllers\PrintServiceController::class, 'complete'])->name('print-service.complete');
+    Route::post('/generate-session', [\App\Http\Controllers\PrintServiceController::class, 'generateSession'])->name('print-service.generate-session');
+    Route::post('/midtrans-callback', [\App\Http\Controllers\PrintServiceController::class, 'midtransCallback'])->name('print-service.midtrans-callback');
+});
 
 Route::get('/', [\App\Http\Controllers\Frontend\HomepageController::class, 'index'])->name('index');
 Route::get('products', [\App\Http\Controllers\Frontend\ProductController::class, 'index']);
