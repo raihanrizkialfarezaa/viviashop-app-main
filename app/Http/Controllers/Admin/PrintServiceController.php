@@ -7,16 +7,19 @@ use App\Models\PrintSession;
 use App\Models\PrintOrder;
 use App\Models\PrintFile;
 use App\Services\PrintService;
+use App\Services\StockManagementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class PrintServiceController extends Controller
 {
     protected $printService;
+    protected $stockService;
 
     public function __construct(PrintService $printService)
     {
         $this->printService = $printService;
+        $this->stockService = new StockManagementService();
     }
 
     public function index()
@@ -31,12 +34,17 @@ class PrintServiceController extends Controller
                                  ->limit(10)
                                  ->get();
 
+        $stockData = $this->stockService->getStockReport();
+        $lowStockVariants = $this->stockService->getLowStockVariants();
+
         return view('admin.print-service.index', compact(
             'activeSessions', 
             'pendingOrders', 
             'printQueue', 
             'todayOrders',
-            'recentOrders'
+            'recentOrders',
+            'stockData',
+            'lowStockVariants'
         ));
     }
 
@@ -90,12 +98,11 @@ class PrintServiceController extends Controller
                 return response()->json(['error' => 'Invalid payment method for manual confirmation'], 400);
             }
 
-            $printOrder->markAsPaymentConfirmed();
-            $this->printService->markReadyToPrint($printOrder);
+            $confirmedOrder = $this->printService->confirmPayment($printOrder);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Payment confirmed successfully'
+                'message' => 'Payment confirmed and stock reduced successfully'
             ]);
         } catch (\Exception $e) {
             Log::error('Confirm payment error: ' . $e->getMessage());
@@ -315,6 +322,54 @@ class PrintServiceController extends Controller
         ];
 
         return view('admin.print-service.reports', compact('orders', 'stats', 'startDate', 'endDate'));
+    }
+
+    public function stockManagement()
+    {
+        $variants = $this->stockService->getVariantsByStock('asc');
+        $lowStockVariants = $this->stockService->getLowStockVariants();
+        $recentMovements = $this->stockService->getStockReport(null, now()->subDays(7), now());
+
+        return view('admin.print-service.stock', compact('variants', 'lowStockVariants', 'recentMovements'));
+    }
+
+    public function adjustStock(Request $request, $variantId)
+    {
+        $request->validate([
+            'new_stock' => 'required|integer|min:0',
+            'reason' => 'required|string',
+            'notes' => 'nullable|string|max:500'
+        ]);
+
+        try {
+            $result = $this->stockService->adjustStock(
+                $variantId,
+                $request->new_stock,
+                $request->reason,
+                $request->notes
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Stock adjusted successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Stock adjustment error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    public function stockReport(Request $request)
+    {
+        $variantId = $request->get('variant_id');
+        $dateFrom = $request->get('date_from', now()->subDays(30));
+        $dateTo = $request->get('date_to', now());
+
+        $movements = $this->stockService->getStockReport($variantId, $dateFrom, $dateTo);
+        $variants = $this->printService->getPrintProducts()->flatMap->activeVariants;
+
+        return view('admin.print-service.stock-report', compact('movements', 'variants', 'variantId', 'dateFrom', 'dateTo'));
     }
 
     public function downloadPaymentProof($id)

@@ -224,6 +224,12 @@
                         <a href="{{ route('admin.print-service.reports') }}" class="btn btn-outline-success">
                             <i class="fas fa-chart-line me-2"></i>Reports & Analytics
                         </a>
+                        <a href="{{ route('admin.print-service.stock') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-boxes me-2"></i>Stock Management
+                            @if(isset($lowStockVariants) && $lowStockVariants->count() > 0)
+                            <span class="badge bg-danger ms-1">{{ $lowStockVariants->count() }}</span>
+                            @endif
+                        </a>
                         <hr>
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#sessionModal">
                             <i class="fas fa-plus me-2"></i>Generate New Session
@@ -233,6 +239,57 @@
             </div>
 
             <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-boxes me-2"></i>Stock Status
+                    </h6>
+                </div>
+                <div class="card-body">
+                    @if(isset($stockData) && $stockData->count() > 0)
+                        <div class="table-responsive" style="max-height: 300px;">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Paper</th>
+                                        <th>Stock</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($stockData->take(10) as $variant)
+                                    <tr>
+                                        <td>
+                                            <small>{{ $variant->paper_size }} {{ $variant->print_type }}</small>
+                                        </td>
+                                        <td>
+                                            <small>{{ number_format($variant->stock) }}</small>
+                                        </td>
+                                        <td>
+                                            @if($variant->stock <= 0)
+                                                <span class="badge bg-danger">Out</span>
+                                            @elseif($variant->stock <= ($variant->min_stock_threshold ?? 100))
+                                                <span class="badge bg-warning">Low</span>
+                                            @else
+                                                <span class="badge bg-success">OK</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center mt-2">
+                            <a href="{{ route('admin.print-service.stock') }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye me-1"></i>View All
+                            </a>
+                        </div>
+                    @else
+                        <p class="text-muted text-center">No stock data available</p>
+                    @endif
+                </div>
+            </div>
+
+            <div class="card shadow mt-3">
                 <div class="card-header py-3">
                     <h6 class="m-0 font-weight-bold text-primary">
                         <i class="fas fa-qrcode me-2"></i>Current Session

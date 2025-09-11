@@ -914,12 +914,15 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
         Route::get('/sessions', [\App\Http\Controllers\Admin\PrintServiceController::class, 'sessions'])->name('sessions');
         Route::get('/orders', [\App\Http\Controllers\Admin\PrintServiceController::class, 'orders'])->name('orders');
         Route::get('/reports', [\App\Http\Controllers\Admin\PrintServiceController::class, 'reports'])->name('reports');
+        Route::get('/stock', [\App\Http\Controllers\Admin\PrintServiceController::class, 'stockManagement'])->name('stock');
+        Route::get('/stock-report', [\App\Http\Controllers\Admin\PrintServiceController::class, 'stockReport'])->name('stock-report');
         Route::post('/generate-session', [\App\Http\Controllers\Admin\PrintServiceController::class, 'generateSession'])->name('generate-session');
         Route::post('/orders/{id}/confirm-payment', [\App\Http\Controllers\Admin\PrintServiceController::class, 'confirmPayment'])->name('confirm-payment');
         Route::post('/orders/{id}/print', [\App\Http\Controllers\Admin\PrintServiceController::class, 'printOrder'])->name('print-order');
         Route::post('/orders/{id}/print-files', [\App\Http\Controllers\Admin\PrintServiceController::class, 'printFiles'])->name('print-files');
         Route::post('/orders/{id}/complete', [\App\Http\Controllers\Admin\PrintServiceController::class, 'completeOrder'])->name('complete-order');
         Route::post('/orders/{id}/cancel', [\App\Http\Controllers\Admin\PrintServiceController::class, 'cancelOrder'])->name('cancel-order');
+        Route::post('/stock/{variantId}/adjust', [\App\Http\Controllers\Admin\PrintServiceController::class, 'adjustStock'])->name('stock.adjust');
         Route::get('/orders/{id}/payment-proof', [\App\Http\Controllers\Admin\PrintServiceController::class, 'downloadPaymentProof'])->name('payment-proof');
         Route::get('/view-file/{fileId}', [\App\Http\Controllers\Admin\PrintServiceController::class, 'viewFile'])->name('view-file');
     });

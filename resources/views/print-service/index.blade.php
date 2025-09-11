@@ -321,7 +321,34 @@
                 const data = await response.json();
                 
                 if (data.success && data.products.length > 0) {
-                    productData = data.products[0];
+                    const allVariants = [];
+                    const seenCombinations = new Map();
+                    
+                    data.products.forEach(product => {
+                        product.variants.forEach(variant => {
+                            const combo = `${variant.paper_size}_${variant.print_type}`;
+                            
+                            if (!seenCombinations.has(combo)) {
+                                allVariants.push(variant);
+                                seenCombinations.set(combo, variant);
+                            } else {
+                                const existing = seenCombinations.get(combo);
+                                const existingIndex = allVariants.findIndex(v => v.id === existing.id);
+                                
+                                if (existingIndex !== -1 && variant.stock > existing.stock) {
+                                    allVariants[existingIndex] = variant;
+                                    seenCombinations.set(combo, variant);
+                                }
+                            }
+                        });
+                    });
+                    
+                    productData = {
+                        id: data.products[0].id,
+                        name: data.products[0].name,
+                        variants: allVariants
+                    };
+                    
                     populateProductOptions(productData);
                 } else {
                     console.error('No products found');
@@ -356,11 +383,25 @@
                         value: v.print_type,
                         label: v.print_type === 'bw' ? 'Black & White' : 'Color',
                         price: v.price,
-                        stock: v.stock
+                        stock: v.stock,
+                        min_threshold: v.min_stock_threshold
                     }));
                 
                 availableTypes.forEach(type => {
-                    printTypeSelect.innerHTML += `<option value="${type.value}">${type.label} - Rp ${parseFloat(type.price).toLocaleString()}</option>`;
+                    let stockStatus = '';
+                    if (type.stock <= 0) {
+                        stockStatus = ' (Out of Stock)';
+                    } else if (type.stock <= type.min_threshold) {
+                        stockStatus = ` (Low Stock: ${type.stock})`;
+                    } else {
+                        stockStatus = ` (Stock: ${type.stock})`;
+                    }
+                    
+                    const option = document.createElement('option');
+                    option.value = type.value;
+                    option.textContent = `${type.label} - Rp ${parseFloat(type.price).toLocaleString()}${stockStatus}`;
+                    option.disabled = type.stock <= 0;
+                    printTypeSelect.appendChild(option);
                 });
                 
                 printTypeSelect.addEventListener('change', calculatePrice);
@@ -460,7 +501,6 @@
 
             if (!paperSize || !printType || !totalPages) return;
 
-            // Find matching variant
             try {
                 const response = await fetch('/print-service/products');
                 const data = await response.json();
@@ -472,6 +512,13 @@
                     
                     if (variant) {
                         selectedVariant = variant;
+                        
+                        const requiredStock = totalPages * quantity;
+                        if (variant.stock < requiredStock) {
+                            alert(`Insufficient stock! Available: ${variant.stock} sheets, Required: ${requiredStock} sheets`);
+                            document.getElementById('selection-next').disabled = true;
+                            return;
+                        }
                         
                         const calcResponse = await fetch('/print-service/calculate', {
                             method: 'POST',
@@ -490,7 +537,7 @@
                         
                         if (calcData.success) {
                             currentCalculation = calcData.calculation;
-                            displayPrice(calcData.calculation);
+                            displayPrice(calcData.calculation, variant);
                             document.getElementById('selection-next').disabled = false;
                         }
                     }
@@ -500,11 +547,42 @@
             }
         }
 
-        function displayPrice(calculation) {
+        function displayPrice(calculation, variant = null) {
             document.getElementById('unit-price').textContent = `Rp ${calculation.unit_price.toLocaleString()}`;
             document.getElementById('display-total-pages').textContent = calculation.total_pages;
             document.getElementById('display-quantity').textContent = calculation.quantity;
             document.getElementById('total-price').textContent = `Rp ${calculation.total_price.toLocaleString()}`;
+            
+            if (variant) {
+                const requiredStock = calculation.total_pages * calculation.quantity;
+                const stockInfo = document.getElementById('stock-info') || document.createElement('div');
+                stockInfo.id = 'stock-info';
+                stockInfo.className = 'row mt-2';
+                
+                let stockClass = 'text-success';
+                let stockMessage = `Stock Available: ${variant.stock} sheets`;
+                
+                if (variant.stock <= variant.min_stock_threshold) {
+                    stockClass = 'text-warning';
+                    stockMessage = `⚠️ Low Stock: ${variant.stock} sheets`;
+                }
+                
+                if (variant.stock < requiredStock) {
+                    stockClass = 'text-danger';
+                    stockMessage = `❌ Insufficient Stock: ${variant.stock} sheets (Need: ${requiredStock})`;
+                }
+                
+                stockInfo.innerHTML = `
+                    <div class="col-6">Stock Status:</div>
+                    <div class="col-6 text-end ${stockClass}">${stockMessage}</div>
+                `;
+                
+                const priceDisplay = document.getElementById('price-display');
+                if (!document.getElementById('stock-info')) {
+                    priceDisplay.appendChild(stockInfo);
+                }
+            }
+            
             document.getElementById('price-display').style.display = 'block';
         }
 

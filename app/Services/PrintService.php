@@ -7,6 +7,7 @@ use App\Models\PrintOrder;
 use App\Models\PrintFile;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\StockManagementService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +15,12 @@ use Carbon\Carbon;
 
 class PrintService
 {
+    protected $stockService;
+
+    public function __construct()
+    {
+        $this->stockService = new StockManagementService();
+    }
     public function generateSession()
     {
         PrintSession::cleanup();
@@ -131,6 +138,13 @@ class PrintService
         }
 
         $totalPages = $sessionFiles->sum('pages_count');
+        $requiredStock = $totalPages * ($data['quantity'] ?? 1);
+
+        $stockCheck = $this->stockService->checkStockAvailability($variant->id, $requiredStock);
+        if (!$stockCheck['available']) {
+            throw new \Exception($stockCheck['message']);
+        }
+
         $unitPrice = $variant->price;
         $totalPrice = $unitPrice * $totalPages * ($data['quantity'] ?? 1);
 
@@ -201,6 +215,66 @@ class PrintService
             default:
                 throw new \Exception('Invalid payment method');
         }
+    }
+
+    public function confirmPayment(PrintOrder $printOrder)
+    {
+        $printOrder->update([
+            'payment_status' => PrintOrder::PAYMENT_PAID,
+            'status' => PrintOrder::STATUS_READY_TO_PRINT
+        ]);
+
+        $requiredStock = $printOrder->total_pages * $printOrder->quantity;
+        
+        try {
+            $this->stockService->reduceStock(
+                $printOrder->paper_variant_id,
+                $requiredStock,
+                $printOrder->id,
+                'order_confirmed'
+            );
+            
+            Log::info("Stock reduced for confirmed order {$printOrder->order_code}: {$requiredStock} units");
+        } catch (\Exception $e) {
+            Log::error("Failed to reduce stock for order {$printOrder->order_code}: " . $e->getMessage());
+            
+            $printOrder->update([
+                'payment_status' => PrintOrder::PAYMENT_WAITING,
+                'status' => PrintOrder::STATUS_PAYMENT_PENDING
+            ]);
+            
+            throw new \Exception('Stock not available. Order payment reverted.');
+        }
+
+        return $printOrder;
+    }
+
+    public function cancelOrder(PrintOrder $printOrder)
+    {
+        if (in_array($printOrder->status, [PrintOrder::STATUS_PRINTING, PrintOrder::STATUS_PRINTED, PrintOrder::STATUS_COMPLETED])) {
+            throw new \Exception('Cannot cancel order in current status');
+        }
+
+        if ($printOrder->payment_status === PrintOrder::PAYMENT_PAID) {
+            $requiredStock = $printOrder->total_pages * $printOrder->quantity;
+            
+            try {
+                $this->stockService->restoreStock(
+                    $printOrder->paper_variant_id,
+                    $requiredStock,
+                    $printOrder->id,
+                    'order_cancelled'
+                );
+                
+                Log::info("Stock restored for cancelled order {$printOrder->order_code}: {$requiredStock} units");
+            } catch (\Exception $e) {
+                Log::error("Failed to restore stock for cancelled order {$printOrder->order_code}: " . $e->getMessage());
+            }
+        }
+
+        $printOrder->update(['status' => PrintOrder::STATUS_CANCELLED]);
+        
+        return $printOrder;
     }
 
     public function markReadyToPrint(PrintOrder $printOrder)
