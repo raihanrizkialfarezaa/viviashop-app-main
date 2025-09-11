@@ -917,6 +917,7 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
         Route::post('/generate-session', [\App\Http\Controllers\Admin\PrintServiceController::class, 'generateSession'])->name('generate-session');
         Route::post('/orders/{id}/confirm-payment', [\App\Http\Controllers\Admin\PrintServiceController::class, 'confirmPayment'])->name('confirm-payment');
         Route::post('/orders/{id}/print', [\App\Http\Controllers\Admin\PrintServiceController::class, 'printOrder'])->name('print-order');
+        Route::post('/orders/{id}/print-files', [\App\Http\Controllers\Admin\PrintServiceController::class, 'printFiles'])->name('print-files');
         Route::post('/orders/{id}/complete', [\App\Http\Controllers\Admin\PrintServiceController::class, 'completeOrder'])->name('complete-order');
         Route::post('/orders/{id}/cancel', [\App\Http\Controllers\Admin\PrintServiceController::class, 'cancelOrder'])->name('cancel-order');
         Route::get('/orders/{id}/payment-proof', [\App\Http\Controllers\Admin\PrintServiceController::class, 'downloadPaymentProof'])->name('payment-proof');

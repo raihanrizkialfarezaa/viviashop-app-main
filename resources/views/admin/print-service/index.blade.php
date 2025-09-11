@@ -1,90 +1,87 @@
-@extends('admin.layout.master')
+@extends('layouts.app')
 
 @section('title', 'Print Service Dashboard')
 
 @section('content')
 <div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="page-title-box">
-                <div class="page-title-right">
-                    <button class="btn btn-primary" id="generate-session-btn">
-                        <i class="mdi mdi-qrcode"></i> Generate New Session
-                    </button>
-                </div>
-                <h4 class="page-title">Print Service Dashboard</h4>
-            </div>
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-print text-primary me-2"></i>Print Service Dashboard
+        </h1>
+        <div>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#sessionModal">
+                <i class="fas fa-plus me-1"></i>New Session
+            </button>
         </div>
     </div>
 
-    <!-- Statistics Cards -->
-    <div class="row">
-        <div class="col-md-3">
-            <div class="card">
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-primary shadow h-100 py-2">
                 <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-6">
-                            <h5 class="text-muted fw-normal mt-0 text-truncate" title="Active Sessions">Active Sessions</h5>
-                            <h3 class="my-2 py-1">{{ $activeSessions }}</h3>
-                        </div>
-                        <div class="col-6">
-                            <div class="text-end">
-                                <div id="sessions-chart" class="apex-charts"></div>
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Active Sessions
                             </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $activeSessions }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-desktop fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-warning shadow h-100 py-2">
                 <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-6">
-                            <h5 class="text-muted fw-normal mt-0 text-truncate" title="Pending Orders">Pending Payments</h5>
-                            <h3 class="my-2 py-1">{{ $pendingOrders }}</h3>
-                        </div>
-                        <div class="col-6">
-                            <div class="text-end">
-                                <i class="mdi mdi-clock-outline text-warning" style="font-size: 2rem;"></i>
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Pending Payments
                             </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $pendingOrders }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-info shadow h-100 py-2">
                 <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-6">
-                            <h5 class="text-muted fw-normal mt-0 text-truncate" title="Print Queue">Print Queue</h5>
-                            <h3 class="my-2 py-1">{{ $printQueue }}</h3>
-                        </div>
-                        <div class="col-6">
-                            <div class="text-end">
-                                <i class="mdi mdi-printer text-info" style="font-size: 2rem;"></i>
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Print Queue
                             </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $printQueue }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-print fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-success shadow h-100 py-2">
                 <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-6">
-                            <h5 class="text-muted fw-normal mt-0 text-truncate" title="Today Orders">Today's Orders</h5>
-                            <h3 class="my-2 py-1">{{ $todayOrders }}</h3>
-                        </div>
-                        <div class="col-6">
-                            <div class="text-end">
-                                <i class="mdi mdi-calendar-today text-success" style="font-size: 2rem;"></i>
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Today's Orders
                             </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $todayOrders }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-day fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>
@@ -92,30 +89,107 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="row">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="card-title">Recent Print Orders</h4>
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-list me-2"></i>Recent Print Orders
+                    </h6>
+                    <a href="{{ route('admin.print-service.orders') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-eye me-1"></i>View All
+                    </a>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
+                        <table class="table table-bordered table-hover" width="100%" cellspacing="0">
+                            <thead class="table-dark">
                                 <tr>
                                     <th>Order Code</th>
                                     <th>Customer</th>
+                                    <th>Paper Type</th>
                                     <th>Pages</th>
                                     <th>Status</th>
                                     <th>Total</th>
-                                    <th>Action</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="recent-orders">
+                            <tbody>
+                                @forelse($recentOrders as $order)
                                 <tr>
-                                    <td colspan="6" class="text-center">Loading...</td>
+                                    <td>
+                                        <strong class="text-primary">{{ $order->order_code }}</strong>
+                                        <br><small class="text-muted">{{ $order->created_at->format('d M Y H:i') }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ $order->customer_name }}</strong>
+                                        <br><small class="text-muted">{{ $order->customer_phone }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold">{{ $order->paperVariant->name ?? 'N/A' }}</span>
+                                        <br><small class="text-muted">{{ ucfirst($order->print_type) }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ $order->total_pages }} pages</span>
+                                        @if($order->quantity > 1)
+                                        <br><small class="text-muted">{{ $order->quantity }} copies</small>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @php
+                                            $statusClass = match($order->status) {
+                                                'payment_pending' => 'warning',
+                                                'payment_confirmed' => 'success',
+                                                'ready_to_print' => 'info',
+                                                'printing' => 'primary',
+                                                'printed' => 'dark',
+                                                'completed' => 'success',
+                                                'cancelled' => 'danger',
+                                                default => 'secondary'
+                                            };
+                                        @endphp
+                                        <span class="badge bg-{{ $statusClass }}">
+                                            {{ str_replace('_', ' ', ucwords($order->status, '_')) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong class="text-success">Rp {{ number_format($order->total_price, 0, ',', '.') }}</strong>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            @if($order->payment_status === 'waiting' && $order->status === 'payment_pending')
+                                            <button class="btn btn-success btn-sm" onclick="confirmPayment({{ $order->id }})" title="Confirm Payment">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            @endif
+                                            
+                                            @if(in_array($order->status, ['payment_confirmed', 'ready_to_print']))
+                                            <button class="btn btn-primary btn-sm" onclick="printOrderFiles({{ $order->id }})" title="Print Files">
+                                                <i class="fas fa-print"></i>
+                                            </button>
+                                            @endif
+                                            
+                                            @if($order->status === 'printing')
+                                            <button class="btn btn-success btn-sm" onclick="completeOrder({{ $order->id }})" title="Mark Complete">
+                                                <i class="fas fa-check-circle"></i>
+                                            </button>
+                                            @endif
+                                            
+                                            <a href="{{ route('admin.print-service.orders') }}" class="btn btn-outline-info btn-sm" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
                                 </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <i class="fas fa-inbox fa-3x mb-3 d-block text-gray-300"></i>
+                                        <h5>No recent orders</h5>
+                                        <p>Orders will appear here when customers place print requests.</p>
+                                    </td>
+                                </tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
@@ -123,36 +197,53 @@
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="card-title">QR Code for Tablet</h4>
-                </div>
-                <div class="card-body text-center">
-                    <div id="qr-code-display">
-                        <p class="text-muted">Click "Generate New Session" to create QR code</p>
-                    </div>
-                    <div id="session-info" style="display: none;">
-                        <small class="text-muted">Session expires in: <span id="session-timer"></span></small>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="card-title">Quick Actions</h4>
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-tachometer-alt me-2"></i>Quick Actions
+                    </h6>
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
                         <a href="{{ route('admin.print-service.queue') }}" class="btn btn-outline-primary">
-                            <i class="mdi mdi-format-list-bulleted"></i> View Print Queue
+                            <i class="fas fa-print me-2"></i>Print Queue
+                            @if($printQueue > 0)
+                            <span class="badge bg-primary ms-1">{{ $printQueue }}</span>
+                            @endif
                         </a>
                         <a href="{{ route('admin.print-service.orders') }}" class="btn btn-outline-info">
-                            <i class="mdi mdi-file-document-multiple"></i> All Orders
+                            <i class="fas fa-list-alt me-2"></i>All Orders
+                        </a>
+                        <a href="{{ route('admin.print-service.sessions') }}" class="btn btn-outline-warning">
+                            <i class="fas fa-desktop me-2"></i>Active Sessions
+                            @if($activeSessions > 0)
+                            <span class="badge bg-warning ms-1">{{ $activeSessions }}</span>
+                            @endif
                         </a>
                         <a href="{{ route('admin.print-service.reports') }}" class="btn btn-outline-success">
-                            <i class="mdi mdi-chart-line"></i> Reports
+                            <i class="fas fa-chart-line me-2"></i>Reports & Analytics
                         </a>
+                        <hr>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#sessionModal">
+                            <i class="fas fa-plus me-2"></i>Generate New Session
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-qrcode me-2"></i>Current Session
+                    </h6>
+                </div>
+                <div class="card-body text-center">
+                    <div id="qr-code-display">
+                        <p class="text-muted">Click "Generate New Session" to create QR code for customers</p>
+                    </div>
+                    <div id="session-info" style="display: none;">
+                        <small class="text-muted">Session expires in: <span id="session-timer"></span></small>
                     </div>
                 </div>
             </div>
@@ -199,8 +290,6 @@
     let sessionTimer = null;
 
     $(document).ready(function() {
-        loadRecentOrders();
-        
         $('#generate-session-btn').click(function() {
             generateNewSession();
         });
@@ -278,21 +367,89 @@
         urlInput.select();
         document.execCommand('copy');
         
-        // Show toast or alert
         alert('URL copied to clipboard');
     }
 
-    async function loadRecentOrders() {
+    async function confirmPayment(orderId) {
+        if (!confirm('Confirm payment for this order?')) return;
+        
         try {
-            // This would load recent orders from the API
-            // For now, we'll show a placeholder
-            document.getElementById('recent-orders').innerHTML = `
-                <tr>
-                    <td colspan="6" class="text-center text-muted">No recent orders</td>
-                </tr>
-            `;
+            const response = await fetch(`/admin/print-service/orders/${orderId}/confirm-payment`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                alert('Payment confirmed successfully!');
+                location.reload();
+            } else {
+                alert('Failed to confirm payment: ' + (data.error || 'Unknown error'));
+            }
         } catch (error) {
-            console.error('Error loading recent orders:', error);
+            alert('Error confirming payment');
+            console.error('Confirm payment error:', error);
+        }
+    }
+
+    async function printOrderFiles(orderId) {
+        if (!confirm('Open customer files for printing? This will mark the order as "Printing".')) return;
+        
+        try {
+            const response = await fetch(`/admin/print-service/orders/${orderId}/print-files`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                alert(`Files ready for printing!\n\nOrder: ${data.order_code}\nCustomer: ${data.customer_name}\nPaper: ${data.print_data.paper_size} - ${data.print_data.print_type}\nPages: ${data.print_data.total_pages} x ${data.print_data.quantity} copies\n\nPress Ctrl+P to print when files open, then click "Complete" when done.`);
+                
+                for (let filePath of data.files) {
+                    window.open(`file:///${filePath}`, '_blank');
+                }
+                
+                location.reload();
+            } else {
+                alert('Failed to prepare files for printing: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error preparing files for printing');
+            console.error('Print files error:', error);
+        }
+    }
+
+    async function completeOrder(orderId) {
+        if (!confirm('Mark this order as completed?\n\nThis will:\n- Mark the order as complete\n- Delete customer files for privacy\n- Close the session\n\nThis action cannot be undone.')) return;
+        
+        try {
+            const response = await fetch(`/admin/print-service/orders/${orderId}/complete`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                alert('Order completed and files deleted for privacy!');
+                location.reload();
+            } else {
+                alert('Failed to complete order: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error completing order');
+            console.error('Complete order error:', error);
         }
     }
 </script>

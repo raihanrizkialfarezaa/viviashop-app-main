@@ -81,7 +81,10 @@ class PrintOrder extends Model
 
     public function canPrint()
     {
-        return $this->isPaid() && $this->status === self::STATUS_PAYMENT_CONFIRMED;
+        return $this->isPaid() && in_array($this->status, [
+            self::STATUS_PAYMENT_CONFIRMED,
+            self::STATUS_READY_TO_PRINT
+        ]);
     }
 
     public function scopeReadyToPrint($query)

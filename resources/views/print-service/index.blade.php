@@ -546,7 +546,11 @@
             formData.append('payment_method', paymentMethod);
             formData.append('total_pages', document.getElementById('total-pages').value);
             formData.append('quantity', document.getElementById('quantity').value);
-            formData.append('files', JSON.stringify(uploadedFiles));
+            
+            // Send files as array - each file ID separately
+            uploadedFiles.forEach((file, index) => {
+                formData.append(`files[${index}]`, file.id);
+            });
 
             if (paymentMethod === 'manual') {
                 const proofFile = document.getElementById('payment-proof').files[0];

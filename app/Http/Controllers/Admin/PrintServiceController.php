@@ -24,12 +24,18 @@ class PrintServiceController extends Controller
         $pendingOrders = PrintOrder::where('payment_status', PrintOrder::PAYMENT_WAITING)->count();
         $printQueue = PrintOrder::printQueue()->count();
         $todayOrders = PrintOrder::whereDate('created_at', today())->count();
+        
+        $recentOrders = PrintOrder::with(['paperProduct', 'paperVariant'])
+                                 ->orderBy('created_at', 'desc')
+                                 ->limit(10)
+                                 ->get();
 
         return view('admin.print-service.index', compact(
             'activeSessions', 
             'pendingOrders', 
             'printQueue', 
-            'todayOrders'
+            'todayOrders',
+            'recentOrders'
         ));
     }
 
@@ -113,16 +119,62 @@ class PrintServiceController extends Controller
         }
     }
 
+    public function printFiles(Request $request, $id)
+    {
+        try {
+            $printOrder = PrintOrder::with(['files'])->findOrFail($id);
+            
+            if (!$printOrder->canPrint()) {
+                return response()->json(['error' => 'Order is not ready for printing'], 400);
+            }
+
+            $filePaths = [];
+            foreach ($printOrder->files as $file) {
+                $fullPath = storage_path('app' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file->file_path));
+                if (file_exists($fullPath)) {
+                    $filePaths[] = $fullPath;
+                }
+            }
+
+            if (empty($filePaths)) {
+                return response()->json(['error' => 'No files found for printing'], 400);
+            }
+
+            $printOrder->update(['status' => PrintOrder::STATUS_PRINTING]);
+
+            return response()->json([
+                'success' => true,
+                'files' => $filePaths,
+                'order_code' => $printOrder->order_code,
+                'customer_name' => $printOrder->customer_name,
+                'print_data' => [
+                    'paper_size' => $printOrder->paperVariant->paper_size ?? 'A4',
+                    'print_type' => $printOrder->print_type,
+                    'quantity' => $printOrder->quantity,
+                    'total_pages' => $printOrder->total_pages
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Print files error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
     public function completeOrder(Request $request, $id)
     {
         try {
             $printOrder = PrintOrder::findOrFail($id);
 
+            if ($printOrder->status !== PrintOrder::STATUS_PRINTING) {
+                return response()->json(['error' => 'Order is not in printing status'], 400);
+            }
+
+            $printOrder->markAsPrinted();
             $this->printService->completePrintOrder($printOrder);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Order completed successfully'
+                'message' => 'Order completed and files deleted for privacy'
             ]);
         } catch (\Exception $e) {
             Log::error('Complete order error: ' . $e->getMessage());

@@ -166,11 +166,7 @@ class PrintService
 
         $session->updateStep(PrintSession::STEP_PAYMENT);
 
-        return [
-            'success' => true,
-            'order_code' => $printOrder->order_code,
-            'order' => $printOrder
-        ];
+        return $printOrder;
     }
 
     public function calculatePrice($variantId, $totalPages, $quantity = 1)
@@ -237,16 +233,24 @@ class PrintService
 
     public function completePrintOrder(PrintOrder $printOrder)
     {
-        if ($printOrder->status !== PrintOrder::STATUS_PRINTED) {
-            throw new \Exception('Order is not printed yet');
+        if (!in_array($printOrder->status, [PrintOrder::STATUS_PRINTING, PrintOrder::STATUS_PRINTED])) {
+            throw new \Exception('Order is not ready for completion');
+        }
+
+        if ($printOrder->status === PrintOrder::STATUS_PRINTING) {
+            $printOrder->markAsPrinted();
         }
 
         $printOrder->markAsCompleted();
         $this->cleanupFiles($printOrder);
 
         $session = $printOrder->session;
-        $session->updateStep(PrintSession::STEP_COMPLETE);
-        $session->markInactive();
+        if ($session) {
+            $session->updateStep(PrintSession::STEP_COMPLETE);
+            $session->markInactive();
+        }
+
+        Log::info('Print order completed and files cleaned: ' . $printOrder->order_code);
 
         return true;
     }

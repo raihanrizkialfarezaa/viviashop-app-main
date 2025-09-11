@@ -187,6 +187,7 @@ class PrintServiceController extends Controller
                 'variant_id' => 'required|exists:product_variants,id',
                 'payment_method' => 'required|in:toko,manual,automatic',
                 'files' => 'required|array|min:1',
+                'files.*' => 'required',
                 'total_pages' => 'required|integer|min:1',
                 'quantity' => 'integer|min:1'
             ]);

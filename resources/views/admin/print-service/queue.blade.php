@@ -1,4 +1,4 @@
-@extends('admin.layout.master')
+@extends('layouts.app')
 
 @section('title', 'Print Queue')
 
