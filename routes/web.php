@@ -934,7 +934,6 @@ Route::get('/smart-print', function () {
 })->name('frontend.print-service');
 
 Route::prefix('print-service')->group(function () {
-    Route::get('/{token}', [\App\Http\Controllers\PrintServiceController::class, 'index'])->name('print-service.customer');
     Route::post('/upload', [\App\Http\Controllers\PrintServiceController::class, 'upload'])->name('print-service.upload');
     Route::delete('/file/{file_id}', [\App\Http\Controllers\PrintServiceController::class, 'deleteFile'])->name('print-service.delete-file');
     Route::get('/preview/{file_id}', [\App\Http\Controllers\PrintServiceController::class, 'previewFile'])->name('print-service.preview-file');
@@ -946,6 +945,7 @@ Route::prefix('print-service')->group(function () {
     Route::post('/complete/{orderCode}', [\App\Http\Controllers\PrintServiceController::class, 'complete'])->name('print-service.complete');
     Route::post('/generate-session', [\App\Http\Controllers\PrintServiceController::class, 'generateSession'])->name('print-service.generate-session');
     Route::post('/midtrans-callback', [\App\Http\Controllers\PrintServiceController::class, 'midtransCallback'])->name('print-service.midtrans-callback');
+    Route::get('/{token}', [\App\Http\Controllers\PrintServiceController::class, 'index'])->name('print-service.customer');
 });
 
 Route::get('/', [\App\Http\Controllers\Frontend\HomepageController::class, 'index'])->name('index');

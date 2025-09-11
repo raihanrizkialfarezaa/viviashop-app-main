@@ -287,6 +287,12 @@
             uploadArea.addEventListener('drop', handleDrop);
             fileInput.addEventListener('change', handleFileSelect);
 
+            // Product selection
+            const quantityInput = document.getElementById('quantity');
+            if (quantityInput) {
+                quantityInput.addEventListener('input', calculatePrice);
+            }
+
             // Step navigation
             document.getElementById('upload-btn').addEventListener('click', goToSelection);
             document.getElementById('back-to-upload').addEventListener('click', goToUpload);
@@ -307,26 +313,34 @@
             });
         }
 
+        let productData = null;
+
         async function loadProducts() {
             try {
                 const response = await fetch('/print-service/products');
                 const data = await response.json();
                 
-                if (data.success) {
-                    populateProductOptions(data.products);
+                if (data.success && data.products.length > 0) {
+                    productData = data.products[0];
+                    populateProductOptions(productData);
+                } else {
+                    console.error('No products found');
                 }
             } catch (error) {
                 console.error('Error loading products:', error);
             }
         }
 
-        function populateProductOptions(products) {
+        function populateProductOptions(product) {
             const paperSizeSelect = document.getElementById('paper-size');
-            const paperSizes = [...new Set(products[0].variants.map(v => v.paper_size))];
+            const paperSizes = [...new Set(product.variants.map(v => v.paper_size))];
             
+            paperSizeSelect.innerHTML = '<option value="">Select paper size</option>';
             paperSizes.forEach(size => {
                 paperSizeSelect.innerHTML += `<option value="${size}">${size}</option>`;
             });
+            
+            paperSizeSelect.addEventListener('change', updatePrintTypes);
         }
 
         function updatePrintTypes() {
@@ -335,10 +349,21 @@
             
             printTypeSelect.innerHTML = '<option value="">Select print type</option>';
             
-            if (paperSize) {
-                // This would be populated based on available variants for the selected paper size
-                printTypeSelect.innerHTML += '<option value="bw">Black & White</option>';
-                printTypeSelect.innerHTML += '<option value="color">Color</option>';
+            if (paperSize && productData) {
+                const availableTypes = productData.variants
+                    .filter(v => v.paper_size === paperSize)
+                    .map(v => ({
+                        value: v.print_type,
+                        label: v.print_type === 'bw' ? 'Black & White' : 'Color',
+                        price: v.price,
+                        stock: v.stock
+                    }));
+                
+                availableTypes.forEach(type => {
+                    printTypeSelect.innerHTML += `<option value="${type.value}">${type.label} - Rp ${parseFloat(type.price).toLocaleString()}</option>`;
+                });
+                
+                printTypeSelect.addEventListener('change', calculatePrice);
             }
         }
 
@@ -598,6 +623,10 @@
             document.querySelector('#step-2').classList.add('active');
             document.getElementById('upload-section').style.display = 'none';
             document.getElementById('selection-section').style.display = 'block';
+            
+            if (!productData) {
+                loadProducts();
+            }
         }
 
         function goToPayment() {
