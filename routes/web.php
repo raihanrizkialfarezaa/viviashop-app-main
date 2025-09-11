@@ -936,6 +936,8 @@ Route::get('/smart-print', function () {
 Route::prefix('print-service')->group(function () {
     Route::get('/{token}', [\App\Http\Controllers\PrintServiceController::class, 'index'])->name('print-service.customer');
     Route::post('/upload', [\App\Http\Controllers\PrintServiceController::class, 'upload'])->name('print-service.upload');
+    Route::delete('/file/{file_id}', [\App\Http\Controllers\PrintServiceController::class, 'deleteFile'])->name('print-service.delete-file');
+    Route::get('/preview/{file_id}', [\App\Http\Controllers\PrintServiceController::class, 'previewFile'])->name('print-service.preview-file');
     Route::get('/products', [\App\Http\Controllers\PrintServiceController::class, 'getProducts'])->name('print-service.products');
     Route::post('/calculate', [\App\Http\Controllers\PrintServiceController::class, 'calculate'])->name('print-service.calculate');
     Route::post('/checkout', [\App\Http\Controllers\PrintServiceController::class, 'checkout'])->name('print-service.checkout');

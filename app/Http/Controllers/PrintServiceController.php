@@ -8,6 +8,7 @@ use App\Services\PrintService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class PrintServiceController extends Controller
@@ -61,6 +62,62 @@ class PrintServiceController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('File upload error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    public function deleteFile(Request $request)
+    {
+        try {
+            $request->validate([
+                'session_token' => 'required|string',
+                'file_id' => 'required|integer'
+            ]);
+
+            $session = $this->printService->getSession($request->session_token);
+            
+            if (!$session) {
+                return response()->json(['error' => 'Session expired'], 400);
+            }
+
+            $result = $this->printService->deleteFile($request->file_id, $session);
+            
+            return response()->json($result);
+        } catch (\Exception $e) {
+            Log::error('File delete error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    public function previewFile(Request $request)
+    {
+        try {
+            $request->validate([
+                'session_token' => 'required|string',
+                'file_id' => 'required|integer'
+            ]);
+
+            $session = $this->printService->getSession($request->session_token);
+            
+            if (!$session) {
+                return response()->json(['error' => 'Session expired'], 400);
+            }
+
+            $file = \App\Models\PrintFile::where('id', $request->file_id)
+                                         ->where('print_session_id', $session->id)
+                                         ->first();
+            
+            if (!$file) {
+                return response()->json(['error' => 'File not found'], 404);
+            }
+
+            if (!Storage::exists($file->file_path)) {
+                return response()->json(['error' => 'File not accessible'], 404);
+            }
+
+            return Storage::download($file->file_path, $file->file_name);
+        } catch (\Exception $e) {
+            Log::error('File preview error: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 400);
         }
     }

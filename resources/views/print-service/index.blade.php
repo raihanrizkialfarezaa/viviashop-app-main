@@ -412,10 +412,16 @@
             
             uploadedFiles.forEach(file => {
                 fileList.innerHTML += `
-                    <div class="file-item">
+                    <div class="file-item d-flex align-items-center mb-2 p-2 border rounded">
                         <i class="fas fa-file me-2"></i>
-                        <span>${file.name}</span>
-                        <span class="ms-auto">${file.pages_count} pages</span>
+                        <span class="flex-grow-1">${file.name}</span>
+                        <span class="badge bg-secondary me-2">${file.pages_count} pages</span>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="previewFile(${file.id})" title="Preview">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteFile(${file.id})" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 `;
             });
@@ -608,6 +614,55 @@
             document.querySelector('#step-4').classList.add('active');
             document.getElementById('payment-section').style.display = 'none';
             document.getElementById('status-section').style.display = 'block';
+        }
+
+        async function deleteFile(fileId) {
+            if (!confirm('Are you sure you want to delete this file?')) {
+                return;
+            }
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                const response = await fetch('/print-service/file/' + fileId, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify({
+                        session_token: sessionToken,
+                        file_id: fileId
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    uploadedFiles = data.files;
+                    displayUploadedFiles();
+                    document.getElementById('total-pages').value = data.total_pages;
+                    
+                    if (data.files.length === 0) {
+                        document.getElementById('upload-btn').disabled = true;
+                    }
+                } else {
+                    alert('Delete failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('Delete failed: ' + error.message);
+            }
+        }
+
+        async function previewFile(fileId) {
+            try {
+                const url = `/print-service/preview/${fileId}?session_token=${sessionToken}&file_id=${fileId}`;
+                window.open(url, '_blank');
+            } catch (error) {
+                console.error('Preview error:', error);
+                alert('Preview failed: ' + error.message);
+            }
         }
     </script>
 

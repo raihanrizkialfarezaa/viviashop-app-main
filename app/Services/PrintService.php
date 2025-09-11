@@ -65,7 +65,53 @@ class PrintService
 
         return [
             'success' => true,
-            'files' => $uploadedFiles,
+            'files' => collect($uploadedFiles)->map(function($file) {
+                return [
+                    'id' => $file->id,
+                    'name' => $file->file_name,
+                    'file_name' => $file->file_name,
+                    'file_type' => $file->file_type,
+                    'file_size' => $file->file_size,
+                    'pages_count' => $file->pages_count,
+                    'file_path' => $file->file_path
+                ];
+            })->toArray(),
+            'total_pages' => $totalPages
+        ];
+    }
+
+    public function deleteFile($fileId, PrintSession $session)
+    {
+        $file = PrintFile::where('id', $fileId)
+                         ->where('print_session_id', $session->id)
+                         ->first();
+        
+        if (!$file) {
+            throw new \Exception('File not found or access denied');
+        }
+
+        if (Storage::exists($file->file_path)) {
+            Storage::delete($file->file_path);
+        }
+
+        $file->delete();
+
+        $remainingFiles = $session->printFiles()->get();
+        $totalPages = $remainingFiles->sum('pages_count');
+
+        return [
+            'success' => true,
+            'files' => $remainingFiles->map(function($file) {
+                return [
+                    'id' => $file->id,
+                    'name' => $file->file_name,
+                    'file_name' => $file->file_name,
+                    'file_type' => $file->file_type,
+                    'file_size' => $file->file_size,
+                    'pages_count' => $file->pages_count,
+                    'file_path' => $file->file_path
+                ];
+            })->toArray(),
             'total_pages' => $totalPages
         ];
     }
