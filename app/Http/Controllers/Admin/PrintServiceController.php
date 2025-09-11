@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PrintSession;
 use App\Models\PrintOrder;
+use App\Models\PrintFile;
 use App\Services\PrintService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -124,27 +125,26 @@ class PrintServiceController extends Controller
         try {
             $printOrder = PrintOrder::with(['files'])->findOrFail($id);
             
-            if (!$printOrder->canPrint()) {
-                return response()->json(['error' => 'Order is not ready for printing'], 400);
-            }
-
-            $filePaths = [];
+            $files = [];
             foreach ($printOrder->files as $file) {
                 $fullPath = storage_path('app' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file->file_path));
                 if (file_exists($fullPath)) {
-                    $filePaths[] = $fullPath;
+                    $files[] = [
+                        'id' => $file->id,
+                        'name' => basename($fullPath),
+                        'path' => $fullPath,
+                        'view_url' => route('admin.print-service.view-file', $file->id)
+                    ];
                 }
             }
 
-            if (empty($filePaths)) {
+            if (empty($files)) {
                 return response()->json(['error' => 'No files found for printing'], 400);
             }
 
-            $printOrder->update(['status' => PrintOrder::STATUS_PRINTING]);
-
             return response()->json([
                 'success' => true,
-                'files' => $filePaths,
+                'files' => $files,
                 'order_code' => $printOrder->order_code,
                 'customer_name' => $printOrder->customer_name,
                 'print_data' => [
@@ -157,6 +157,28 @@ class PrintServiceController extends Controller
         } catch (\Exception $e) {
             Log::error('Print files error: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    public function viewFile($fileId)
+    {
+        try {
+            $printFile = PrintFile::findOrFail($fileId);
+            $fullPath = storage_path('app' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $printFile->file_path));
+            
+            if (!file_exists($fullPath)) {
+                abort(404, 'File not found');
+            }
+            
+            $mimeType = mime_content_type($fullPath);
+            
+            return response()->file($fullPath, [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'inline; filename="' . basename($fullPath) . '"'
+            ]);
+            
+        } catch (\Exception $e) {
+            abort(404, 'File not found: ' . $e->getMessage());
         }
     }
 

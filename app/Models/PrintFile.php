@@ -19,7 +19,7 @@ class PrintFile extends Model
 
     public function printOrder()
     {
-        return $this->belongsTo(PrintOrder::class);
+        return $this->belongsTo(PrintOrder::class, 'print_order_id');
     }
 
     public function printSession()

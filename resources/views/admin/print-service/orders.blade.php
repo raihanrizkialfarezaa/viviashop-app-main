@@ -103,8 +103,8 @@
                                             @endif
                                             
                                             @if($order->status === 'payment_confirmed' || $order->status === 'ready_to_print')
-                                            <button class="btn btn-sm btn-primary" onclick="printOrderFiles({{ $order->id }})" title="Print Customer Files">
-                                                <i class="mdi mdi-printer"></i> Print Files
+                                            <button class="btn btn-sm btn-primary" onclick="viewOrderFiles({{ $order->id }})" title="View Customer Files">
+                                                <i class="mdi mdi-file-document"></i> See Files
                                             </button>
                                             @endif
                                             
@@ -169,9 +169,7 @@ async function confirmPayment(orderId) {
     }
 }
 
-async function printOrderFiles(orderId) {
-    if (!confirm('Open customer files for printing? This will mark the order as "Printing".')) return;
-    
+async function viewOrderFiles(orderId) {
     try {
         const response = await fetch(`/admin/print-service/orders/${orderId}/print-files`, {
             method: 'POST',
@@ -184,19 +182,32 @@ async function printOrderFiles(orderId) {
         const data = await response.json();
         
         if (data.success) {
-            alert(`Files ready for printing!\n\nOrder: ${data.order_code}\nCustomer: ${data.customer_name}\nPaper: ${data.print_data.paper_size} - ${data.print_data.print_type}\nPages: ${data.print_data.total_pages} x ${data.print_data.quantity} copies\n\nPress Ctrl+P to print when files open, then click "Complete" when done.`);
+            let fileList = '';
+            data.files.forEach(file => {
+                fileList += `<li><a href="${file.view_url}" target="_blank">${file.name}</a></li>`;
+            });
             
-            for (let filePath of data.files) {
-                window.open(`file:///${filePath}`, '_blank');
+            const message = `Files for Order: ${data.order_code}
+Customer: ${data.customer_name}
+Paper: ${data.print_data.paper_size} - ${data.print_data.print_type}
+Pages: ${data.print_data.total_pages} x ${data.print_data.quantity} copies
+
+Files to view:
+${fileList}
+
+Click on file links to view them in new tabs. Use Ctrl+P to print when viewing files.`;
+            
+            if (confirm(message + '\n\nOpen all files now?')) {
+                data.files.forEach(file => {
+                    window.open(file.view_url, '_blank');
+                });
             }
-            
-            location.reload();
         } else {
-            alert('Failed to prepare files for printing: ' + (data.error || 'Unknown error'));
+            alert('Failed to load files: ' + (data.error || 'Unknown error'));
         }
     } catch (error) {
-        alert('Error preparing files for printing');
-        console.error('Print files error:', error);
+        alert('Error loading files');
+        console.error('View files error:', error);
     }
 }
 

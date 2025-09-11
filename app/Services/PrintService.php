@@ -475,8 +475,13 @@ class PrintService
     {
         foreach ($printOrder->files as $file) {
             try {
-                Storage::disk('local')->delete($file->file_path);
-                Log::info('Deleted file: ' . $file->file_path);
+                $fullPath = storage_path('app' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file->file_path));
+                if (file_exists($fullPath)) {
+                    unlink($fullPath);
+                    Log::info('Deleted file: ' . $file->file_path);
+                } else {
+                    Log::warning('File not found for deletion: ' . $file->file_path);
+                }
             } catch (\Exception $e) {
                 Log::warning('Could not delete file: ' . $file->file_path . ' - ' . $e->getMessage());
             }
@@ -484,8 +489,11 @@ class PrintService
 
         if ($printOrder->payment_proof) {
             try {
-                Storage::disk('local')->delete($printOrder->payment_proof);
-                Log::info('Deleted payment proof: ' . $printOrder->payment_proof);
+                $proofPath = storage_path('app' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $printOrder->payment_proof));
+                if (file_exists($proofPath)) {
+                    unlink($proofPath);
+                    Log::info('Deleted payment proof: ' . $printOrder->payment_proof);
+                }
             } catch (\Exception $e) {
                 Log::warning('Could not delete payment proof: ' . $printOrder->payment_proof . ' - ' . $e->getMessage());
             }

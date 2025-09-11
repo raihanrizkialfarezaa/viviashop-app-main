@@ -66,7 +66,7 @@ class PrintOrder extends Model
 
     public function files()
     {
-        return $this->hasMany(PrintFile::class);
+        return $this->hasMany(PrintFile::class, 'print_order_id');
     }
 
     public function isPaid()
