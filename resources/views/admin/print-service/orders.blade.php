@@ -102,16 +102,19 @@
                                             </button>
                                             @endif
                                             
-                                            @if($order->status === 'payment_confirmed' || $order->status === 'ready_to_print')
+                                            @if($order->status === 'payment_confirmed' || $order->status === 'ready_to_print' || $order->status === 'printing')
+                                            @if($order->status === 'completed')
+                                            <button class="btn btn-sm btn-danger" disabled title="Order Completed - Files Deleted">
+                                                <i class="mdi mdi-file-remove"></i> Files Deleted
+                                            </button>
+                                            @else
                                             <button class="btn btn-sm btn-primary" onclick="viewOrderFiles({{ $order->id }})" title="View Customer Files">
                                                 <i class="mdi mdi-file-document"></i> See Files
                                             </button>
-                                            @endif
-                                            
-                                            @if($order->status === 'printing')
-                                            <button class="btn btn-sm btn-success" onclick="completeOrder({{ $order->id }})" title="Mark as Complete & Delete Files">
-                                                <i class="mdi mdi-check-circle"></i> Complete
+                                            <button class="btn btn-sm btn-success ms-1" onclick="completeOrder({{ $order->id }})" title="Complete Order & Delete Files">
+                                                <i class="mdi mdi-check-circle"></i> Complete Order
                                             </button>
+                                            @endif
                                             @endif
                                             
                                             <button class="btn btn-sm btn-outline-info" onclick="viewDetails({{ $order->id }})" title="View Order Details">

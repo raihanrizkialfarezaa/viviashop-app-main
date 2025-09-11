@@ -242,14 +242,28 @@ class PrintServiceController extends Controller
     public function completeOrder(Request $request, $id)
     {
         try {
-            $printOrder = PrintOrder::findOrFail($id);
+            $printOrder = PrintOrder::with('files')->findOrFail($id);
 
-            if ($printOrder->status !== PrintOrder::STATUS_PRINTING) {
-                return response()->json(['error' => 'Order is not in printing status'], 400);
+            $validStatuses = ['payment_confirmed', 'ready_to_print', 'printing'];
+            if (!in_array($printOrder->status, $validStatuses)) {
+                return response()->json(['error' => 'Order cannot be completed from current status'], 400);
             }
 
-            $printOrder->markAsPrinted();
-            $this->printService->completePrintOrder($printOrder);
+            foreach ($printOrder->files as $file) {
+                $storageFullPath = storage_path('app' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file->file_path));
+                $publicFullPath = public_path('storage' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file->file_path));
+                
+                if (file_exists($storageFullPath)) {
+                    unlink($storageFullPath);
+                }
+                if (file_exists($publicFullPath)) {
+                    unlink($publicFullPath);
+                }
+                
+                $file->delete();
+            }
+
+            $printOrder->update(['status' => 'completed']);
 
             return response()->json([
                 'success' => true,

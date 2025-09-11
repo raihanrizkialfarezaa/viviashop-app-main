@@ -1,53 +1,47 @@
 <?php
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once 'vendor/autoload.php';
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app = require_once 'bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+$kernel->handle(Illuminate\Http\Request::create('/', 'GET'));
 
-echo "🔍 TESTING COMPLETE FLOW - SMART PRINT TO GENERATE SESSION\n";
-echo "==========================================================\n";
+echo "� COMPREHENSIVE FLOW TEST: COMPLETE ORDER SYSTEM\n";
+echo "================================================\n\n";
 
-echo "1️⃣ TESTING SMART PRINT PAGE ACCESS\n";
-echo "===================================\n";
+echo "1. Creating Test Order with Files\n";
+echo "=================================\n";
 
-try {
-    $smartPrintUrl = "http://127.0.0.1:8000/smart-print";
-    echo "📱 Testing URL: $smartPrintUrl\n";
-    
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $smartPrintUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_COOKIEJAR, sys_get_temp_dir() . '/cookie.txt');
-    curl_setopt($ch, CURLOPT_COOKIEFILE, sys_get_temp_dir() . '/cookie.txt');
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    
-    curl_close($ch);
-    
-    if ($httpCode === 200) {
-        echo "✅ Smart Print page accessible (HTTP $httpCode)\n";
-        
-        preg_match('/name="csrf-token" content="([^"]+)"/', $response, $matches);
-        if (isset($matches[1])) {
-            $csrfToken = $matches[1];
-            echo "✅ CSRF token found: " . substr($csrfToken, 0, 16) . "...\n";
-        } else {
-            echo "❌ CSRF token not found in page\n";
-            exit(1);
-        }
-        
-        if (strpos($response, 'Generate Session Baru') !== false) {
-            echo "✅ 'Generate Session Baru' button found\n";
-        } else {
-            echo "❌ 'Generate Session Baru' button not found\n";
-        }
-        
-        if (strpos($response, 'generateSession()') !== false) {
-            echo "✅ generateSession() function found\n";
+$session = new \App\Models\PrintSession();
+$session->session_token = 'TEST-COMPLETE-' . time();
+$session->barcode_token = 'BARCODE-' . time();
+$session->started_at = \Carbon\Carbon::now();
+$session->expires_at = \Carbon\Carbon::now()->addHours(2);
+$session->is_active = true;
+$session->save();
+
+echo "✅ Test session created: {$session->session_token}\n";
+
+$paperVariant = \App\Models\ProductVariant::first();
+$printOrder = new \App\Models\PrintOrder();
+$printOrder->order_id = 'COMPLETE-TEST-' . date('Y-m-d-H-i-s');
+$printOrder->session_id = $session->id;
+$printOrder->customer_name = 'Complete Test User';
+$printOrder->customer_email = 'complete@test.com';
+$printOrder->customer_phone = '08123456789';
+$printOrder->paper_product_id = $paperVariant->product_id ?? 1;
+$printOrder->paper_variant_id = $paperVariant->id ?? 1;
+$printOrder->print_type = 'color';
+$printOrder->quantity = 1;
+$printOrder->total_pages = 1;
+$printOrder->price_per_page = '1000.00';
+$printOrder->total_price = '1000.00';
+$printOrder->payment_method = 'toko';
+$printOrder->payment_status = 'confirmed';
+$printOrder->status = 'ready_to_print';
+$printOrder->save();
+
+echo "✅ Test order created: {$printOrder->order_id}\n";
         } else {
             echo "❌ generateSession() function not found\n";
         }
