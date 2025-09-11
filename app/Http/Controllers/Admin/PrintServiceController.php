@@ -127,12 +127,32 @@ class PrintServiceController extends Controller
             
             $files = [];
             foreach ($printOrder->files as $file) {
-                $fullPath = storage_path('app' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file->file_path));
-                if (file_exists($fullPath)) {
+                $storageFullPath = storage_path('app' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file->file_path));
+                $publicFullPath = public_path('storage' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file->file_path));
+                
+                $fileExists = false;
+                $actualPath = '';
+                
+                if (file_exists($storageFullPath)) {
+                    $fileExists = true;
+                    $actualPath = $storageFullPath;
+                } elseif (file_exists($publicFullPath)) {
+                    $fileExists = true;
+                    $actualPath = $publicFullPath;
+                    
+                    $storageDir = dirname($storageFullPath);
+                    if (!file_exists($storageDir)) {
+                        mkdir($storageDir, 0755, true);
+                    }
+                    copy($publicFullPath, $storageFullPath);
+                }
+                
+                if ($fileExists && !empty($actualPath)) {
                     $files[] = [
                         'id' => $file->id,
-                        'name' => basename($fullPath),
-                        'path' => $fullPath,
+                        'original_name' => $file->file_name,
+                        'name' => basename($actualPath),
+                        'path' => $actualPath,
                         'view_url' => route('admin.print-service.view-file', $file->id)
                     ];
                 }
@@ -164,17 +184,33 @@ class PrintServiceController extends Controller
     {
         try {
             $printFile = PrintFile::findOrFail($fileId);
-            $fullPath = storage_path('app' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $printFile->file_path));
+            $storageFullPath = storage_path('app' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $printFile->file_path));
+            $publicFullPath = public_path('storage' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $printFile->file_path));
             
-            if (!file_exists($fullPath)) {
+            $actualPath = '';
+            
+            if (file_exists($storageFullPath)) {
+                $actualPath = $storageFullPath;
+            } elseif (file_exists($publicFullPath)) {
+                $actualPath = $publicFullPath;
+                
+                $storageDir = dirname($storageFullPath);
+                if (!file_exists($storageDir)) {
+                    mkdir($storageDir, 0755, true);
+                }
+                copy($publicFullPath, $storageFullPath);
+                $actualPath = $storageFullPath;
+            }
+            
+            if (empty($actualPath) || !file_exists($actualPath)) {
                 abort(404, 'File not found');
             }
             
-            $mimeType = mime_content_type($fullPath);
+            $mimeType = mime_content_type($actualPath);
             
-            return response()->file($fullPath, [
+            return response()->file($actualPath, [
                 'Content-Type' => $mimeType,
-                'Content-Disposition' => 'inline; filename="' . basename($fullPath) . '"'
+                'Content-Disposition' => 'inline; filename="' . basename($actualPath) . '"'
             ]);
             
         } catch (\Exception $e) {

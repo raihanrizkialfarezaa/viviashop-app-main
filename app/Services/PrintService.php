@@ -287,6 +287,18 @@ class PrintService
         $filename = time() . '_' . $file->getClientOriginalName();
         $path = $file->storeAs($directory, $filename, 'local');
         
+        $storagePath = storage_path('app/' . $path);
+        $publicDirectory = public_path('storage/' . $directory);
+        $publicPath = $publicDirectory . '/' . $filename;
+        
+        if (!file_exists($publicDirectory)) {
+            mkdir($publicDirectory, 0755, true);
+        }
+        
+        if (file_exists($storagePath)) {
+            copy($storagePath, $publicPath);
+        }
+        
         $pagesCount = $this->countPages($file);
 
         return [
