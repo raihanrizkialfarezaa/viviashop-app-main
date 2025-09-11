@@ -221,10 +221,49 @@ class StockManagementService
         return ProductVariant::where('is_active', true)
             ->with('product')
             ->whereHas('product', function($query) {
-                $query->where('is_print_service', true);
+                $query->where('is_print_service', true)
+                      ->where('status', 1);
             })
-            ->with('product')
             ->orderBy('stock', $sortDirection)
             ->get();
+    }
+    
+    public function checkForDuplicateVariants()
+    {
+        $variants = ProductVariant::where('is_active', true)
+            ->whereHas('product', function($query) {
+                $query->where('is_print_service', true)
+                      ->where('status', 1);
+            })
+            ->get();
+            
+        $duplicates = $variants->groupBy(function($variant) {
+            return $variant->paper_size . '_' . $variant->print_type;
+        })->filter(function($group) {
+            return $group->count() > 1;
+        });
+            
+        return $duplicates;
+    }
+    
+    public function preventDuplicateVariants()
+    {
+        $duplicates = $this->checkForDuplicateVariants();
+        
+        if ($duplicates->count() > 0) {
+            Log::warning('Duplicate variants detected in stock management', [
+                'duplicates' => $duplicates->map(function($group, $key) {
+                    return [
+                        'combination' => $key,
+                        'count' => $group->count(),
+                        'variant_ids' => $group->pluck('id')->toArray()
+                    ];
+                })->toArray()
+            ]);
+            
+            return false;
+        }
+        
+        return true;
     }
 }
