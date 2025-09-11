@@ -206,12 +206,33 @@ class PrintServiceController extends Controller
                 abort(404, 'File not found');
             }
             
-            $mimeType = mime_content_type($actualPath);
+            $extension = strtolower(pathinfo($actualPath, PATHINFO_EXTENSION));
+            $fileName = basename($actualPath);
             
-            return response()->file($actualPath, [
+            $mimeType = match($extension) {
+                'pdf' => 'application/pdf',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'doc' => 'application/msword',
+                'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'xls' => 'application/vnd.ms-excel',
+                'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'ppt' => 'application/vnd.ms-powerpoint',
+                'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'txt' => 'text/plain',
+                default => mime_content_type($actualPath) ?: 'application/octet-stream'
+            };
+            
+            $headers = [
                 'Content-Type' => $mimeType,
-                'Content-Disposition' => 'inline; filename="' . basename($actualPath) . '"'
-            ]);
+                'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+                'Cache-Control' => 'public, max-age=3600',
+                'X-Content-Type-Options' => 'nosniff',
+                'X-Frame-Options' => 'SAMEORIGIN'
+            ];
+            
+            return response()->file($actualPath, $headers);
             
         } catch (\Exception $e) {
             abort(404, 'File not found: ' . $e->getMessage());

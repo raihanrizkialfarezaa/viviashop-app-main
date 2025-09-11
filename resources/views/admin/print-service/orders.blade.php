@@ -182,25 +182,26 @@ async function viewOrderFiles(orderId) {
         const data = await response.json();
         
         if (data.success) {
-            let fileList = '';
-            data.files.forEach(file => {
-                fileList += `<li><a href="${file.view_url}" target="_blank">${file.name}</a></li>`;
-            });
-            
-            const message = `Files for Order: ${data.order_code}
-Customer: ${data.customer_name}
-Paper: ${data.print_data.paper_size} - ${data.print_data.print_type}
-Pages: ${data.print_data.total_pages} x ${data.print_data.quantity} copies
-
-Files to view:
-${fileList}
-
-Click on file links to view them in new tabs. Use Ctrl+P to print when viewing files.`;
-            
-            if (confirm(message + '\n\nOpen all files now?')) {
+            if (data.files.length === 1) {
+                window.open(data.files[0].view_url, '_blank');
+            } else {
+                let fileList = '';
                 data.files.forEach(file => {
-                    window.open(file.view_url, '_blank');
+                    fileList += `• ${file.original_name}\n`;
                 });
+                
+                const message = `Order: ${data.order_code} | Customer: ${data.customer_name}
+Paper: ${data.print_data.paper_size} - ${data.print_data.print_type} | Pages: ${data.print_data.total_pages} x ${data.print_data.quantity}
+
+Files (${data.files.length}):
+${fileList}
+Files will open in new tabs. Use Ctrl+P to print.`;
+                
+                if (confirm(message + '\n\nOpen all files now?')) {
+                    data.files.forEach(file => {
+                        window.open(file.view_url, '_blank');
+                    });
+                }
             }
         } else {
             alert('Failed to load files: ' + (data.error || 'Unknown error'));
