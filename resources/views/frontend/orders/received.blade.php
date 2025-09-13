@@ -86,7 +86,7 @@
 								<br> {{ $order->order_date }}
 								<br> Status: {{ $order->status }}
 								<br> Payment Status: {{ $order->payment_status }}
-								<br> Shipped by: {{ $order->shipping_service_name }}
+								<br> Shipped by: {{ $order->shipping_courier }} - {{ $order->shipping_service_name }}
 								@if ($order->isShippingCostAdjusted())
 									<br> <span class="text-info">Shipping Cost: Rp{{ number_format($order->shipping_cost, 0, ",", ".") }}</span>
 									<small class="text-muted d-block">Original Cost: Rp{{ number_format($order->original_shipping_cost, 0, ",", ".") }}</small>
