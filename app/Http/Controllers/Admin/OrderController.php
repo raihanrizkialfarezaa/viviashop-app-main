@@ -906,4 +906,71 @@ class OrderController extends Controller
 			);
 		}
 	}
+
+	public function adjustShipping(Request $request)
+	{
+		try {
+			$request->validate([
+				'order_id' => 'required|integer|exists:orders,id',
+				'new_shipping_cost' => 'required|numeric|min:0',
+				'new_shipping_courier' => 'required|string|max:255',
+				'new_shipping_service' => 'required|string|max:255',
+				'adjustment_note' => 'nullable|string|max:1000'
+			]);
+
+			$order = Order::findOrFail($request->order_id);
+
+			if ($order->isCancelled()) {
+				return response()->json([
+					'success' => false,
+					'message' => 'Cannot adjust shipping for cancelled orders'
+				], 400);
+			}
+
+			$success = $order->adjustShippingCost(
+				$request->new_shipping_cost,
+				$request->new_shipping_courier,
+				$request->new_shipping_service,
+				$request->adjustment_note,
+				auth()->id()
+			);
+
+			if ($success) {
+				return response()->json([
+					'success' => true,
+					'message' => 'Shipping cost updated successfully',
+					'new_shipping_cost' => $order->shipping_cost,
+					'new_courier' => $order->shipping_courier,
+					'new_service' => $order->shipping_service_name,
+					'new_grand_total' => $order->grand_total,
+					'adjustment_note' => $order->shipping_adjustment_note,
+					'adjusted_at' => $order->shipping_adjusted_at?->format('Y-m-d H:i:s'),
+					'adjusted_by' => $order->shippingAdjustedBy?->name
+				]);
+			} else {
+				return response()->json([
+					'success' => false,
+					'message' => 'Failed to update shipping cost'
+				], 500);
+			}
+
+		} catch (\Illuminate\Validation\ValidationException $e) {
+			return response()->json([
+				'success' => false,
+				'message' => 'Validation failed',
+				'errors' => $e->errors()
+			], 422);
+		} catch (\Exception $e) {
+			Log::error('Shipping adjustment failed: ' . $e->getMessage(), [
+				'order_id' => $request->order_id,
+				'new_cost' => $request->new_shipping_cost,
+				'trace' => $e->getTraceAsString()
+			]);
+
+			return response()->json([
+				'success' => false,
+				'message' => 'An error occurred while updating shipping cost'
+			], 500);
+		}
+	}
 }

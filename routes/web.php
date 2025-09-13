@@ -879,6 +879,7 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     Route::post('orders/confirm-pickup/{order}', [\App\Http\Controllers\Admin\OrderController::class , 'confirmPickup'])->name('orders.confirmPickup');
     Route::post('orders/{order}/employee-tracking', [\App\Http\Controllers\Admin\OrderController::class, 'updateEmployeeTracking'])->name('orders.updateEmployeeTracking');
     Route::post('orders/{order}/toggle-tracking', [\App\Http\Controllers\Admin\OrderController::class, 'toggleEmployeeTracking'])->name('orders.toggleEmployeeTracking');
+    Route::post('orders/adjust-shipping', [\App\Http\Controllers\Admin\OrderController::class, 'adjustShipping'])->name('orders.adjustShipping');
     
     // Admin payment callback routes
     Route::get('orders/payment/finish', [\App\Http\Controllers\Admin\OrderController::class, 'paymentFinishRedirect'])->name('payment.finish');

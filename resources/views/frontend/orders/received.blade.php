@@ -87,6 +87,15 @@
 								<br> Status: {{ $order->status }}
 								<br> Payment Status: {{ $order->payment_status }}
 								<br> Shipped by: {{ $order->shipping_service_name }}
+								@if ($order->isShippingCostAdjusted())
+									<br> <span class="text-info">Shipping Cost: Rp{{ number_format($order->shipping_cost, 0, ",", ".") }}</span>
+									<small class="text-muted d-block">Original Cost: Rp{{ number_format($order->original_shipping_cost, 0, ",", ".") }}</small>
+									@if ($order->shipping_adjustment_note)
+										<small class="text-muted d-block">Note: {{ $order->shipping_adjustment_note }}</small>
+									@endif
+								@else
+									<br> Shipping Cost: Rp{{ number_format($order->shipping_cost, 0, ",", ".") }}
+								@endif
 								@if ($order->tracking_number != null)
                                     <br> Shipping Number: {{ $order->tracking_number }}
                                 @endif
@@ -163,7 +172,12 @@
 									<li>Tax (10%)
 										<span>Rp{{ number_format($order->tax_amount,0,",",".") }}</span>
 									</li>
-									<li>Shipping Cost
+									<li>
+										@if ($order->isShippingCostAdjusted())
+											Shipping Cost <small class="text-info">(Adjusted)</small>
+										@else
+											Shipping Cost
+										@endif
 										<span>Rp{{ number_format($order->shipping_cost,0,",",".") }}</span>
 									</li>
 									<li>Unique Code

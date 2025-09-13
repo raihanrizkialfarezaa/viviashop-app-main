@@ -59,6 +59,15 @@
 								@endif
 								<br> Payment Status: {{ $order->payment_status }}
 								<br> Shipped by: {{ $order->shipping_service_name }}
+								@if ($order->isShippingCostAdjusted())
+									<br> <span class="text-info">Shipping Cost: Rp{{ number_format($order->shipping_cost, 0, ",", ".") }}</span>
+									<small class="text-muted d-block">Original Cost: Rp{{ number_format($order->original_shipping_cost, 0, ",", ".") }}</small>
+									@if ($order->shipping_adjustment_note)
+										<small class="text-muted d-block">Note: {{ $order->shipping_adjustment_note }}</small>
+									@endif
+								@else
+									<br> Shipping Cost: Rp{{ number_format($order->shipping_cost, 0, ",", ".") }}
+								@endif
 								@php
 									$resi = \App\Models\Shipment::where('order_id', $order->id)->pluck('track_number')->first();
 								@endphp
@@ -120,6 +129,51 @@
 								@endforelse
 							</tbody>
 						</table>
+						
+						<!-- Order Summary -->
+						<div class="row mt-4">
+							<div class="col-md-6 ml-auto">
+								<div class="card">
+									<div class="card-header">
+										<h5>Order Summary</h5>
+									</div>
+									<div class="card-body">
+										<ul class="list-unstyled">
+											<li class="d-flex justify-content-between">
+												<span>Subtotal:</span>
+												<span>Rp{{ number_format($order->base_total_price, 0, ",", ".") }}</span>
+											</li>
+											<li class="d-flex justify-content-between">
+												<span>Tax (10%):</span>
+												<span>Rp{{ number_format($order->tax_amount, 0, ",", ".") }}</span>
+											</li>
+											<li class="d-flex justify-content-between">
+												<span>
+													@if ($order->isShippingCostAdjusted())
+														Shipping Cost <small class="text-info">(Adjusted)</small>:
+													@else
+														Shipping Cost:
+													@endif
+												</span>
+												<span>Rp{{ number_format($order->shipping_cost, 0, ",", ".") }}</span>
+											</li>
+											@if ($order->isShippingCostAdjusted())
+												<li class="d-flex justify-content-between text-muted">
+													<small>Original shipping cost:</small>
+													<small>Rp{{ number_format($order->original_shipping_cost, 0, ",", ".") }}</small>
+												</li>
+											@endif
+											<hr>
+											<li class="d-flex justify-content-between font-weight-bold">
+												<span>Grand Total:</span>
+												<span>Rp{{ number_format($order->grand_total, 0, ",", ".") }}</span>
+											</li>
+										</ul>
+									</div>
+								</div>
+							</div>
+						</div>
+						
 						@if ($order->isDelivered())
 							<a href="#" class="btn btn-block mt-2 btn-lg btn-success btn-pill" onclick="event.preventDefault();
 							document.getElementById('complete-form-{{ $order->id }}').submit();"> Mark as Completed</a>
