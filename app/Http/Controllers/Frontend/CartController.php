@@ -118,8 +118,9 @@ class CartController extends Controller
                 'slug' => $product->slug,
                 'image' => $product->productImages->first()?->path ?? '',
                 'attributes' => $variant->variantAttributes->pluck('attribute_value', 'attribute_name')->toArray(),
+                'sku' => $variant->sku ?? $product->sku ?? 'NO-SKU',
             ]
-        ]);
+        ])->associate(Product::class);
 
         return response()->json([
             'status' => 'success',
@@ -155,8 +156,9 @@ class CartController extends Controller
                 'type' => 'simple',
                 'slug' => $product->slug,
                 'image' => $product->productImages->first()?->path ?? '',
+                'sku' => $product->sku ?? 'NO-SKU',
             ]
-        ], $product);
+        ])->associate(Product::class);
 
         return response()->json([
             'status' => 'success',

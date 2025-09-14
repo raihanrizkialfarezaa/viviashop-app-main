@@ -219,7 +219,7 @@
                                     <input type="radio" class="form-check-input payment-option bg-primary border-0" id="Transfer-1" name="payment_method" value="manual" checked>
                                     <label class="form-check-label" for="Transfer-1">Direct Bank Transfer</label>
                                 </div>
-                                <p class="text-start text-dark">You can pay to us via : <br> 1. BCA : 01401840112(Ahmad Sambudi) <br> 2. BCA : 01401840112(Ahmad Sambudi)</p>
+                                <p class="text-start text-dark">You can pay to us via : <br> 1. BCA : 01401840112(Ahmad Sambudi) <br> 2. BCA : 01401840112(Ahmad Sambudi)<br><small class="text-muted">You will be able to upload payment proof after order confirmation.</small></p>
                             </div>
                         </div>
                         <div class="row g-4 text-center align-items-center justify-content-center border-bottom py-3">
@@ -247,15 +247,6 @@
                                     <label class="form-check-label" for="Store-1">Bayar Di Toko</label>
                                 </div>
                                 <p class="text-start text-dark">Datang langsung ke toko untuk melakukan pembayaran</p>
-                            </div>
-                        </div>
-                        <div class="row g-4 text-center align-items-center justify-content-center border-bottom py-3" id="payment-slip-section" style="display: none;">
-                            <div class="col-12">
-                                <div class="form-group">
-                                    <label for="payment-slip" class="form-label">Upload Payment Slip / Screenshot:</label>
-                                    <input type="file" class="form-control" id="payment-slip" name="payment_slip" accept="image/*">
-                                    <small class="text-muted">Upload your payment slip or transfer screenshot</small>
-                                </div>
                             </div>
                         </div>
                         <div class="row g-4 text-center align-items-center justify-content-center pt-4">
@@ -688,12 +679,6 @@
                 
                 $('.payment-option').not(this).prop('checked', false);
                 $(this).prop('checked', true);
-                
-                if (selectedPayment === 'manual') {
-                    $('#payment-slip-section').show();
-                } else {
-                    $('#payment-slip-section').hide();
-                }
             });
             
             // Debug test buttons

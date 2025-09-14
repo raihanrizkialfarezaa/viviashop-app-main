@@ -759,23 +759,23 @@ view()->share('setting', $setting);
 						$variant = \App\Models\ProductVariant::find($item->options['variant_id']);
 						if ($variant) {
 							app(StockService::class)->recordMovement(
-								$variant->product_id,
-								$item->options['variant_id'],
-								$orderItem->qty,
-								'out',
-								'Frontend Sale',
-								"Order #{$order->order_code}"
+								$variant->id, // variant_id
+								\App\Models\StockMovement::MOVEMENT_OUT, // movement_type
+								$orderItem->qty, // quantity
+								'Frontend Sale', // reference_type
+								$order->id, // reference_id
+								"Order #{$order->code}" // reason
 							);
 						}
 					} else {
-						// For simple items, record stock movement
-						app(StockService::class)->recordMovement(
-							$orderItem->product_id,
-							null,
-							$orderItem->qty,
-							'out',
-							'Frontend Sale',
-							"Order #{$order->order_code}"
+						// For simple items, use recordSimpleProductMovement
+						app(StockService::class)->recordSimpleProductMovement(
+							$orderItem->product_id, // product_id
+							\App\Models\StockMovement::MOVEMENT_OUT, // movement_type
+							$orderItem->qty, // quantity
+							'Frontend Sale', // reference_type
+							$order->id, // reference_id
+							"Order #{$order->code}" // reason
 						);
 					}
 				}
@@ -1142,7 +1142,7 @@ view()->share('setting', $setting);
 		$shipmentParams = [
 			'user_id' => auth()->id(),
 			'order_id' => $order->id,
-			'status' => Shipment::PENDING,
+			'status' => 'pending', // Use string instead of constant for safety
 			'total_qty' => $totalQty,
 			'total_weight' => $this->_getTotalWeight(),
 			'name' => $shippingName,
