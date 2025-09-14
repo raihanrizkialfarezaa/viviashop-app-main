@@ -40,6 +40,7 @@ class StockMovement extends Model
     const REASON_PRINT_ORDER = 'print_order';
     const REASON_MANUAL_ADJUSTMENT = 'manual_adjustment';
     const REASON_INVENTORY_CORRECTION = 'inventory_correction';
+    const REASON_STOCK_SYNCHRONIZATION = 'stock_synchronization';
     const REASON_DAMAGE = 'damage';
     const REASON_RETURN = 'return';
 
