@@ -35,6 +35,32 @@
             outline: 0
         }
 
+        .modal.show {
+            display: block !important;
+        }
+
+        #modal-produk {
+            z-index: 9999 !important;
+        }
+
+        #modal-produk .modal-dialog {
+            margin: 30px auto;
+            z-index: 10000 !important;
+        }
+
+        #modal-variant {
+            z-index: 10100 !important;
+        }
+
+        #modal-variant .modal-dialog {
+            margin: 30px auto;
+            z-index: 10200 !important;
+        }
+
+        .modal-backdrop {
+            z-index: 9998 !important;
+        }
+
         .modal.fade .modal-dialog {
             -webkit-transform: translate(0, -25%);
             -ms-transform: translate(0, -25%);
@@ -71,6 +97,11 @@
             width: auto;
             margin: 10px
         }
+        
+        .modal-xl {
+            max-width: 95%;
+            width: 95%;
+        }
 
         .modal-content {
             position: relative;
@@ -82,6 +113,128 @@
             -webkit-box-shadow: 0 3px 9px rgba(0, 0, 0, .5);
             box-shadow: 0 3px 9px rgba(0, 0, 0, .5);
             outline: 0
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: #f5f5f5;
+            cursor: pointer;
+        }
+        
+        .badge-success {
+            background-color: #5cb85c;
+        }
+        
+        .badge-warning {
+            background-color: #f0ad4e;
+        }
+        
+        .badge-danger {
+            background-color: #d9534f;
+        }
+        
+        .modal-header.bg-primary {
+            background-color: #337ab7 !important;
+            border-color: #2e6da4;
+        }
+        
+        .modal-header.bg-info {
+            background-color: #5bc0de !important;
+            border-color: #46b8da;
+        }
+        
+        .modal-xl .table-produk {
+            width: 100% !important;
+            table-layout: fixed;
+            font-size: 11px;
+        }
+        
+        .modal-xl .table-produk th,
+        .modal-xl .table-produk td {
+            word-wrap: break-word;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 4px !important;
+            vertical-align: middle;
+            border: 1px solid #ddd;
+        }
+        
+        .modal-xl .table-produk th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            text-align: center;
+            padding: 6px 4px !important;
+        }
+        
+        .modal-xl .table-responsive {
+            border: none;
+            overflow-x: hidden !important;
+        }
+        
+        .modal-xl .modal-body {
+            padding: 15px;
+            max-height: 500px;
+        }
+        
+        /* Compact styling for buttons and badges */
+        .modal-xl .btn-xs {
+            padding: 2px 6px;
+            font-size: 9px;
+            line-height: 1.2;
+            border-radius: 2px;
+        }
+        
+        .modal-xl .label {
+            font-size: 9px;
+            padding: 2px 4px;
+        }
+        
+        .modal-xl .badge {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+        
+        .modal-xl .badge-success { background-color: #5cb85c; }
+        .modal-xl .badge-warning { background-color: #f0ad4e; }
+        .modal-xl .badge-danger { background-color: #d9534f; }
+        
+        .dataTables_wrapper {
+            width: 100%;
+        }
+        
+        .dataTables_wrapper .dataTables_paginate {
+            text-align: center;
+            margin-top: 15px;
+        }
+        
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            display: inline-block;
+            padding: 6px 12px;
+            margin: 0 2px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            color: #337ab7;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background-color: #e6e6e6;
+            border-color: #adadad;
+        }
+        
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background-color: #337ab7;
+            border-color: #337ab7;
+            color: white;
+        }
+        
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+            color: #777;
+            background-color: #fff;
+            border-color: #ddd;
+            cursor: not-allowed;
         }
 
         .modal-backdrop {
@@ -286,9 +439,10 @@
 
 {{--  @vite('resources/js/app.js')  --}}
 <!-- AdminLTE App -->
-    <script src="{{ asset('js/adminlte.min.js') }}" defer></script>
     <script src="https://code.jquery.com/jquery-3.6.3.min.js" integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js" integrity="sha384-aJ21OjlMXNL5UyIl/XNwTMqvzeRMZH2w8c5cRVpzpU8Y5bApTppSuUkhZXN0VxHd" crossorigin="anonymous"></script>
     <script src="https://cdn.datatables.net/1.13.3/js/jquery.dataTables.min.js"></script>
+    <script src="{{ asset('js/adminlte.min.js') }}" defer></script>
     <script>
             $("#path").on("change", function () {
             const item = $(".image-item").removeClass("d-none");
@@ -307,7 +461,6 @@
             };
         });
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js" integrity="sha384-aJ21OjlMXNL5UyIl/XNwTMqvzeRMZH2w8c5cRVpzpU8Y5bApTppSuUkhZXN0VxHd" crossorigin="anonymous"></script>
     @include('sweetalert::alert')
 
 @stack('script-alt')

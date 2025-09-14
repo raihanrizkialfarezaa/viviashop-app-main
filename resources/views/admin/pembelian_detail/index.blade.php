@@ -157,7 +157,7 @@
     </div>
 </div>
 
-@includeIf('admin.pembelian_detail.produk')
+@include('admin.pembelian_detail.produk')
 @endsection
 
 @push('scripts')
@@ -170,6 +170,15 @@
 
     $(function () {
         $('body').addClass('sidebar-collapse');
+        
+        // Ensure modal backdrop is properly configured
+        $('.modal').on('show.bs.modal', function () {
+            $('body').addClass('modal-open');
+        });
+        
+        $('.modal').on('hidden.bs.modal', function () {
+            $('body').removeClass('modal-open');
+        });
 
         table = $('.table-pembelian').DataTable({
             responsive: true,
@@ -192,17 +201,18 @@
             dom: 'Brt',
             bSort: false,
             paginate: false
-            .on('draw.dt', function () {
-                loadForm($('#diskon').val());
-                
-                const data = table.ajax.json();
-                if (data && data.total !== undefined) {
-                    $('.total').text(data.total);
-                    $('.total_item').text(data.total_item);
-                }
-            });
-        table2 = $('.table-produk').DataTable();
-
+        });
+        
+        table.on('draw.dt', function () {
+            loadForm($('#diskon').val());
+            
+            const data = table.ajax.json();
+            if (data && data.total !== undefined) {
+                $('.total').text(data.total);
+                $('.total_item').text(data.total_item);
+            }
+        });
+        
         $(document).on('input', '.quantity', function () {
             let id = $(this).data('id');
             let jumlah = parseInt($(this).val());
@@ -307,15 +317,225 @@
         $('.btn-simpan').on('click', function () {
             $('.form-pembelian').submit();
         });
+        
+        // Event handlers for modal close buttons
+        $(document).on('click', '#modal-produk .close, #modal-produk [data-dismiss="modal"]', function() {
+            console.log('Product modal close button clicked');
+            $('#modal-produk').modal('hide');
+        });
+        
+        $(document).on('click', '#modal-variant .close, #modal-variant [data-dismiss="modal"]', function() {
+            console.log('Variant modal close button clicked');
+            $('#modal-variant').modal('hide');
+        });
+        
+        // Handle modal backdrop clicks
+        $(document).on('click', '#modal-produk', function(e) {
+            if (e.target === this) {
+                console.log('Product modal backdrop clicked');
+                $('#modal-produk').modal('hide');
+            }
+        });
+        
+        $(document).on('click', '#modal-variant', function(e) {
+            if (e.target === this) {
+                console.log('Variant modal backdrop clicked');
+                $('#modal-variant').modal('hide');
+            }
+        });
+        
+        // Ensure proper modal cleanup on hidden
+        $('#modal-produk').on('hidden.bs.modal', function() {
+            console.log('Product modal fully hidden');
+            $(this).removeClass('show');
+            $('body').removeClass('modal-open');
+            $('.modal-backdrop').remove();
+        });
+        
+        $('#modal-variant').on('hidden.bs.modal', function() {
+            console.log('Variant modal fully hidden');
+            $(this).removeClass('show');
+            if (!$('#modal-produk').hasClass('show')) {
+                $('body').removeClass('modal-open');
+            }
+            $('.modal-backdrop').remove();
+        });
+        
+        $(document).on('input', '#search-produk', function() {
+            const searchTerm = $(this).val().toLowerCase();
+            filterProducts();
+        });
+        
+        $(document).on('change', '#filter-type', function() {
+            filterProducts();
+        });
+        
+        if ($('#modal-produk').length > 0) {
+            console.log('Modal found and initialized');
+        } else {
+            console.error('Modal not found in DOM');
+        }
     });
 
+    function filterProducts() {
+        const searchTerm = $('#search-produk').val().toLowerCase();
+        const filterType = $('#filter-type').val();
+        
+        $('.table-produk tbody tr').each(function() {
+            const row = $(this);
+            const productName = row.data('name') || '';
+            const productType = row.data('type') || '';
+            
+            let showRow = true;
+            
+            if (searchTerm && !productName.includes(searchTerm)) {
+                showRow = false;
+            }
+            
+            if (filterType && productType !== filterType) {
+                showRow = false;
+            }
+            
+            if (showRow) {
+                row.show();
+            } else {
+                row.hide();
+            }
+        });
+        
+        currentPage = 1;
+        updateRowNumbers();
+    }
+    
+    function updateRowNumbers() {
+        let visibleIndex = 1;
+        $('.table-produk tbody tr:visible').each(function() {
+            $(this).find('td:first').text(visibleIndex++);
+        });
+        updatePagination();
+    }
+    
+    let currentPage = 1;
+    const itemsPerPage = 8;
+    
+    function updatePagination() {
+        const visibleRows = $('.table-produk tbody tr:visible');
+        const totalItems = visibleRows.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        
+        // Hide all rows first
+        visibleRows.hide();
+        
+        // Show only current page rows
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        visibleRows.slice(startIndex, endIndex).show();
+        
+        // Update info
+        const showingStart = totalItems > 0 ? startIndex + 1 : 0;
+        const showingEnd = Math.min(endIndex, totalItems);
+        $('#showing-start').text(showingStart);
+        $('#showing-end').text(showingEnd);
+        $('#total-products').text(totalItems);
+        
+        // Update pagination buttons
+        $('#prev-btn').toggleClass('disabled', currentPage <= 1);
+        $('#next-btn').toggleClass('disabled', currentPage >= totalPages);
+        
+        // Update page numbers
+        let pageNumbers = '';
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === currentPage) {
+                pageNumbers += `<button class="paginate_button current" onclick="goToPage(${i})">${i}</button>`;
+            } else {
+                pageNumbers += `<button class="paginate_button" onclick="goToPage(${i})">${i}</button>`;
+            }
+        }
+        $('#page-numbers').html(pageNumbers);
+    }
+    
+    function changePage(direction) {
+        const visibleRows = $('.table-produk tbody tr:visible');
+        const totalItems = visibleRows.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        
+        const newPage = currentPage + direction;
+        if (newPage >= 1 && newPage <= totalPages) {
+            currentPage = newPage;
+            updatePagination();
+        }
+    }
+    
+    function goToPage(page) {
+        const visibleRows = $('.table-produk tbody tr:visible');
+        const totalItems = visibleRows.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        
+        if (page >= 1 && page <= totalPages) {
+            currentPage = page;
+            updatePagination();
+        }
+    }
+
     function tampilProduk() {
-        $('#modal-produk').modal('show');
-        $('#modal-produk').addClass('show');
+        console.log('tampilProduk called');
+        
+        if (typeof $ === 'undefined') {
+            console.error('jQuery not loaded');
+            alert('jQuery not loaded. Please refresh the page.');
+            return;
+        }
+        
+        const modal = $('#modal-produk');
+        if (modal.length === 0) {
+            console.error('Modal element not found');
+            alert('Modal element not found. Please refresh the page.');
+            return;
+        }
+        
+        console.log('Showing modal...');
+        
+        try {
+            // Clean any existing modal state
+            modal.removeClass('show');
+            modal.css('display', 'none');
+            $('.modal-backdrop').remove();
+            
+            // Show the modal properly
+            modal.modal('show');
+            
+            modal.on('shown.bs.modal', function () {
+                console.log('Modal fully shown');
+                currentPage = 1;
+                updatePagination();
+                
+                // Initialize search and filter functionality
+                $('#search-produk').val('');
+                $('#filter-type').val('');
+            });
+            
+            modal.css({
+                'display': 'block',
+                'z-index': '9999'
+            });
+            modal.addClass('show');
+            $('body').addClass('modal-open');
+            
+            console.log('Modal visibility set');
+        } catch (error) {
+            console.error('Error showing modal:', error);
+            alert('Error opening modal. Please refresh the page.');
+        }
     }
 
     function hideProduk() {
-        $('#modal-produk').modal('hide');
+        console.log('hideProduk called');
+        const modal = $('#modal-produk');
+        modal.modal('hide');
+        modal.removeClass('show');
+        modal.css('display', 'none');
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open');
     }
 
     function pilihProduk(id, variantId = null) {
@@ -327,56 +547,141 @@
     }
 
     function showVariants(productId) {
+        console.log('showVariants called for product:', productId);
+        
         $('#variant-content').html('<p class="text-center">Loading...</p>');
-        $('#modal-variant').modal('show');
+        
+        const variantModal = $('#modal-variant');
+        if (variantModal.length === 0) {
+            console.error('Variant modal not found');
+            alert('Variant modal not found. Please refresh the page.');
+            return;
+        }
+        
+        // Clean any existing modal state
+        variantModal.removeClass('show');
+        variantModal.css('display', 'none');
+        
+        // Show the modal properly
+        variantModal.modal('show');
+        variantModal.css({
+            'display': 'block',
+            'z-index': '10100'
+        });
+        variantModal.addClass('show');
+        
+        console.log('Variant modal display set');
         
         $.get(`{{ url('/admin/pembelian_detail/variants') }}/${productId}`)
             .done(response => {
+                console.log('Variants loaded:', response);
                 let html = `
-                    <h5>Produk: ${response.product.name}</h5>
-                    <table class="table table-striped table-bordered">
-                        <thead>
-                            <tr>
-                                <th>No</th>
-                                <th>Variant</th>
-                                <th>Harga Beli</th>
-                                <th>Harga Jual</th>
-                                <th>Stok</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                <h5><i class="fa fa-info-circle"></i> Produk: <strong>${response.product.name}</strong></h5>
+                                <p class="mb-0">Silakan pilih variant yang diinginkan dari tabel di bawah ini.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered table-hover">
+                            <thead class="bg-gray">
+                                <tr>
+                                    <th width="8%">No</th>
+                                    <th>Variant</th>
+                                    <th>Harga Beli</th>
+                                    <th>Harga Jual</th>
+                                    <th>Margin</th>
+                                    <th>Stok</th>
+                                    <th width="15%">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                 `;
                 
                 response.variants.forEach((variant, index) => {
+                    const hargaBeli = Number(variant.harga_beli || 0);
+                    const hargaJual = Number(variant.price || 0);
+                    const margin = hargaJual - hargaBeli;
+                    const marginPercent = hargaBeli > 0 ? ((margin / hargaBeli) * 100).toFixed(1) : 0;
+                    const stockClass = variant.stock > 10 ? 'success' : (variant.stock > 0 ? 'warning' : 'danger');
+                    const isOutOfStock = variant.stock <= 0;
+                    
                     html += `
-                        <tr>
+                        <tr ${isOutOfStock ? 'class="text-muted"' : ''}>
                             <td>${index + 1}</td>
-                            <td>${variant.attributes}</td>
-                            <td>Rp. ${Number(variant.harga_beli || 0).toLocaleString('id-ID')}</td>
-                            <td>Rp. ${Number(variant.price).toLocaleString('id-ID')}</td>
-                            <td>${variant.stock}</td>
                             <td>
-                                <button type="button" class="btn btn-primary btn-xs btn-flat"
-                                    onclick="pilihProduk('${response.product.id}', '${variant.id}')">
-                                    <i class="fa fa-check-circle"></i>
-                                    Pilih
+                                <strong>${variant.attributes || 'Default'}</strong>
+                                ${variant.sku ? `<br><small class="text-muted">SKU: ${variant.sku}</small>` : ''}
+                            </td>
+                            <td>
+                                <span class="text-success">
+                                    <strong>Rp. ${hargaBeli.toLocaleString('id-ID')}</strong>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-primary">
+                                    <strong>Rp. ${hargaJual.toLocaleString('id-ID')}</strong>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-${margin >= 0 ? 'success' : 'danger'}">
+                                    <strong>Rp. ${margin.toLocaleString('id-ID')}</strong>
+                                    <small>(${marginPercent}%)</small>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-${stockClass}">
+                                    ${variant.stock} unit
+                                </span>
+                            </td>
+                            <td>
+                                <button type="button" 
+                                    class="btn btn-${isOutOfStock ? 'secondary' : 'primary'} btn-sm btn-flat btn-block"
+                                    onclick="pilihProduk('${response.product.id}', '${variant.id}')"
+                                    ${isOutOfStock ? 'disabled title="Stok habis"' : ''}>
+                                    <i class="fa fa-${isOutOfStock ? 'ban' : 'check-circle'}"></i>
+                                    ${isOutOfStock ? 'Stok Habis' : 'Pilih'}
                                 </button>
                             </td>
                         </tr>
                     `;
                 });
                 
-                html += '</tbody></table>';
+                html += `
+                        </tbody>
+                    </table>
+                    </div>
+                `;
                 $('#variant-content').html(html);
             })
-            .fail(() => {
-                $('#variant-content').html('<p class="text-center text-danger">Error loading variants</p>');
+            .fail((xhr, status, error) => {
+                console.error('Error loading variants:', xhr.responseText);
+                $('#variant-content').html(`
+                    <div class="alert alert-danger">
+                        <h5><i class="fa fa-exclamation-triangle"></i> Error</h5>
+                        <p>Gagal memuat data variant: ${error}</p>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="showVariants('${productId}')">
+                            <i class="fa fa-refresh"></i> Coba Lagi
+                        </button>
+                    </div>
+                `);
             });
     }
 
     function hideVariant() {
-        $('#modal-variant').modal('hide');
+        console.log('hideVariant called');
+        const modal = $('#modal-variant');
+        modal.modal('hide');
+        modal.removeClass('show');
+        modal.css('display', 'none');
+        
+        // Only remove modal-open class if no other modal is open
+        if (!$('#modal-produk').hasClass('show')) {
+            $('.modal-backdrop').remove();
+            $('body').removeClass('modal-open');
+        }
     }
 
     function tambahProduk() {

@@ -11,11 +11,17 @@ use Illuminate\Http\Request;
 
 class StockCardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $perPage = $request->get('per_page', 12);
+        
+        if (!in_array($perPage, [10, 12, 20, 30, 50, 100])) {
+            $perPage = 12;
+        }
+        
         $products = Product::with(['productVariants', 'productInventory'])
                           ->orderBy('name')
-                          ->get();
+                          ->paginate($perPage);
 
         return view('admin.stock.index', compact('products'));
     }
