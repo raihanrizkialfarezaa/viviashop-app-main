@@ -19,9 +19,29 @@
         left: 0;
     }
 
-    /* Ensure modal is properly sized */
+    /* Ensure modal is properly sized and visible */
     .modal-lg {
         max-width: 600px;
+    }
+    
+    /* Fix modal display issues */
+    #modalProduct {
+        z-index: 1050;
+    }
+    
+    #modalProduct .modal-dialog {
+        margin: 30px auto;
+    }
+    
+    #modalProduct .modal-content {
+        background-color: #fff;
+        border: 1px solid #999;
+        border-radius: 6px;
+        box-shadow: 0 3px 9px rgba(0,0,0,.5);
+    }
+    
+    .modal-backdrop {
+        z-index: 1040;
     }
     </style>
     <div class="container">
@@ -85,6 +105,7 @@
                             <div>
                                 <button type="button"
                                         class="btn btn-primary mb-3"
+                                        id="searchProductBtn"
                                         onclick="addModal()">
                                 <i class="fas fa-search"></i> Search & Add Product
                                 </button>
@@ -131,12 +152,14 @@
                     </div>
 
                     {{-- Modal --}}
-                    <div class="modal fade" id="modalProduct" tabindex="-1" aria-labelledby="productModalLabel">
-                        <div class="modal-dialog modal-lg">
+                    <div class="modal fade" id="modalProduct" tabindex="-1" role="dialog" aria-labelledby="productModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg" role="document">
                             <div class="modal-content">
                                 <div class="modal-header">
-                                    <h5 class="modal-title">Select Product</h5>
-                                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                    <h4 class="modal-title" id="productModalLabel">Select Product</h4>
                                 </div>
                                 <div class="modal-body">
                                     <table id="product-table" class="table table-product table-bordered table-hover">
@@ -164,7 +187,9 @@
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title">Scan Barcode</h5>
-                                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                    <button type="button" class="close" data-dismiss="modal" onclick="closeBarcodeModal()" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
                                 </div>
                                 <div class="modal-body text-center">
                                     <div id="scanner" style="width: 100%; height: 300px; border: 1px solid #ccc; position: relative;"></div>
@@ -201,11 +226,19 @@
 let isScanning = false;
 function showBarcodeModal() {
     $('#barcodeModal').modal('show');
-    $('#barcodeModal').addClass('show');
+}
+
+function closeBarcodeModal() {
+    $('#barcodeModal').modal('hide');
+    $('#barcodeModal').removeClass('show');
+    $('body').removeClass('modal-open');
+    $('.modal-backdrop').remove();
+    stopScanner();
+    clearScanner();
 }
 
 // Initialize when modal is shown
-$('#barcodeModal').on('shown.bs.modal', function() {
+$('#barcodeModal').on('shown', function() {
     console.log('Modal shown, waiting before starting scanner...');
     // Wait for modal animation to complete
     setTimeout(function() {
@@ -214,7 +247,7 @@ $('#barcodeModal').on('shown.bs.modal', function() {
 });
 
 // Clean up when modal is hidden
-$('#barcodeModal').on('hidden.bs.modal', function() {
+$('#barcodeModal').on('hidden', function() {
     console.log('Modal hidden, stopping scanner...');
     stopScanner();
     clearScanner();
@@ -350,29 +383,84 @@ function findAndAddProduct(barcode) {
 </script>
 <script>
     function addModal() {
-        $('#modalProduct').modal('show');
-        $('#modalProduct').addClass('show');
+        console.log('addModal function called');
+        try {
+            // Clean up any existing modal states
+            $('.modal-backdrop').remove();
+            $('body').removeClass('modal-open');
+            $('#modalProduct').removeClass('fade in').removeAttr('aria-hidden').removeAttr('style');
+            
+            // Show modal directly
+            $('#modalProduct').modal({
+                backdrop: true,
+                keyboard: true,
+                show: true
+            });
+            
+            console.log('Modal show called');
+            
+        } catch(error) {
+            console.error('Error in addModal:', error);
+        }
     }
+    
+    function closeProductModal() {
+        console.log('closeProductModal called');
+        $('#modalProduct').modal('hide');
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open');
+    }
+    
+    // Initialize when document is ready
+    $(document).ready(function() {
+        console.log('Document ready');
+        
+        // Modal show handler
+        $('#modalProduct').on('shown.bs.modal', function() {
+            console.log('Modal shown event triggered');
+            
+            // Destroy existing DataTable if any
+            if ($.fn.DataTable.isDataTable('#product-table')) {
+                $('#product-table').DataTable().destroy();
+            }
+            
+            // Initialize DataTable
+            $('#product-table').DataTable({
+                processing: true,
+                responsive: true,
+                serverSide: true,
+                autoWidth: false,
+                ajax: {
+                    url: "{{ route('admin.products.data') }}",
+                },
+                columns: [
+                    {data: 'DT_RowIndex', searchable: false, sortable: false},
+                    {data: 'name'},
+                    {data: 'sku'},
+                    {data: 'price'},
+                    {data: 'action', searchable: false, sortable: false},
+                ]
+            });
+        });
+        
+        // Debug modal events
+        $('#modalProduct').on('show.bs.modal', function() {
+            console.log('Modal show event');
+        });
+        
+        $('#modalProduct').on('hide.bs.modal', function() {
+            console.log('Modal hide event');
+        });
+        
+        $('#modalProduct').on('hidden.bs.modal', function() {
+            console.log('Modal hidden event');
+        });
+    });
+    
     let table;
     let url = "{{ route('admin.products.data') }}";
-$(function(){
-  table1 = $('.table-product').DataTable({
-    processing: true,
-    responsive: true,
-    serverSide: true,
-    autoWidth: false,
-    ajax : {
-        url: "{{ route('admin.products.data') }}",
-    },
-    columns: [
-        {data: 'DT_RowIndex', searchable: false, sortable: false},
-        {data: 'name'},
-        {data: 'sku'},
-        {data: 'price'},
-        {data: 'action', searchable: false, sortable: false},
-    ]
-})
-});
+
+// Handle product selection
 $('#product-table').on('click', '.select-product', function(){
     const id   = $(this).data('id'),
           sku  = $(this).data('sku'),

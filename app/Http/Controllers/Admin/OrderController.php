@@ -319,22 +319,29 @@ class OrderController extends Controller
 				
 				if ($orderItem) {
 					try {
+						// Only validate stock availability, don't reduce it yet
+						// Stock will be reduced when order is completed/confirmed
 						if ($itemData['variant_id']) {
 							$variant = \App\Models\ProductVariant::find($itemData['variant_id']);
 							if ($variant) {
 								if ($variant->stock < $itemData['qty']) {
 									throw new OutOfStockException('The variant ' . $variant->sku . ' is out of stock. Available: ' . $variant->stock . ', Requested: ' . $itemData['qty']);
 								}
-								$variant->stock = max(0, $variant->stock - $itemData['qty']);
-								$variant->save();
+								// Don't reduce stock here - will be done on completion
 							} else {
 								throw new \Exception('Variant not found: ' . $itemData['variant_id']);
 							}
 						} else {
-							ProductInventory::reduceStock($itemData['product_id'], $itemData['qty']);
+							// For simple products, check ProductInventory stock availability
+							$inventory = ProductInventory::where('product_id', $itemData['product_id'])->first();
+							if ($inventory && $inventory->qty < $itemData['qty']) {
+								$product = Product::findOrFail($itemData['product_id']);
+								throw new OutOfStockException('The product '. $product->sku .' is out of stock. Available: ' . $inventory->qty . ', Requested: ' . $itemData['qty']);
+							}
+							// Don't reduce stock here - will be done on completion
 						}
 					} catch (\Exception $e) {
-						Log::error('Stock reduction failed', [
+						Log::error('Stock validation failed', [
 							'product_id' => $itemData['product_id'],
 							'variant_id' => $itemData['variant_id'],
 							'qty' => $itemData['qty'],
@@ -1019,11 +1026,22 @@ class OrderController extends Controller
 	 */
 	private function recordOrderStockMovements($order, $description = 'Admin Sale')
 	{
+		// Check if stock movements have already been recorded for this order
+		$existingMovements = \App\Models\StockMovement::where('reference_type', 'order')
+			->where('reference_id', $order->id)
+			->exists();
+		
+		if ($existingMovements) {
+			// Stock movements already recorded, skip to avoid double deduction
+			\Illuminate\Support\Facades\Log::info("Stock movements already recorded for order {$order->id}, skipping duplicate recording");
+			return;
+		}
+
 		foreach ($order->orderItems as $orderItem) {
 			try {
 				// Check if item has variant
 				if ($orderItem->product_variant_id) {
-					// For variant products, use the variant-specific method
+					// For variant products, use StockService directly (it handles both stock update and movement recording)
 					app(StockService::class)->recordMovement(
 						$orderItem->product_variant_id, // variantId
 						'out',                           // movementType
