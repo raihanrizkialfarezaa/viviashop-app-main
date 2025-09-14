@@ -43,6 +43,184 @@
     .modal-backdrop {
         z-index: 1040;
     }
+
+    /* Enhanced UI Styling */
+    .box {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .box-header {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .box-title {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .box-primary .box-header {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        color: white;
+    }
+
+    .box-primary .box-title {
+        color: white;
+    }
+
+    .box-success .box-header {
+        background: linear-gradient(135deg, #28a745, #1e7e34);
+        color: white;
+    }
+
+    .box-success .box-title {
+        color: white;
+    }
+
+    .box-info .box-header {
+        background: linear-gradient(135deg, #17a2b8, #117a8b);
+        color: white;
+    }
+
+    .box-info .box-title {
+        color: white;
+    }
+
+    /* Button enhancements */
+    .btn {
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        border: none;
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #28a745, #1e7e34);
+        border: none;
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        border: none;
+    }
+
+    /* Order item styling */
+    .order-item {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+
+    .order-item:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    /* Form enhancements */
+    .form-control {
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+
+    /* Pricing summary styling */
+    #pricing-summary .table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+        border-top: none;
+    }
+
+    #pricing-summary .table td {
+        vertical-align: middle;
+    }
+
+    .bg-success {
+        background-color: #d4edda !important;
+    }
+
+    .bg-success td {
+        color: #155724 !important;
+        font-size: 16px;
+    }
+
+    /* Action buttons section */
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .action-buttons .btn {
+        margin-bottom: 10px;
+    }
+
+    /* Responsive improvements */
+    @media (max-width: 768px) {
+        .action-buttons {
+            flex-direction: column;
+        }
+        
+        .action-buttons .btn {
+            width: 100%;
+        }
+        
+        .d-flex {
+            flex-direction: column !important;
+        }
+        
+        .d-flex h4 {
+            margin-bottom: 10px;
+        }
+    }
+
+    /* Alert styling */
+    .alert {
+        border-radius: 6px;
+        border: none;
+    }
+
+    /* Table improvements */
+    .table-responsive {
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .table-bordered {
+        border: 1px solid #dee2e6;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    /* Input group styling */
+    .input-group {
+        margin-bottom: 15px;
+    }
+
+    /* Icon improvements */
+    .fa, .fas {
+        margin-right: 8px;
+    }
     </style>
     <div class="container">
         <div class="row">
@@ -102,30 +280,87 @@
                             <h3 class="box-title">Order Items</h3>
                         </div>
                         <div class="box-body">
-                            <div>
+                            <!-- Action Buttons Section -->
+                            <div class="action-buttons">
                                 <button type="button"
-                                        class="btn btn-primary mb-3"
+                                        class="btn btn-primary"
                                         id="searchProductBtn"
                                         onclick="addModal()">
-                                <i class="fas fa-search"></i> Search & Add Product
+                                    <i class="fas fa-search"></i> Search & Add Product
                                 </button>
-                            </div>
-                            <!-- Button to open modal -->
-                            <div class="">
-                                <button type="button" class="btn btn-primary mb-3" onclick="showBarcodeModal()">
+                                
+                                <button type="button" class="btn btn-info" onclick="showBarcodeModal()">
                                     <i class="fas fa-barcode"></i> Scan Barcode
                                 </button>
                             </div>
-                            <div class="d-flex" style="gap: 10px; align-items: center;">
-                                <h4>Scan Infrared</h4>
-                                <div class="form-group">
-                                    <input type="text" id="barcode" class="form-control" placeholder="Barcode">
+                            
+                            <!-- Infrared Scanner Section -->
+                            <div class="row" style="margin-bottom: 20px;">
+                                <div class="col-md-3">
+                                    <h5 class="text-primary">
+                                        <i class="fas fa-scan"></i> Scan Infrared
+                                    </h5>
                                 </div>
-                                <button type="button" class="btn btn-danger mb-3" onclick="searchBarcodeId()">
-                                    <i class="fas fa-barcode"></i> Search Barcode
-                                </button>
+                                <div class="col-md-6">
+                                    <div class="input-group">
+                                        <input type="text" id="barcode" class="form-control" placeholder="Enter or scan barcode here...">
+                                        <div class="input-group-btn">
+                                            <button type="button" class="btn btn-warning" onclick="searchBarcodeId()">
+                                                <i class="fas fa-search"></i> Search
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div id="order-items"></div>
+                            
+                            <!-- Pricing Summary Section -->
+                            <div id="pricing-summary" class="box box-info" style="display: none; margin-top: 20px;">
+                                <div class="box-header with-border">
+                                    <h3 class="box-title">
+                                        <i class="fa fa-calculator"></i> Order Summary
+                                    </h3>
+                                </div>
+                                <div class="box-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-hover">
+                                            <thead class="bg-light">
+                                                <tr>
+                                                    <th width="40%">Item</th>
+                                                    <th width="15%" class="text-center">Qty</th>
+                                                    <th width="20%" class="text-right">Price</th>
+                                                    <th width="25%" class="text-right">Subtotal</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="pricing-items">
+                                                <!-- Items will be populated here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-8"></div>
+                                        <div class="col-md-4">
+                                            <div class="table-responsive">
+                                                <table class="table">
+                                                    <tr>
+                                                        <td class="text-right"><strong>Total Items:</strong></td>
+                                                        <td class="text-right" id="total-items">0</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-right"><strong>Total Quantity:</strong></td>
+                                                        <td class="text-right" id="total-quantity">0</td>
+                                                    </tr>
+                                                    <tr class="bg-success">
+                                                        <td class="text-right"><strong>TOTAL TO PAY:</strong></td>
+                                                        <td class="text-right"><strong id="grand-total">Rp 0</strong></td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div class="form-group">
                                 <input type="text" name="note" class="form-control" placeholder="Notes if exist">
                             </div>
@@ -500,6 +735,86 @@ function loadAttributesForProduct(productId, itemIndex) {
     });
 }
 
+function loadSimpleProductVariant(productId, itemIndex) {
+    console.log('Loading default variant for simple product:', productId);
+    
+    // Fetch variants for simple product (should have one default variant)
+    fetch(`/admin/products/${productId}/all-variants`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Simple product variants response:', data);
+        if (data.success && data.data.length > 0) {
+            // Get the first (default) variant
+            const defaultVariant = data.data[0];
+            
+            // Create a hidden select with the default variant selected
+            const variantHtml = `
+                <div id="attribute-section-${itemIndex}" class="attribute-section mt-3" style="display: none;">
+                    <select class="form-control variant-select" 
+                            name="variant_id[${itemIndex}]" 
+                            data-item-index="${itemIndex}" 
+                            data-product-id="${productId}" 
+                            style="display: none;">
+                        <option value="${defaultVariant.id}" 
+                                data-price="${defaultVariant.price}" 
+                                data-sku="${defaultVariant.sku}" 
+                                data-stock="${defaultVariant.stock || 0}" 
+                                selected>
+                            ${defaultVariant.sku} - Rp ${new Intl.NumberFormat('id-ID').format(defaultVariant.price)}
+                        </option>
+                    </select>
+                </div>
+            `;
+            
+            $(`#order-items`).find(`[data-index="${itemIndex}"]`).append(variantHtml);
+            
+            // Automatically select the default variant
+            const variantSelect = $(`.variant-select[data-item-index="${itemIndex}"]`);
+            variantSelect.val(defaultVariant.id);
+            
+            // Add event listener for this variant select
+            variantSelect.on('change', function() {
+                updateSelectedVariant(itemIndex);
+            });
+            
+            // Update price display
+            const priceFormatted = new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(defaultVariant.price);
+            $(`#price-display-${itemIndex}`).html(`<strong class="text-success">${priceFormatted}</strong>`);
+            
+            // Set stock limit for quantity
+            const qtyInput = $(`#qty-${itemIndex}`);
+            if (qtyInput.length && defaultVariant.stock !== undefined) {
+                qtyInput.attr('max', defaultVariant.stock);
+                if (defaultVariant.stock === 0) {
+                    qtyInput.val(0).prop('disabled', true);
+                    $(`#price-display-${itemIndex}`).html(`<span class="text-danger">Out of Stock</span>`);
+                }
+            }
+            
+            // Update pricing summary
+            updatePricingSummary();
+            
+        } else {
+            console.log('No variants found for simple product');
+            $(`#price-display-${itemIndex}`).html(`<span class="text-warning">Price not available</span>`);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading simple product variant:', error);
+        $(`#price-display-${itemIndex}`).html(`<span class="text-danger">Error loading price</span>`);
+    });
+}
+
 function renderFrontendStyleVariants(variants, variantOptions, itemIndex, productId) {
     if (!variants || variants.length === 0) {
         $(`#attribute-section-${itemIndex}`).html('<p class="text-muted"><small>No variants available for this product</small></p>');
@@ -834,6 +1149,14 @@ function updateSelectedVariant(itemIndex) {
         `);
         $(`#variant-info-${itemIndex}`).show();
         
+        // Update price display
+        const priceFormatted = new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0
+        }).format(price);
+        $(`#price-display-${itemIndex}`).html(`<strong class="text-success">${priceFormatted}</strong>`);
+        
         const qtyInput = $(`#qty-${itemIndex}`);
         if (qtyInput.length) {
             qtyInput.attr('max', stock);
@@ -848,15 +1171,18 @@ function updateSelectedVariant(itemIndex) {
         }
         
         updateAllVariantDropdowns();
+        updatePricingSummary(); // Update pricing when variant changes
     } else {
         variantSelect.removeData('previous-variant-id');
         $(`#variant-info-${itemIndex}`).hide();
+        $(`#price-display-${itemIndex}`).html('<span class="text-muted">Select variant to see price</span>');
         const qtyInput = $(`#qty-${itemIndex}`);
         if (qtyInput.length) {
             qtyInput.removeAttr('max').prop('disabled', false);
         }
         
         updateAllVariantDropdowns();
+        updatePricingSummary(); // Update pricing when variant is deselected
     }
 }
 
@@ -896,6 +1222,101 @@ function updateAllVariantDropdowns() {
                 }
             }
         });
+    });
+}
+
+// ===== PRICING CALCULATION FUNCTIONS =====
+function updatePricingSummary() {
+    const orderItems = $('#order-items .order-item');
+    const pricingItems = $('#pricing-items');
+    
+    if (orderItems.length === 0) {
+        $('#pricing-summary').hide();
+        return;
+    }
+    
+    pricingItems.empty();
+    let totalItems = 0;
+    let totalQuantity = 0;
+    let grandTotal = 0;
+    
+    orderItems.each(function(index) {
+        const item = $(this);
+        const itemIndex = item.data('index');
+        const productName = item.find('input[name="product_id[]"]').siblings('input[type="text"]').val() || 'Unknown Product';
+        const qty = parseInt(item.find(`#qty-${itemIndex}`).val()) || 0;
+        
+        let price = 0;
+        let variantInfo = '';
+        
+        // Get price from variant selection
+        const variantSelect = item.find('.variant-select');
+        if (variantSelect.length && variantSelect.val()) {
+            const selectedOption = variantSelect.find('option:selected');
+            price = parseFloat(selectedOption.data('price')) || 0;
+            variantInfo = selectedOption.text().split(' - ')[0] || '';
+        }
+        
+        const subtotal = price * qty;
+        
+        if (price > 0 && qty > 0) {
+            totalItems++;
+            totalQuantity += qty;
+            grandTotal += subtotal;
+            
+            const priceFormatted = new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(price);
+            
+            const subtotalFormatted = new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(subtotal);
+            
+            const row = `
+                <tr>
+                    <td>
+                        <strong>${productName.split(' (')[0]}</strong>
+                        ${variantInfo ? `<br><small class="text-muted">${variantInfo}</small>` : ''}
+                    </td>
+                    <td class="text-center">${qty}</td>
+                    <td class="text-right">${priceFormatted}</td>
+                    <td class="text-right"><strong>${subtotalFormatted}</strong></td>
+                </tr>
+            `;
+            pricingItems.append(row);
+        }
+    });
+    
+    const grandTotalFormatted = new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0
+    }).format(grandTotal);
+    
+    $('#total-items').text(totalItems);
+    $('#total-quantity').text(totalQuantity);
+    $('#grand-total').text(grandTotalFormatted);
+    
+    if (totalItems > 0) {
+        $('#pricing-summary').show();
+    } else {
+        $('#pricing-summary').hide();
+    }
+}
+
+function attachPricingListeners(itemIndex) {
+    // Listen for quantity changes
+    $(`#qty-${itemIndex}`).on('input change', function() {
+        updatePricingSummary();
+    });
+    
+    // Listen for variant selection changes
+    $(`.variant-select[data-item-index="${itemIndex}"]`).on('change', function() {
+        updatePricingSummary();
     });
 }
 
@@ -958,29 +1379,43 @@ function addProductToOrder(product) {
     const itemIndex = orderItems.children.length;
     
     let attributeSection = '';
+    let priceDisplayText = 'Loading price...';
+    
     if (product.type === 'configurable') {
         attributeSection = `
             <div id="attribute-section-${itemIndex}" class="attribute-section mt-3">
                 <p class="text-info"><small>Loading attributes...</small></p>
             </div>
         `;
+        priceDisplayText = 'Select variant to see price';
+    } else {
+        // For simple products, show loading initially
+        priceDisplayText = 'Loading price...';
     }
 
     const productHtml = `
         <div class="order-item card mb-2 p-3" data-index="${itemIndex}">
             <div class="row">
-                <div class="col-md-6">
-                    <label>Product</label>
+                <div class="col-md-5">
+                    <label><i class="fas fa-box"></i> Product</label>
                     <input type="text" class="form-control" value="${product.name} (${product.sku})" readonly>
                     <input type="hidden" name="product_id[]" value="${product.id}">
                     <input type="hidden" name="product_type[]" value="${product.type || 'simple'}">
                 </div>
-                <div class="col-md-3">
-                    <label>Qty</label>
+                <div class="col-md-2">
+                    <label><i class="fas fa-hashtag"></i> Qty</label>
                     <input type="number" name="qty[]" id="qty-${itemIndex}" class="form-control" value="1" min="1" required>
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm remove-item">Remove</button>
+                <div class="col-md-3">
+                    <label><i class="fas fa-tag"></i> Price Info</label>
+                    <div id="price-display-${itemIndex}" class="form-control-static text-muted">
+                        ${priceDisplayText}
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-item">
+                        <i class="fas fa-trash"></i> Remove
+                    </button>
                 </div>
             </div>
             ${attributeSection}
@@ -989,9 +1424,18 @@ function addProductToOrder(product) {
 
     orderItems.insertAdjacentHTML('beforeend', productHtml);
     
+    // Attach pricing listeners
+    attachPricingListeners(itemIndex);
+    
     if (product.type === 'configurable') {
         loadAttributesForProduct(product.id, itemIndex);
+    } else {
+        // For simple products, load the default variant directly
+        loadSimpleProductVariant(product.id, itemIndex);
     }
+    
+    // Update pricing summary
+    updatePricingSummary();
 }
 
   $('#order-items').on('click','.remove-item', function(){
@@ -1007,6 +1451,7 @@ function addProductToOrder(product) {
     
     orderItem.remove();
     updateAllVariantDropdowns();
+    updatePricingSummary(); // Update pricing when item is removed
   });
 
   document.addEventListener('click', function(e) {
