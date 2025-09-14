@@ -73,6 +73,9 @@
                                     <a href="{{ route('admin.products.generateSingle', $product->id) }}" class="btn btn-sm btn-success">
                                         <i class="fa fa-barcode"></i>
                                     </a>
+                                    <a href="{{ route('admin.stock.product', $product->id) }}" class="btn btn-sm btn-info" title="Kartu Stok">
+                                        <i class="fa fa-chart-line"></i>
+                                    </a>
                                     <form onclick="return confirm('are you sure !')" action="{{ route('admin.products.destroy', $product) }}"
                                         method="POST">
                                         @csrf

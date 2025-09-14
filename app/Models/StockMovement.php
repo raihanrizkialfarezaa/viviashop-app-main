@@ -35,6 +35,9 @@ class StockMovement extends Model
 
     const REASON_ORDER_CONFIRMED = 'order_confirmed';
     const REASON_ORDER_CANCELLED = 'order_cancelled';
+    const REASON_PURCHASE_CONFIRMED = 'purchase_confirmed';
+    const REASON_PURCHASE_CANCELLED = 'purchase_cancelled';
+    const REASON_PRINT_ORDER = 'print_order';
     const REASON_MANUAL_ADJUSTMENT = 'manual_adjustment';
     const REASON_INVENTORY_CORRECTION = 'inventory_correction';
     const REASON_DAMAGE = 'damage';
@@ -48,6 +51,16 @@ class StockMovement extends Model
     public function printOrder()
     {
         return $this->belongsTo(PrintOrder::class, 'reference_id')->where('reference_type', 'print_order');
+    }
+
+    public function purchase()
+    {
+        return $this->belongsTo(Pembelian::class, 'reference_id')->where('reference_type', 'purchase');
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class, 'reference_id')->where('reference_type', 'order');
     }
 
     public function scopeMovementType($query, $type)
@@ -93,6 +106,9 @@ class StockMovement extends Model
         return match($this->reason) {
             self::REASON_ORDER_CONFIRMED => 'Order Confirmed',
             self::REASON_ORDER_CANCELLED => 'Order Cancelled',
+            self::REASON_PURCHASE_CONFIRMED => 'Purchase Confirmed',
+            self::REASON_PURCHASE_CANCELLED => 'Purchase Cancelled',
+            self::REASON_PRINT_ORDER => 'Print Order',
             self::REASON_MANUAL_ADJUSTMENT => 'Manual Adjustment',
             self::REASON_INVENTORY_CORRECTION => 'Inventory Correction',
             self::REASON_DAMAGE => 'Damage/Loss',

@@ -7,6 +7,7 @@ use App\Models\OrderItem;
 use App\Models\Shipment;
 use Illuminate\Http\Request;
 use App\Models\ProductInventory;
+use App\Services\StockService;
 use App\Http\Controllers\Controller;
 use App\Exceptions\OutOfStockException;
 use App\Models\Payment;
@@ -738,6 +739,9 @@ class OrderController extends Controller
 			$order->approved_at = now();
 			$order->notes = $order->notes . "\nOrder completed for offline store purchase";
 
+			// Record stock movements for order completion
+			$this->recordOrderStockMovements($order, 'Admin Offline Sale');
+
 			$this->saveEmployeePerformance($order);
 
 			if ($order->save()) {
@@ -752,6 +756,9 @@ class OrderController extends Controller
 			$order->approved_at = now();
 			$order->notes = $order->notes . "\nCOD order completed after payment confirmation";
 
+			// Record stock movements for order completion
+			$this->recordOrderStockMovements($order, 'Admin COD Sale');
+
 			$this->saveEmployeePerformance($order);
 
 			if ($order->save()) {
@@ -764,6 +771,9 @@ class OrderController extends Controller
 			$order->status = Order::COMPLETED;
 			$order->approved_by = auth()->id();
 			$order->approved_at = now();
+
+			// Record stock movements for order completion
+			$this->recordOrderStockMovements($order, 'Admin Sale');
 
 			$this->saveEmployeePerformance($order);
 
@@ -836,6 +846,9 @@ class OrderController extends Controller
 			$order->approved_by = auth()->id();
 			$order->approved_at = now();
 			$order->notes = $order->notes . "\nSelf pickup confirmed by admin - customer has collected items from store";
+
+			// Record stock movements for pickup completion
+			$this->recordOrderStockMovements($order, 'Admin Self Pickup Sale');
 
 			$this->saveEmployeePerformance($order);
 
@@ -971,6 +984,35 @@ class OrderController extends Controller
 				'success' => false,
 				'message' => 'An error occurred while updating shipping cost'
 			], 500);
+		}
+	}
+
+	/**
+	 * Record stock movements for order items when order is completed
+	 */
+	private function recordOrderStockMovements($order, $description = 'Admin Sale')
+	{
+		foreach ($order->orderItems as $orderItem) {
+			// Check if item has variant
+			if ($orderItem->product_variant_id) {
+				app(StockService::class)->recordMovement(
+					$orderItem->product_id,
+					$orderItem->product_variant_id,
+					$orderItem->qty,
+					'out',
+					$description,
+					"Order #{$order->order_code}"
+				);
+			} else {
+				app(StockService::class)->recordMovement(
+					$orderItem->product_id,
+					null,
+					$orderItem->qty,
+					'out',
+					$description,
+					"Order #{$order->order_code}"
+				);
+			}
 		}
 	}
 }

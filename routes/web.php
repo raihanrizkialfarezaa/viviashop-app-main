@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\StockCardController;
 use App\Http\Controllers\Frontend\HomepageController;
 
 Route::post('payments/notification', [App\Http\Controllers\Frontend\OrderController::class, 'notificationHandler'])
@@ -811,6 +812,7 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
         [App\Http\Controllers\Frontend\HomepageController::class, 'exportExcel']
     )->name('reports.revenue.excel');
     Route::get('/pembelian_detail/loadform/{diskon}/{total}', [PembelianDetailController::class, 'loadForm'])->name('pembelian_detail.load_form');
+    Route::get('/pembelian_detail/variants/{productId}', [PembelianDetailController::class, 'getVariants'])->name('pembelian_detail.get_variants');
     Route::get('/pembelian_detail/editBayar/{id}', [PembelianDetailController::class, 'editBayar'])->name('pembelian_detail.editBayar');
     Route::put('/pembelian_detail/updateEdit/{id}', [PembelianDetailController::class, 'updateEdit'])->name('pembelian_detail.updateEdit');
 
@@ -870,7 +872,7 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     Route::get('orders/restore/{order:id}', [\App\Http\Controllers\Admin\OrderController::class , 'restore'])->name('orders.restore');
     Route::resource('orders', \App\Http\Controllers\Admin\OrderController::class);
     Route::get('datas', [App\Http\Controllers\Admin\ProductController::class, 'data'])
-     ->name('products.data');
+     ->name('products.admin.data');
     Route::post('ordersAdmin', [\App\Http\Controllers\Admin\OrderController::class , 'storeAdmin'])->name('orders.storeAdmin');
     Route::get('ordersAdmin', [\App\Http\Controllers\Admin\OrderController::class , 'checkPage'])->name('orders.checkPage');
     Route::post('orders/payment-notification', [\App\Http\Controllers\Admin\OrderController::class , 'paymentNotification'])->name('orders.payment-notification');
@@ -926,6 +928,15 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
         Route::post('/stock/{variantId}/adjust', [\App\Http\Controllers\Admin\PrintServiceController::class, 'adjustStock'])->name('stock.adjust');
         Route::get('/orders/{id}/payment-proof', [\App\Http\Controllers\Admin\PrintServiceController::class, 'downloadPaymentProof'])->name('payment-proof');
         Route::get('/view-file/{fileId}', [\App\Http\Controllers\Admin\PrintServiceController::class, 'viewFile'])->name('view-file');
+    });
+
+    Route::prefix('stock')->as('stock.')->group(function() {
+        Route::get('/', [\App\Http\Controllers\Admin\StockCardController::class, 'index'])->name('index');
+        Route::get('/movements', [\App\Http\Controllers\Admin\StockCardController::class, 'movements'])->name('movements');
+        Route::get('/movements/data', [\App\Http\Controllers\Admin\StockCardController::class, 'movementData'])->name('movements.data');
+        Route::get('/card/{variantId}', [\App\Http\Controllers\Admin\StockCardController::class, 'show'])->name('show');
+        Route::get('/product/{productId}', [\App\Http\Controllers\Admin\StockCardController::class, 'showProduct'])->name('product');
+        Route::get('/report', [\App\Http\Controllers\Admin\StockCardController::class, 'report'])->name('report');
     });
 });
 

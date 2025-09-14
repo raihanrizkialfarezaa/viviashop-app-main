@@ -164,6 +164,14 @@
                     </p>
                 </a>
             </li>
+            <li class="nav-item">
+                <a href="{{ route('admin.stock.index') }}" class="nav-link">
+                    <i class="nav-icon fas fa-chart-area"></i>
+                    <p>
+                        Kartu Stok
+                    </p>
+                </a>
+            </li>
         </ul>
     </nav>
     <!-- /.sidebar-menu -->

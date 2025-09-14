@@ -8,6 +8,7 @@ use App\Models\PrintOrder;
 use App\Models\PrintFile;
 use App\Services\PrintService;
 use App\Services\StockManagementService;
+use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -271,6 +272,18 @@ class PrintServiceController extends Controller
             }
 
             $printOrder->update(['status' => 'completed']);
+
+            // Record stock movement for print order completion
+            if ($printOrder->paper_product_id) {
+                app(StockService::class)->recordMovement(
+                    $printOrder->paper_product_id,
+                    $printOrder->paper_variant_id,
+                    $printOrder->quantity,
+                    'out',
+                    'Smart Print Service',
+                    "Print Order #{$printOrder->order_code}"
+                );
+            }
 
             return response()->json([
                 'success' => true,

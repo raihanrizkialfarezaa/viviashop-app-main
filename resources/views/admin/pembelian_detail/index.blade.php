@@ -66,6 +66,7 @@
                             <div class="input-group">
                                 <input type="hidden" name="id_pembelian" id="id_pembelian" value="{{ $id_pembelian }}">
                                 <input type="hidden" name="id_produk" id="id_produk">
+                                <input type="hidden" name="variant_id" id="variant_id">
                                 <input type="text" class="form-control" name="kode_produk" id="kode_produk">
                                 <span class="input-group-btn">
                                     <button onclick="tampilProduk()" class="btn btn-info btn-flat" type="button"><i class="fa fa-arrow-right"></i></button>
@@ -92,6 +93,9 @@
                     <div class="col-lg-8">
                         <div class="tampil-bayar bg-primary"></div>
                         <div class="tampil-terbilang"></div>
+                        
+                        <div class="total d-none">0</div>
+                        <div class="total_item d-none">0</div>
                     </div>
                     <div class="col-lg-4">
                         <form action="{{ route('admin.pembelian.store') }}" class="form-pembelian" method="post">
@@ -120,9 +124,25 @@
                                 </div>
                             </div>
                             <div class="form-group row">
+                                <label for="payment_method" class="col-lg-2 control-label">Metode Bayar</label>
+                                <div class="col-lg-8">
+                                    <select name="payment_method" id="payment_method" class="form-control">
+                                        <option value="cash">Tunai</option>
+                                        <option value="bank_transfer">Transfer Bank</option>
+                                        <option value="credit">Kredit/Tempo</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group row">
                                 <label for="bayar" class="col-lg-2 control-label">Bayar</label>
                                 <div class="col-lg-8">
                                     <input type="text" id="bayarrp" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <label for="notes" class="col-lg-2 control-label">Catatan</label>
+                                <div class="col-lg-8">
+                                    <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Catatan pembelian (opsional)"></textarea>
                                 </div>
                             </div>
                         </form>
@@ -172,10 +192,15 @@
             dom: 'Brt',
             bSort: false,
             paginate: false
-        })
-        .on('draw.dt', function () {
-            loadForm($('#diskon').val());
-        });
+            .on('draw.dt', function () {
+                loadForm($('#diskon').val());
+                
+                const data = table.ajax.json();
+                if (data && data.total !== undefined) {
+                    $('.total').text(data.total);
+                    $('.total_item').text(data.total_item);
+                }
+            });
         table2 = $('.table-produk').DataTable();
 
         $(document).on('input', '.quantity', function () {
@@ -293,20 +318,83 @@
         $('#modal-produk').modal('hide');
     }
 
-    function pilihProduk(id, kode) {
+    function pilihProduk(id, variantId = null) {
         $('#id_produk').val(id);
+        $('#variant_id').val(variantId);
         hideProduk();
+        hideVariant();
         tambahProduk();
+    }
+
+    function showVariants(productId) {
+        $('#variant-content').html('<p class="text-center">Loading...</p>');
+        $('#modal-variant').modal('show');
+        
+        $.get(`{{ url('/admin/pembelian_detail/variants') }}/${productId}`)
+            .done(response => {
+                let html = `
+                    <h5>Produk: ${response.product.name}</h5>
+                    <table class="table table-striped table-bordered">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Variant</th>
+                                <th>Harga Beli</th>
+                                <th>Harga Jual</th>
+                                <th>Stok</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                response.variants.forEach((variant, index) => {
+                    html += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${variant.attributes}</td>
+                            <td>Rp. ${Number(variant.harga_beli || 0).toLocaleString('id-ID')}</td>
+                            <td>Rp. ${Number(variant.price).toLocaleString('id-ID')}</td>
+                            <td>${variant.stock}</td>
+                            <td>
+                                <button type="button" class="btn btn-primary btn-xs btn-flat"
+                                    onclick="pilihProduk('${response.product.id}', '${variant.id}')">
+                                    <i class="fa fa-check-circle"></i>
+                                    Pilih
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                $('#variant-content').html(html);
+            })
+            .fail(() => {
+                $('#variant-content').html('<p class="text-center text-danger">Error loading variants</p>');
+            });
+    }
+
+    function hideVariant() {
+        $('#modal-variant').modal('hide');
     }
 
     function tambahProduk() {
         $.post('{{ route('admin.pembelian_detail.store') }}', $('.form-produk').serialize())
             .done(response => {
-                $('#kode_produk').focus();
+                $('#kode_produk').val('').focus();
+                $('#id_produk').val('');
+                $('#variant_id').val('');
                 table.ajax.reload(() => loadForm($('#diskon').val()));
             })
-            .fail(errors => {
-                alert('Tidak dapat menyimpan data');
+            .fail(xhr => {
+                let errorMsg = 'Tidak dapat menyimpan data';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                } else if (xhr.responseText) {
+                    errorMsg = xhr.responseText;
+                }
+                alert(errorMsg);
                 return;
             });
     }
@@ -328,10 +416,13 @@
     }
 
     function loadForm(diskon = 0) {
-        $('#total').val($('.total').text());
-        $('#total_item').val($('.total_item').text());
+        let total = parseInt($('.total').text()) || 0;
+        let totalItem = parseInt($('.total_item').text()) || 0;
+        
+        $('#total').val(total);
+        $('#total_item').val(totalItem);
 
-        $.get(`{{ url('/admin/pembelian_detail/loadform') }}/${diskon}/${$('.total').text()}`)
+        $.get(`{{ url('/admin/pembelian_detail/loadform') }}/${diskon}/${total}`)
             .done(response => {
                 $('#totalrp').val('Rp. '+ response.totalrp);
                 $('#bayarrp').val('Rp. '+ response.bayarrp);

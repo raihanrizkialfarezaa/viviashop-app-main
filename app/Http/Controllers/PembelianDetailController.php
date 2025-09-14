@@ -5,17 +5,25 @@ namespace App\Http\Controllers;
 use App\Models\Pembelian;
 use App\Models\PembelianDetail;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\RekamanStok;
 use App\Models\Supplier;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PembelianDetailController extends Controller
 {
     public function index()
     {
         $id_pembelian = session('id_pembelian');
-        $produk = Product::orderBy('name')->where('type', 'simple')->get();
+        $produk = Product::with('productVariants')
+                    ->orderBy('name')
+                    ->where(function($query) {
+                        $query->where('type', 'simple')
+                              ->orWhere('type', 'configurable');
+                    })
+                    ->get();
         $supplier = Supplier::find(session('id_supplier'));
         $diskon = Pembelian::find($id_pembelian)->diskon ?? 0;
 
@@ -45,68 +53,92 @@ class PembelianDetailController extends Controller
 
     public function data($id)
     {
-        $detail = PembelianDetail::with('products')
+        $detail = PembelianDetail::with(['products', 'variant'])
             ->where('id_pembelian', $id)
             ->get();
 
-        $data = array();
-        $total = 0;
-        $total_item = 0;
-
-        foreach ($detail as $item) {
-            $row = array();
-            $row['kode_produk'] = '<span class="label label-success">'. $item->products['id'] .'</span>';
-            $row['nama_produk'] = $item->products['name'];
-            $row['harga_jual']  = '<input type="number" class="form-control input-sm price" data-id="'. $item->products['id'] .'" value="'. $item->products['price'] .'">';
-            $row['harga_beli']  = '<input type="number" class="form-control input-sm harga_beli" data-id="'. $item->products['id'] .'" data-uid="'. $item->id .'" value="'. $item->products['harga_beli'] .'">';
-            $row['jumlah']      = '<input type="number" class="form-control input-sm quantity" data-id="'. $item->id .'" value="'. $item->jumlah .'">';
-            $row['subtotal']    = 'Rp. '. format_uang($item->subtotal);
-            $row['aksi']        = '<div class="btn-group">
-                                    <button onclick="deleteData(`'. route('admin.pembelian_detail.destroy', $item->id) .'`)" class="btn btn-xs btn-danger btn-flat"><i class="fa fa-trash"></i></button>
-                                </div>';
-            $data[] = $row;
-
-            $total += $item->harga_beli * $item->jumlah;
-            $total_item += $item->jumlah;
-        }
-
-        // Sembunyikan total dan total_item di baris terakhir jika ada data
-        if (!empty($data)) {
-            $data[0]['kode_produk'] = '
-                <div class="total d-none">'. $total .'</div>
-                <div class="total_item d-none">'. $total_item .'</div>
-                <span class="label label-success">'. $data[0]['kode_produk'] .'</span>';
-        }
-
         return datatables()
-            ->of($data)
+            ->of($detail)
             ->addIndexColumn()
+            ->addColumn('kode_produk', function ($item) {
+                return '<span class="label label-success">'. $item->products['id'] .'</span>';
+            })
+            ->addColumn('nama_produk', function ($item) {
+                $name = $item->products['name'];
+                if ($item->variant) {
+                    $variantAttr = $item->variant->variantAttributes->pluck('attribute_value')->implode(', ');
+                    $name .= ' (' . $variantAttr . ')';
+                }
+                return $name;
+            })
+            ->addColumn('harga_jual', function ($item) {
+                $price = $item->variant ? $item->variant->price : $item->products['price'];
+                return '<input type="number" class="form-control input-sm price" data-id="'. $item->products['id'] .'" value="'. $price .'">';
+            })
+            ->addColumn('harga_beli', function ($item) {
+                return '<input type="number" class="form-control input-sm harga_beli" data-id="'. $item->products['id'] .'" data-uid="'. $item->id .'" value="'. $item->harga_beli .'">';
+            })
+            ->addColumn('jumlah', function ($item) {
+                return '<input type="number" class="form-control input-sm quantity" data-id="'. $item->id .'" value="'. $item->jumlah .'">';
+            })
+            ->addColumn('subtotal', function ($item) {
+                return 'Rp. '. format_uang($item->subtotal);
+            })
+            ->addColumn('aksi', function ($item) {
+                return '<div class="btn-group">
+                            <button onclick="deleteData(`'. route('admin.pembelian_detail.destroy', $item->id) .'`)" class="btn btn-xs btn-danger btn-flat"><i class="fa fa-trash"></i></button>
+                        </div>';
+            })
+            ->with([
+                'total' => $detail->sum('subtotal'),
+                'total_item' => $detail->sum('jumlah')
+            ])
             ->rawColumns(['aksi', 'kode_produk', 'nama_produk', 'jumlah', 'harga_beli', 'harga_jual'])
             ->make(true);
     }
 
     public function store(Request $request)
     {
-        $produk = Product::where('id', $request->id_produk)->first();
-        if (! $produk) {
-            return response()->json('Data gagal disimpan', 400);
-        }
+        try {
+            DB::beginTransaction();
+            
+            $produk = Product::where('id', $request->id_produk)->first();
+            if (! $produk) {
+                return response()->json('Produk tidak ditemukan', 400);
+            }
 
-        $detail = new PembelianDetail();
-        $detail->id_pembelian = $request->id_pembelian;
-        if ($produk->harga_beli != null) {
+            $existingDetail = PembelianDetail::where('id_pembelian', $request->id_pembelian)
+                                            ->where('id_produk', $request->id_produk)
+                                            ->where('variant_id', $request->variant_id)
+                                            ->first();
+
+            if ($existingDetail) {
+                return response()->json('Produk sudah ada dalam pembelian ini', 400);
+            }
+
+            $detail = new PembelianDetail();
+            $detail->id_pembelian = $request->id_pembelian;
             $detail->id_produk = $produk->id;
-            $detail->harga_beli = $produk->harga_beli;
-        } else {
-            $detail->id_produk = $produk->id;
-            $detail->harga_beli = 0;
+            $detail->variant_id = $request->variant_id;
+            
+            if ($request->variant_id) {
+                $variant = ProductVariant::find($request->variant_id);
+                $detail->harga_beli = $variant ? $variant->harga_beli : ($produk->harga_beli ?? 0);
+            } else {
+                $detail->harga_beli = $produk->harga_beli ?? 0;
+            }
+
+            $detail->jumlah = 1;
+            $detail->subtotal = $detail->harga_beli * $detail->jumlah;
+            $detail->save();
+
+            DB::commit();
+            return response()->json('Data berhasil disimpan', 200);
+            
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json('Error: ' . $e->getMessage(), 500);
         }
-
-        $detail->jumlah = 0;
-        $detail->subtotal = $produk->harga_beli * 0;
-        $detail->save();
-
-        return response()->json('Data berhasil disimpan', 200);
     }
 
     public function update(Request $request, $id)
@@ -199,6 +231,35 @@ class PembelianDetailController extends Controller
         $detail->delete();
 
         return response(null, 204);
+    }
+
+    public function getVariants($productId)
+    {
+        $product = Product::with(['productVariants.variantAttributes'])->find($productId);
+        
+        if (!$product) {
+            return response()->json(['error' => 'Product not found'], 404);
+        }
+
+        $variants = $product->productVariants->map(function ($variant) {
+            return [
+                'id' => $variant->id,
+                'price' => $variant->price,
+                'harga_beli' => $variant->harga_beli ?? 0,
+                'stock' => $variant->stock,
+                'attributes' => $variant->variantAttributes->pluck('attribute_value')->implode(', '),
+                'full_name' => $variant->variantAttributes->pluck('attribute_value')->implode(', ')
+            ];
+        });
+
+        return response()->json([
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'type' => $product->type
+            ],
+            'variants' => $variants
+        ]);
     }
 
     public function loadForm($diskon, $total)

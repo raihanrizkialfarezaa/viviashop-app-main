@@ -8,6 +8,7 @@ use App\Models\Shipment;
 use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use App\Models\ProductInventory;
+use App\Services\StockService;
 use Illuminate\Support\Str;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
@@ -752,17 +753,30 @@ view()->share('setting', $setting);
 				$orderItem = OrderItem::create($orderItemParams);
 
 				if ($orderItem) {
-					// Handle stock reduction for different item types
+					// Handle stock reduction for different item types using StockService
 					if (isset($item->options['type']) && $item->options['type'] === 'configurable') {
-						// For variant items, reduce stock from ProductVariant
+						// For variant items, record stock movement
 						$variant = \App\Models\ProductVariant::find($item->options['variant_id']);
 						if ($variant) {
-							$variant->stock = max(0, $variant->stock - $orderItem->qty);
-							$variant->save();
+							app(StockService::class)->recordMovement(
+								$variant->product_id,
+								$item->options['variant_id'],
+								$orderItem->qty,
+								'out',
+								'Frontend Sale',
+								"Order #{$order->order_code}"
+							);
 						}
 					} else {
-						// For simple items, use ProductInventory
-						ProductInventory::reduceStock($orderItem->product_id, $orderItem->qty);
+						// For simple items, record stock movement
+						app(StockService::class)->recordMovement(
+							$orderItem->product_id,
+							null,
+							$orderItem->qty,
+							'out',
+							'Frontend Sale',
+							"Order #{$order->order_code}"
+						);
 					}
 				}
 			}
@@ -921,7 +935,26 @@ view()->share('setting', $setting);
 	private function _restoreStock($order)
 	{
 		foreach ($order->orderItems as $item) {
-			ProductInventory::increaseStock($item->product_id, $item->qty);
+			// Check if item has variant
+			if ($item->product_variant_id) {
+				app(StockService::class)->recordMovement(
+					$item->product_id,
+					$item->product_variant_id,
+					$item->qty,
+					'in',
+					'Stock Restoration',
+					"Cancelled Order #{$order->order_code}"
+				);
+			} else {
+				app(StockService::class)->recordMovement(
+					$item->product_id,
+					null,
+					$item->qty,
+					'in',
+					'Stock Restoration',
+					"Cancelled Order #{$order->order_code}"
+				);
+			}
 		}
 	}
 	public function notificationHandler(Request $request)

@@ -5,11 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Pembelian;
 use App\Models\PembelianDetail;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\RekamanStok;
 use App\Models\Supplier;
+use App\Services\StockService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class PembelianController extends Controller
@@ -83,7 +86,8 @@ class PembelianController extends Controller
         $pembelian->total_harga = 0;
         $pembelian->diskon      = 0;
         $pembelian->bayar       = 0;
-        $pembelian->waktu       = Carbon::now();
+        $pembelian->status      = 'pending';
+        $pembelian->waktu       = null;
         $pembelian->save();
 
         session(['id_pembelian' => $pembelian->id]);
@@ -94,52 +98,57 @@ class PembelianController extends Controller
 
     public function store(Request $request)
     {
-        // 1. Ambil data pembelian yang akan diselesaikan
-        $pembelian = Pembelian::findOrFail($request->id_pembelian);
-        $pembelian->total_item = $request->total_item;
-        $pembelian->total_harga = $request->total;
-        $pembelian->diskon = $request->diskon;
-        $pembelian->bayar = $request->bayar;
-        $pembelian->waktu = $request->waktu;
-        $pembelian->update();
+        try {
+            DB::beginTransaction();
+            
+            $pembelian = Pembelian::with(['details', 'supplier'])->findOrFail($request->id_pembelian);
+            $pembelian->total_item = $request->total_item;
+            $pembelian->total_harga = $request->total;
+            $pembelian->diskon = $request->diskon;
+            $pembelian->bayar = $request->bayar;
+            $pembelian->waktu = $request->waktu ?? Carbon::now();
+            $pembelian->status = 'completed';
+            $pembelian->payment_method = $request->payment_method ?? 'cash';
+            $pembelian->notes = $request->notes;
+            $pembelian->update();
 
-        // 2. Ambil semua detail item dari pembelian ini
-        $detailItems = PembelianDetail::where('id_pembelian', $pembelian->id)->get();
+            StockService::processPurchaseStockUpdate($pembelian);
 
-        // 3. Loop melalui setiap item untuk memperbarui stok
-        foreach ($detailItems as $item) {
-            $produk = Product::with('productInventory')->find($item->id_produk);
+            foreach ($pembelian->details as $item) {
+                $produk = Product::with('productInventory')->find($item->id_produk);
 
-            // Lanjutkan hanya jika produk dan inventarisnya ada
-            if ($produk && $produk->productInventory) {
-                $stok_awal = $produk->productInventory->qty;
+                if ($produk && $produk->productInventory) {
+                    $stok_awal = $produk->productInventory->qty;
 
-                // 4. Cek apakah rekaman stok untuk item ini sudah ada, untuk menghindari duplikasi
-                $rekamanStokExists = RekamanStok::where('id_pembelian', $pembelian->id)
-                                                  ->where('product_id', $item->id_produk)
-                                                  ->exists();
+                    $rekamanStokExists = RekamanStok::where('id_pembelian', $pembelian->id)
+                                                      ->where('product_id', $item->id_produk)
+                                                      ->exists();
 
-                // 5. Jika belum ada, buat rekaman stok baru dan perbarui kuantitas produk
-                if (! $rekamanStokExists) {
-                    RekamanStok::create([
-                        'product_id' => $item->id_produk,
-                        'waktu' => Carbon::now(),
-                        'stok_masuk' => $item->jumlah,
-                        'id_pembelian' => $pembelian->id,
-                        'stok_awal' => $stok_awal,
-                        'stok_sisa' => $stok_awal + $item->jumlah,
-                    ]);
+                    if (! $rekamanStokExists) {
+                        RekamanStok::create([
+                            'product_id' => $item->id_produk,
+                            'waktu' => Carbon::now(),
+                            'stok_masuk' => $item->jumlah,
+                            'id_pembelian' => $pembelian->id,
+                            'stok_awal' => $stok_awal,
+                            'stok_sisa' => $stok_awal + $item->jumlah,
+                        ]);
 
-                    // Tambahkan jumlah stok di inventaris produk
-                    $produk->productInventory->qty += $item->jumlah;
-                    $produk->productInventory->save();
+                        $produk->productInventory->qty += $item->jumlah;
+                        $produk->productInventory->save();
+                    }
                 }
             }
-        }
 
-        // 6. Setelah semua item diproses, tampilkan pesan sukses dan redirect
-        Alert::success('Data berhasil', 'Data pembelian berhasil disimpan!');
-        return redirect()->route('admin.pembelian.index');
+            DB::commit();
+            Alert::success('Data berhasil', 'Data pembelian berhasil disimpan dan stok telah diperbarui!');
+            return redirect()->route('admin.pembelian.index');
+            
+        } catch (\Exception $e) {
+            DB::rollback();
+            Alert::error('Error', 'Terjadi kesalahan: ' . $e->getMessage());
+            return back()->withInput();
+        }
     }
 
     public function update(Request $request, $id)
