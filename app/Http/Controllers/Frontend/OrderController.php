@@ -1352,4 +1352,68 @@ view()->share('setting', $setting);
 		}
 	}
 
+	public function complete(Order $order)
+	{
+		// Ensure user can only complete their own orders
+		if ($order->customer_email !== auth()->user()->email) {
+			abort(403, 'Unauthorized');
+		}
+
+		// Check if order can be completed
+		if ($order->isCancelled()) {
+			Session::flash('error', 'Cannot complete a cancelled order.');
+			return redirect()->route('orders.show', $order->id);
+		}
+
+		if ($order->isCompleted()) {
+			Session::flash('info', 'Order is already completed.');
+			return redirect()->route('orders.show', $order->id);
+		}
+
+		if (!$order->isDelivered()) {
+			Session::flash('error', 'Order cannot be completed until it has been delivered.');
+			return redirect()->route('orders.show', $order->id);
+		}
+
+		// Automatically complete the order since it meets all requirements
+		return $this->doComplete(request(), $order);
+	}
+
+	public function doComplete(Request $request, Order $order)
+	{
+		// Ensure user can only complete their own orders
+		if ($order->customer_email !== auth()->user()->email) {
+			abort(403, 'Unauthorized');
+		}
+
+		// Check if order can be completed
+		if ($order->isCancelled()) {
+			Session::flash('error', 'Cannot complete a cancelled order.');
+			return redirect()->route('orders.show', $order->id);
+		}
+
+		if ($order->isCompleted()) {
+			Session::flash('info', 'Order is already completed.');
+			return redirect()->route('orders.show', $order->id);
+		}
+
+		if (!$order->isDelivered()) {
+			Session::flash('error', 'Order cannot be completed until it has been delivered.');
+			return redirect()->route('orders.show', $order->id);
+		}
+
+		// Mark order as completed
+		$order->status = Order::COMPLETED;
+		$order->completed_at = now();
+		$order->notes = $order->notes . "\nOrder marked as completed by customer";
+
+		if ($order->save()) {
+			Session::flash('success', 'Order has been marked as completed successfully!');
+		} else {
+			Session::flash('error', 'Failed to complete the order. Please try again.');
+		}
+
+		return redirect()->route('orders.show', $order->id);
+	}
+
 }

@@ -725,6 +725,33 @@ class OrderController extends Controller
 		return redirect('admin/orders');
 	}
 
+	public function complete(Order $order)
+	{
+		// Check if order can be completed
+		if ($order->isCancelled()) {
+			Alert::error('Error', 'Cannot complete a cancelled order.');
+			return redirect()->route('admin.orders.show', $order->id);
+		}
+
+		if ($order->isCompleted()) {
+			Alert::info('Info', 'Order is already completed.');
+			return redirect()->route('admin.orders.show', $order->id);
+		}
+
+		if (!$order->isPaid()) {
+			Alert::error('Error', 'Order cannot be completed because it has not been paid yet.');
+			return redirect()->route('admin.orders.show', $order->id);
+		}
+
+		if ($order->use_employee_tracking && empty($order->handled_by)) {
+			Alert::error('Error', 'Employee name must be filled before completing the order.');
+			return redirect()->route('admin.orders.show', $order->id);
+		}
+
+		// Automatically complete the order since it meets all requirements
+		return $this->doComplete(request(), $order);
+	}
+
     public function doComplete(Request $request,Order $order)
 	{
 		if ($order->use_employee_tracking && empty($order->handled_by)) {
@@ -993,25 +1020,34 @@ class OrderController extends Controller
 	private function recordOrderStockMovements($order, $description = 'Admin Sale')
 	{
 		foreach ($order->orderItems as $orderItem) {
-			// Check if item has variant
-			if ($orderItem->product_variant_id) {
-				app(StockService::class)->recordMovement(
-					$orderItem->product_id,
-					$orderItem->product_variant_id,
-					$orderItem->qty,
-					'out',
-					$description,
-					"Order #{$order->order_code}"
-				);
-			} else {
-				app(StockService::class)->recordMovement(
-					$orderItem->product_id,
-					null,
-					$orderItem->qty,
-					'out',
-					$description,
-					"Order #{$order->order_code}"
-				);
+			try {
+				// Check if item has variant
+				if ($orderItem->product_variant_id) {
+					// For variant products, use the variant-specific method
+					app(StockService::class)->recordMovement(
+						$orderItem->product_variant_id, // variantId
+						'out',                           // movementType
+						$orderItem->qty,                 // quantity
+						'order',                         // referenceType
+						$order->id,                      // referenceId
+						$description,                    // reason
+						"Order #{$order->code}"          // notes
+					);
+				} else {
+					// For simple products without variants, use the simple product method
+					app(StockService::class)->recordSimpleProductMovement(
+						$orderItem->product_id,          // productId
+						'out',                           // movementType
+						$orderItem->qty,                 // quantity
+						'order',                         // referenceType
+						$order->id,                      // referenceId
+						$description,                    // reason
+						"Order #{$order->code}"          // notes
+					);
+				}
+			} catch (\Exception $e) {
+				// Log the error but don't stop the completion process
+				\Illuminate\Support\Facades\Log::warning("Failed to record stock movement for order item {$orderItem->id}: " . $e->getMessage());
 			}
 		}
 	}

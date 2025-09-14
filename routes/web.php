@@ -772,12 +772,19 @@ Route::post('payments/notification', [App\Http\Controllers\Frontend\OrderControl
 	Route::get('orders/status/{id}', [App\Http\Controllers\Frontend\OrderController::class, 'getOrderStatus'])
 		->name('orders.status');
 
+	Route::get('orders/complete/{order}', [App\Http\Controllers\Frontend\OrderController::class, 'complete'])
+		->name('orders.complete.page')
+		->middleware('auth');
+
+	Route::post('orders/complete/{order}', [App\Http\Controllers\Frontend\OrderController::class, 'doComplete'])
+		->name('orders.complete')
+		->middleware('auth');
+
     Route::get('/instagram', [InstagramController::class, 'getInstagramData'])->name('admin.instagram.index');
     Route::get('/instagram/callback', [InstagramController::class, 'handleCallback'])
         ->name('instagram.callback');
     Route::match(['get','post'], '/instagram/webhook', [InstagramController::class, 'webhook'])
         ->name('instagram.webhook');
-        Route::post('orders/complete/{order}', [\App\Http\Controllers\Admin\OrderController::class , 'doComplete'])->name('orders.complete');
 
 
 
@@ -878,6 +885,7 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     Route::get('ordersAdmin', [\App\Http\Controllers\Admin\OrderController::class , 'checkPage'])->name('orders.checkPage');
     Route::post('orders/payment-notification', [\App\Http\Controllers\Admin\OrderController::class , 'paymentNotification'])->name('orders.payment-notification');
     Route::post('orders/{order}/generate-payment-token', [\App\Http\Controllers\Admin\OrderController::class , 'generatePaymentToken'])->name('orders.generate-payment-token');
+    Route::get('orders/complete/{order}', [\App\Http\Controllers\Admin\OrderController::class , 'complete'])->name('orders.complete.page');
     Route::post('orders/complete/{order}', [\App\Http\Controllers\Admin\OrderController::class , 'doComplete'])->name('orders.complete');
     Route::post('orders/confirm-pickup/{order}', [\App\Http\Controllers\Admin\OrderController::class , 'confirmPickup'])->name('orders.confirmPickup');
     Route::post('orders/{order}/employee-tracking', [\App\Http\Controllers\Admin\OrderController::class, 'updateEmployeeTracking'])->name('orders.updateEmployeeTracking');
