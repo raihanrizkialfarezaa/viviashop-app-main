@@ -596,7 +596,8 @@ function findAndAddProduct(barcode) {
                 name: product.name,
                 sku: product.sku,
                 price: product.price,
-                type: product.type || 'simple'
+                type: product.type || 'simple',
+                total_stock: product.total_stock || 0
             });
             document.getElementById('result').innerHTML = '<div class="alert alert-success">✓ Product added: <strong>' + product.name + '</strong></div>';
 
@@ -701,9 +702,10 @@ $('#product-table').on('click', '.select-product', function(){
           sku  = $(this).data('sku'),
           name = $(this).data('name'),
           type = $(this).data('type'),
-          price = $(this).data('price');
+          price = $(this).data('price'),
+          total_stock = $(this).data('stock') || $(this).data('total-stock') || 0;
 
-    addProductToOrder({id, name, sku, price, type});
+    addProductToOrder({id, name, sku, price, type, total_stock});
     $('#modalProduct').modal('hide');
 });
 
@@ -735,84 +737,71 @@ function loadAttributesForProduct(productId, itemIndex) {
     });
 }
 
-function loadSimpleProductVariant(productId, itemIndex) {
-    console.log('Loading default variant for simple product:', productId);
+function loadSimpleProductVariant(productId, itemIndex, productData = null) {
+    console.log('Loading price for simple product:', productId);
     
-    // Fetch variants for simple product (should have one default variant)
-    fetch(`/admin/products/${productId}/all-variants`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Simple product variants response:', data);
-        if (data.success && data.data.length > 0) {
-            // Get the first (default) variant
-            const defaultVariant = data.data[0];
-            
-            // Create a hidden select with the default variant selected
-            const variantHtml = `
-                <div id="attribute-section-${itemIndex}" class="attribute-section mt-3" style="display: none;">
-                    <select class="form-control variant-select" 
-                            name="variant_id[${itemIndex}]" 
-                            data-item-index="${itemIndex}" 
-                            data-product-id="${productId}" 
-                            style="display: none;">
-                        <option value="${defaultVariant.id}" 
-                                data-price="${defaultVariant.price}" 
-                                data-sku="${defaultVariant.sku}" 
-                                data-stock="${defaultVariant.stock || 0}" 
-                                selected>
-                            ${defaultVariant.sku} - Rp ${new Intl.NumberFormat('id-ID').format(defaultVariant.price)}
-                        </option>
-                    </select>
-                </div>
-            `;
-            
-            $(`#order-items`).find(`[data-index="${itemIndex}"]`).append(variantHtml);
-            
-            // Automatically select the default variant
-            const variantSelect = $(`.variant-select[data-item-index="${itemIndex}"]`);
-            variantSelect.val(defaultVariant.id);
-            
-            // Add event listener for this variant select
-            variantSelect.on('change', function() {
-                updateSelectedVariant(itemIndex);
-            });
-            
-            // Update price display
-            const priceFormatted = new Intl.NumberFormat('id-ID', {
-                style: 'currency',
-                currency: 'IDR',
-                minimumFractionDigits: 0
-            }).format(defaultVariant.price);
-            $(`#price-display-${itemIndex}`).html(`<strong class="text-success">${priceFormatted}</strong>`);
-            
-            // Set stock limit for quantity
-            const qtyInput = $(`#qty-${itemIndex}`);
-            if (qtyInput.length && defaultVariant.stock !== undefined) {
-                qtyInput.attr('max', defaultVariant.stock);
-                if (defaultVariant.stock === 0) {
-                    qtyInput.val(0).prop('disabled', true);
-                    $(`#price-display-${itemIndex}`).html(`<span class="text-danger">Out of Stock</span>`);
-                }
+    if (productData && productData.price) {
+        console.log('Using provided product data');
+        const price = parseFloat(productData.price);
+        const stock = parseInt(productData.total_stock || productData.stock || 0);
+        const sku = productData.sku || 'N/A';
+        
+        const variantHtml = `
+            <div id="attribute-section-${itemIndex}" class="attribute-section mt-3" style="display: none;">
+                <input type="hidden" 
+                       name="variant_id[${itemIndex}]" 
+                       value="simple_${productId}" 
+                       data-item-index="${itemIndex}" 
+                       data-product-id="${productId}" 
+                       data-price="${price}" 
+                       data-sku="${sku}" 
+                       data-stock="${stock}">
+            </div>
+        `;
+        
+        $(`#order-items`).find(`[data-index="${itemIndex}"]`).append(variantHtml);
+        
+        const priceFormatted = new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0
+        }).format(price);
+        $(`#price-display-${itemIndex}`).html(`<strong class="text-success">${priceFormatted}</strong>`);
+        
+        const qtyInput = $(`#qty-${itemIndex}`);
+        if (qtyInput.length) {
+            qtyInput.attr('max', stock);
+            if (stock <= 0) {
+                qtyInput.val(0).prop('disabled', true);
+                $(`#price-display-${itemIndex}`).html(`<span class="text-danger">Out of Stock</span>`);
             }
-            
-            // Update pricing summary
-            updatePricingSummary();
-            
-        } else {
-            console.log('No variants found for simple product');
-            $(`#price-display-${itemIndex}`).html(`<span class="text-warning">Price not available</span>`);
         }
-    })
-    .catch(error => {
-        console.error('Error loading simple product variant:', error);
-        $(`#price-display-${itemIndex}`).html(`<span class="text-danger">Error loading price</span>`);
-    });
+        
+        updatePricingSummary();
+        
+    } else {
+        console.log('No product data provided, fetching from API');
+        fetch(`/admin/products/${productId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.product) {
+                const product = data.product;
+                loadSimpleProductVariant(productId, itemIndex, product);
+            } else {
+                $(`#price-display-${itemIndex}`).html(`<span class="text-warning">Price not available</span>`);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading simple product:', error);
+            $(`#price-display-${itemIndex}`).html(`<span class="text-danger">Error loading price</span>`);
+        });
+    }
 }
 
 function renderFrontendStyleVariants(variants, variantOptions, itemIndex, productId) {
@@ -1249,12 +1238,19 @@ function updatePricingSummary() {
         let price = 0;
         let variantInfo = '';
         
-        // Get price from variant selection
+        // Get price from variant selection (for configurable products)
         const variantSelect = item.find('.variant-select');
         if (variantSelect.length && variantSelect.val()) {
             const selectedOption = variantSelect.find('option:selected');
             price = parseFloat(selectedOption.data('price')) || 0;
             variantInfo = selectedOption.text().split(' - ')[0] || '';
+        } else {
+            // Get price from hidden input (for simple products)
+            const hiddenVariantInput = item.find('input[name^="variant_id"]');
+            if (hiddenVariantInput.length) {
+                price = parseFloat(hiddenVariantInput.data('price')) || 0;
+                variantInfo = hiddenVariantInput.data('sku') || '';
+            }
         }
         
         const subtotal = price * qty;
@@ -1431,7 +1427,7 @@ function addProductToOrder(product) {
         loadAttributesForProduct(product.id, itemIndex);
     } else {
         // For simple products, load the default variant directly
-        loadSimpleProductVariant(product.id, itemIndex);
+        loadSimpleProductVariant(product.id, itemIndex, product);
     }
     
     // Update pricing summary

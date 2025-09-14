@@ -278,7 +278,7 @@ class ProductController extends Controller
     public function data()
     {
         $products = Product::with(['variants.productAttributeValues.attribute', 'variants.productAttributeValues.attribute_variant', 'variants.productAttributeValues.attribute_option'])
-            ->select('id', 'sku', 'name', 'price', 'type')
+            ->select('id', 'sku', 'name', 'price', 'type', 'total_stock')
             ->get();
 
         return datatables()
@@ -301,7 +301,8 @@ class ProductController extends Controller
                              data-sku="'. $product->sku .'"
                              data-name="'. e($product->name) .'"
                              data-type="'. $product->type .'"
-                             data-price="'. $product->price .'">
+                             data-price="'. $product->price .'"
+                             data-stock="'. $product->total_stock .'">
                              Add
                             </button>';
             })

@@ -216,7 +216,7 @@ class OrderController extends Controller
 				'qty.*' => 'required|integer|min:1',
 				'payment_method' => 'nullable|string|in:qris,midtrans,toko,transfer',
 				'variant_id' => 'nullable|array',
-				'variant_id.*' => 'nullable|integer',
+				'variant_id.*' => 'nullable',
 				'variant_attributes' => 'nullable|array',
 			]);
 
@@ -240,14 +240,23 @@ class OrderController extends Controller
 				$productName = $product->name;
 
 				$variantId = null;
-				if ($product->configurable() && $request->has('variant_id') && is_array($request->input('variant_id'))) {
-					$variantId = $request->input('variant_id')[$i] ?? null;
-					if ($variantId) {
-						$variant = \App\Models\ProductVariant::find($variantId);
-						if ($variant && $variant->product_id == $product->id) {
-							$price = $variant->price;
-							$productSku = $variant->sku;
-							$productName = $variant->name;
+				if ($request->has('variant_id') && is_array($request->input('variant_id'))) {
+					$variantIdValue = $request->input('variant_id')[$i] ?? null;
+					
+					if ($variantIdValue) {
+						// Handle simple products with format 'simple_123'
+						if (is_string($variantIdValue) && strpos($variantIdValue, 'simple_') === 0) {
+							// For simple products, we don't need to find variant, just use product data
+							$variantId = null;
+						} else if (is_numeric($variantIdValue) && $product->configurable()) {
+							// Handle configurable products with actual variant IDs
+							$variantId = intval($variantIdValue);
+							$variant = \App\Models\ProductVariant::find($variantId);
+							if ($variant && $variant->product_id == $product->id) {
+								$price = $variant->price;
+								$productSku = $variant->sku;
+								$productName = $variant->name;
+							}
 						}
 					}
 				}
