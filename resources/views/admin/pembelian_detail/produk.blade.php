@@ -43,7 +43,7 @@
                         </thead>
                         <tbody>
                             @foreach ($produk as $key => $item)
-                                <tr data-type="{{ $item->type }}" data-name="{{ strtolower(strip_tags($item->name)) }}" style="height: 35px;">
+                                <tr data-type="{{ $item->type }}" data-name="{{ strtolower(strip_tags($item->name)) }}" data-product-id="{{ $item->id }}" style="height: 35px;">
                                     <td style="text-align: center; vertical-align: middle; padding: 4px;">{{ $key+1 }}</td>
                                     <td style="text-align: center; vertical-align: middle; padding: 4px;">
                                         <span class="label label-success" style="font-size: 9px;">{{ $item->id }}</span>
@@ -95,15 +95,17 @@
                                     </td>
                                     <td style="text-align: center; vertical-align: middle; padding: 4px;">
                                         @if($item->type == 'configurable')
-                                            <button type="button" class="btn btn-info btn-xs btn-flat"
+                                            <button type="button" class="btn btn-info btn-xs btn-flat btn-variant"
                                                 style="font-size: 9px; padding: 2px 6px;"
+                                                data-id="{{ $item->id }}"
                                                 onclick="showVariants('{{ $item->id }}')"
                                                 {{ $item->productVariants->sum('stock') <= 0 ? 'disabled' : '' }}>
                                                 <i class="fa fa-list"></i>
                                             </button>
                                         @else
-                                            <button type="button" class="btn btn-primary btn-xs btn-flat"
+                                            <button type="button" class="btn btn-primary btn-xs btn-flat btn-pilih"
                                                 style="font-size: 9px; padding: 2px 6px;"
+                                                data-id="{{ $item->id }}"
                                                 onclick="pilihProduk('{{ $item->id }}', null)"
                                                 {{ ($item->productInventory->qty ?? 0) <= 0 ? 'disabled' : '' }}>
                                                 <i class="fa fa-check"></i>

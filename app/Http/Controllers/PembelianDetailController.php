@@ -147,82 +147,20 @@ class PembelianDetailController extends Controller
         $detail->jumlah = $request->jumlah;
         $detail->subtotal = $detail->harga_beli * $request->jumlah;
         $detail->update();
-        // dd($detail);
-        if($detail) {
-            $id = $detail->id_produk;
-            $produk = Product::where('id', $id)->first();
-            $stok = $produk->productInventory->qty;
-            RekamanStok::create([
-                'product_id' => $detail->id_produk,
-                'waktu' => Carbon::now(),
-                'stok_masuk' => $request->jumlah,
-                'stok_awal' => $stok,
-                'stok_sisa' => $produk->productInventory->qty += $request->jumlah,
-            ]);
-        }
+        
+        // Note: Stock updates are now handled only when purchase is confirmed
+        // This prevents double stock updates that were causing incorrect quantities
     }
 
     public function updateEdit(Request $request, $id)
     {
         $detail = PembelianDetail::where('id', $id)->first();
-        // dd($detail->id);
-        // dd($detail->id_pembelian);
-        // dd($request->jumlah);
-        $rekaman_stok = RekamanStok::where('id_pembelian', $detail->id_pembelian)->where('id_produk', $detail->id_produk)->first();
-        $cari = RekamanStok::where('id_pembelian', $detail->id_pembelian)->where('id_produk', $detail->id_produk)->first();
-        if (!empty($rekaman_stok->id_produk) == $detail->id_produk) {
-            $sum = $request->jumlah - $detail->jumlah;
-            // dd($sum);
-            if ($sum < 0 && $sum != 0) {
-                $positive = $sum * -1;
-                $id = $detail->id_produk;
-                $produk = Product::where('id', $id)->first();
-                $stok = $produk->productInventory->qty;
-                $rekaman_stok->update([
-                    'product_id' => $detail->id_produk,
-                    'waktu' => Carbon::now(),
-                    'stok_masuk' => $rekaman_stok->stok_masuk -= $positive,
-                    'stok_awal' => $stok,
-                    'stok_sisa' => $rekaman_stok->stok_sisa -= $positive,
-                ]);
-                $produk = Product::find($detail->id_produk);
-                $produk->productInventory->qty -= $positive;
-                $produk->update();
-            } elseif($sum >= 1 && $sum != 0) {
-                $id = $detail->id_produk;
-                $produk = Product::where('id', $id)->first();
-                $stok = $produk->productInventory->qty;
-                $rekaman_stok->update([
-                    'product_id' => $detail->id_produk,
-                    'waktu' => Carbon::now(),
-                    'stok_masuk' => $rekaman_stok->stok_masuk += $sum,
-                    'stok_sisa' => $rekaman_stok->stok_sisa += $sum,
-                    'stok_awal' => $stok,
-                ]);
-                $positive = $sum * -1;
-                $produk = Product::find($detail->id_produk);
-                $produk->productInventory->qty += $sum;
-                $produk->update();
-            }
-
-        } else {
-            $produk = Product::find($detail->id_produk);
-            $sum = $request->jumlah;
-            $stok = $produk->productInventory->qty;
-            RekamanStok::create([
-                'product_id' => $detail->id_produk,
-                'waktu' => Carbon::now(),
-                'stok_masuk' => $sum,
-                'stok_awal' => $produk->productInventory->qty,
-                'stok_sisa' => $stok += $sum,
-            ]);
-            $produk->productInventory->qty += $sum;
-            $produk->update();
-        }
-
         $detail->jumlah = $request->jumlah;
         $detail->subtotal = $detail->harga_beli * $request->jumlah;
         $detail->update();
+        
+        // Note: Stock updates are now handled only when purchase is confirmed
+        // This prevents double stock updates and inconsistencies
     }
 
     public function destroy($id)
@@ -260,6 +198,67 @@ class PembelianDetailController extends Controller
             ],
             'variants' => $variants
         ]);
+    }
+
+    public function getRealtimeStock($pembelianId)
+    {
+        $currentPurchaseItems = PembelianDetail::where('id_pembelian', $pembelianId)->get();
+        
+        $stockData = [];
+        
+        $products = Product::with(['productInventory', 'productVariants'])->get();
+        
+        foreach ($products as $product) {
+            $purchasedQty = $currentPurchaseItems->where('id_produk', $product->id)->where('variant_id', null)->sum('jumlah');
+            
+            if ($product->type == 'simple') {
+                $originalStock = $product->productInventory ? $product->productInventory->qty : 0;
+                $projectedStock = $originalStock + $purchasedQty; // ADD purchased quantity to original stock
+                
+                $stockData[$product->id] = [
+                    'type' => 'simple',
+                    'original_stock' => $originalStock,
+                    'purchased_qty' => $purchasedQty,
+                    'projected_stock' => $projectedStock,
+                    // Keep compatibility with frontend
+                    'reserved_qty' => $purchasedQty,
+                    'available_stock' => $projectedStock
+                ];
+            } else {
+                $stockData[$product->id] = [
+                    'type' => 'configurable',
+                    'variants' => []
+                ];
+                
+                foreach ($product->productVariants as $variant) {
+                    $purchasedVariantQty = $currentPurchaseItems->where('id_produk', $product->id)->where('variant_id', $variant->id)->sum('jumlah');
+                    $originalVariantStock = $variant->stock;
+                    $projectedVariantStock = $originalVariantStock + $purchasedVariantQty; // ADD purchased quantity
+                    
+                    $stockData[$product->id]['variants'][$variant->id] = [
+                        'original_stock' => $originalVariantStock,
+                        'purchased_qty' => $purchasedVariantQty,
+                        'projected_stock' => $projectedVariantStock,
+                        // Keep compatibility with frontend
+                        'reserved_qty' => $purchasedVariantQty,
+                        'available_stock' => $projectedVariantStock
+                    ];
+                }
+                
+                $totalOriginalStock = $product->productVariants->sum('stock');
+                $totalPurchasedQty = $currentPurchaseItems->where('id_produk', $product->id)->sum('jumlah');
+                $totalProjectedStock = $totalOriginalStock + $totalPurchasedQty; // ADD purchased quantity
+                
+                $stockData[$product->id]['total_original_stock'] = $totalOriginalStock;
+                $stockData[$product->id]['total_purchased_qty'] = $totalPurchasedQty;
+                $stockData[$product->id]['total_projected_stock'] = $totalProjectedStock;
+                // Keep compatibility with frontend
+                $stockData[$product->id]['total_reserved_qty'] = $totalPurchasedQty;
+                $stockData[$product->id]['total_available_stock'] = $totalProjectedStock;
+            }
+        }
+        
+        return response()->json($stockData);
     }
 
     public function loadForm($diskon, $total)

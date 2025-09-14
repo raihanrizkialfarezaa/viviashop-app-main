@@ -813,6 +813,7 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     )->name('reports.revenue.excel');
     Route::get('/pembelian_detail/loadform/{diskon}/{total}', [PembelianDetailController::class, 'loadForm'])->name('pembelian_detail.load_form');
     Route::get('/pembelian_detail/variants/{productId}', [PembelianDetailController::class, 'getVariants'])->name('pembelian_detail.get_variants');
+    Route::get('/pembelian_detail/realtime-stock/{pembelianId}', [PembelianDetailController::class, 'getRealtimeStock'])->name('pembelian_detail.realtime_stock');
     Route::get('/pembelian_detail/editBayar/{id}', [PembelianDetailController::class, 'editBayar'])->name('pembelian_detail.editBayar');
     Route::put('/pembelian_detail/updateEdit/{id}', [PembelianDetailController::class, 'updateEdit'])->name('pembelian_detail.updateEdit');
 

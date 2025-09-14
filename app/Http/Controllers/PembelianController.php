@@ -112,33 +112,12 @@ class PembelianController extends Controller
             $pembelian->notes = $request->notes;
             $pembelian->update();
 
+            // Process stock updates using StockService for proper tracking
             StockService::processPurchaseStockUpdate($pembelian);
 
-            foreach ($pembelian->details as $item) {
-                $produk = Product::with('productInventory')->find($item->id_produk);
-
-                if ($produk && $produk->productInventory) {
-                    $stok_awal = $produk->productInventory->qty;
-
-                    $rekamanStokExists = RekamanStok::where('id_pembelian', $pembelian->id)
-                                                      ->where('product_id', $item->id_produk)
-                                                      ->exists();
-
-                    if (! $rekamanStokExists) {
-                        RekamanStok::create([
-                            'product_id' => $item->id_produk,
-                            'waktu' => Carbon::now(),
-                            'stok_masuk' => $item->jumlah,
-                            'id_pembelian' => $pembelian->id,
-                            'stok_awal' => $stok_awal,
-                            'stok_sisa' => $stok_awal + $item->jumlah,
-                        ]);
-
-                        $produk->productInventory->qty += $item->jumlah;
-                        $produk->productInventory->save();
-                    }
-                }
-            }
+            // Note: Removed duplicate manual stock update logic
+            // StockService now handles both simple and variant products correctly
+            // with proper StockMovement record creation
 
             DB::commit();
             Alert::success('Data berhasil', 'Data pembelian berhasil disimpan dan stok telah diperbarui!');

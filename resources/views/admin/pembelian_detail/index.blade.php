@@ -236,7 +236,10 @@
                 .done(response => {
                     $(this).on('mouseout', function () {
                         console.log(id);
-                        table.ajax.reload(() => loadForm($('#diskon').val()));
+                        table.ajax.reload(() => {
+                            loadForm($('#diskon').val());
+                            fetchRealtimeStock();
+                        });
                     });
                 })
                 .fail(errors => {
@@ -266,7 +269,10 @@
                 })
                 .done(response => {
                     $(this).on('mouseout', function () {
-                        table.ajax.reload(() => loadForm($('#diskon').val()));
+                        table.ajax.reload(() => {
+                            loadForm($('#diskon').val());
+                            fetchRealtimeStock();
+                        });
                     });
                 })
                 .fail(errors => {
@@ -297,7 +303,10 @@
                 })
                 .done(response => {
                     $(this).on('mouseout', function () {
-                        table.ajax.reload(() => loadForm($('#diskon').val()));
+                        table.ajax.reload(() => {
+                            loadForm($('#diskon').val());
+                            fetchRealtimeStock();
+                        });
                     });
                 })
                 .fail(errors => {
@@ -417,6 +426,7 @@
     
     let currentPage = 1;
     const itemsPerPage = 8;
+    let realtimeStockData = {};
     
     function updatePagination() {
         const visibleRows = $('.table-produk tbody tr:visible');
@@ -454,6 +464,99 @@
         $('#page-numbers').html(pageNumbers);
     }
     
+    function fetchRealtimeStock() {
+        const pembelianId = {{ $id_pembelian }};
+        
+        console.log('Fetching realtime stock for purchase ID:', pembelianId);
+        console.log('Modal state:', $('#modal-produk').hasClass('show') ? 'open' : 'closed');
+        
+        $.get(`{{ url('/admin/pembelian_detail/realtime-stock') }}/${pembelianId}`)
+            .done(function(data) {
+                console.log('Realtime stock data received:', data);
+                realtimeStockData = data;
+                updateStockDisplay();
+                console.log('Stock display updated');
+            })
+            .fail(function(xhr, status, error) {
+                console.error('Failed to fetch realtime stock data:', error);
+                console.error('Response:', xhr.responseText);
+                console.error('Status:', status);
+                console.error('XHR:', xhr);
+            });
+    }
+    
+    function updateStockDisplay() {
+        console.log('updateStockDisplay called');
+        console.log('realtimeStockData:', realtimeStockData);
+        
+        let updatedCount = 0;
+        
+        $('.table-produk tbody tr').each(function() {
+            const row = $(this);
+            const productId = row.data('product-id');
+            
+            console.log('Processing row for product ID:', productId);
+            
+            if (realtimeStockData[productId]) {
+                const stockData = realtimeStockData[productId];
+                const stockCell = row.find('td:nth-child(7)');
+                
+                console.log('Found stock data for product', productId, ':', stockData);
+                
+                if (stockData.type === 'simple') {
+                    const projectedStock = stockData.projected_stock || stockData.available_stock;
+                    const purchasedQty = stockData.purchased_qty || stockData.reserved_qty;
+                    const originalStock = stockData.original_stock;
+                    
+                    console.log(`Product ${productId} - Original: ${originalStock}, Purchased: ${purchasedQty}, Projected: ${projectedStock}`);
+                    
+                    let badgeClass = 'badge-success';
+                    if (projectedStock <= 0) badgeClass = 'badge-danger';
+                    else if (projectedStock <= 10) badgeClass = 'badge-warning';
+                    
+                    let stockDisplay = `<span class="badge ${badgeClass}" style="font-size: 9px;">${projectedStock}</span>`;
+                    if (purchasedQty > 0) {
+                        stockDisplay += `<br><small class="text-success" style="font-size: 8px;">+${purchasedQty} pembelian</small>`;
+                    }
+                    
+                    stockCell.html(stockDisplay);
+                    updatedCount++;
+                    
+                    // No need to disable buttons for purchase - we're buying, not selling
+                    const actionButton = row.find('.btn-pilih');
+                    actionButton.prop('disabled', false);
+                    
+                } else if (stockData.type === 'configurable') {
+                    const totalProjectedStock = stockData.total_projected_stock || stockData.total_available_stock;
+                    const totalPurchasedQty = stockData.total_purchased_qty || stockData.total_reserved_qty;
+                    const totalOriginalStock = stockData.total_original_stock;
+                    
+                    console.log(`Product ${productId} (configurable) - Original: ${totalOriginalStock}, Purchased: ${totalPurchasedQty}, Projected: ${totalProjectedStock}`);
+                    
+                    let badgeClass = 'badge-success';
+                    if (totalProjectedStock <= 0) badgeClass = 'badge-danger';
+                    else if (totalProjectedStock <= 10) badgeClass = 'badge-warning';
+                    
+                    let stockDisplay = `<span class="badge ${badgeClass}" style="font-size: 9px;">${totalProjectedStock}</span>`;
+                    if (totalPurchasedQty > 0) {
+                        stockDisplay += `<br><small class="text-success" style="font-size: 8px;">+${totalPurchasedQty} pembelian</small>`;
+                    }
+                    
+                    stockCell.html(stockDisplay);
+                    updatedCount++;
+                    
+                    // No need to disable buttons for purchase
+                    const actionButton = row.find('.btn-variant');
+                    actionButton.prop('disabled', false);
+                }
+            } else {
+                console.log('No stock data found for product ID:', productId);
+            }
+        });
+        
+        console.log(`Updated ${updatedCount} products with realtime stock data`);
+    }
+    
     function changePage(direction) {
         const visibleRows = $('.table-produk tbody tr:visible');
         const totalItems = visibleRows.length;
@@ -477,7 +580,7 @@
         }
     }
 
-    function tampilProduk() {
+        function tampilProduk() {
         console.log('tampilProduk called');
         
         if (typeof $ === 'undefined') {
@@ -499,32 +602,31 @@
             // Clean any existing modal state
             modal.removeClass('show');
             modal.css('display', 'none');
-            $('.modal-backdrop').remove();
             
-            // Show the modal properly
+            // Show modal with bootstrap method
             modal.modal('show');
             
-            modal.on('shown.bs.modal', function () {
-                console.log('Modal fully shown');
-                currentPage = 1;
-                updatePagination();
-                
-                // Initialize search and filter functionality
-                $('#search-produk').val('');
-                $('#filter-type').val('');
-            });
-            
+            // Additional styling to ensure proper display
             modal.css({
                 'display': 'block',
-                'z-index': '9999'
+                'z-index': '10050'
             });
             modal.addClass('show');
-            $('body').addClass('modal-open');
             
-            console.log('Modal visibility set');
+            // Fetch and update realtime stock immediately and after delay
+            console.log('Fetching realtime stock immediately...');
+            fetchRealtimeStock();
+            
+            setTimeout(function() {
+                console.log('Fetching realtime stock after delay...');
+                fetchRealtimeStock();
+            }, 500);
+            
+            console.log('Modal display commands executed');
+            
         } catch (error) {
             console.error('Error showing modal:', error);
-            alert('Error opening modal. Please refresh the page.');
+            alert('Error showing modal. Please refresh the page.');
         }
     }
 
@@ -605,11 +707,15 @@
                     const hargaJual = Number(variant.price || 0);
                     const margin = hargaJual - hargaBeli;
                     const marginPercent = hargaBeli > 0 ? ((margin / hargaBeli) * 100).toFixed(1) : 0;
-                    const stockClass = variant.stock > 10 ? 'success' : (variant.stock > 0 ? 'warning' : 'danger');
-                    const isOutOfStock = variant.stock <= 0;
+                    
+                    // For purchase (pembelian), we ADD to stock, not subtract
+                    const currentPurchased = realtimeStockData[response.product.id] && realtimeStockData[response.product.id].variants && realtimeStockData[response.product.id].variants[variant.id] ? (realtimeStockData[response.product.id].variants[variant.id].purchased_qty || realtimeStockData[response.product.id].variants[variant.id].reserved_qty) : 0;
+                    const originalStock = variant.stock;
+                    const projectedStock = originalStock + currentPurchased; // ADD purchased quantity
+                    const stockClass = projectedStock > 10 ? 'success' : (projectedStock > 0 ? 'warning' : 'danger');
                     
                     html += `
-                        <tr ${isOutOfStock ? 'class="text-muted"' : ''}>
+                        <tr>
                             <td>${index + 1}</td>
                             <td>
                                 <strong>${variant.attributes || 'Default'}</strong>
@@ -633,16 +739,16 @@
                             </td>
                             <td>
                                 <span class="badge badge-${stockClass}">
-                                    ${variant.stock} unit
+                                    ${projectedStock} unit
                                 </span>
+                                ${currentPurchased > 0 ? `<br><small class="text-success">+${currentPurchased} pembelian</small>` : ''}
                             </td>
                             <td>
                                 <button type="button" 
-                                    class="btn btn-${isOutOfStock ? 'secondary' : 'primary'} btn-sm btn-flat btn-block"
-                                    onclick="pilihProduk('${response.product.id}', '${variant.id}')"
-                                    ${isOutOfStock ? 'disabled title="Stok habis"' : ''}>
-                                    <i class="fa fa-${isOutOfStock ? 'ban' : 'check-circle'}"></i>
-                                    ${isOutOfStock ? 'Stok Habis' : 'Pilih'}
+                                    class="btn btn-primary btn-sm btn-flat btn-block"
+                                    onclick="pilihProduk('${response.product.id}', '${variant.id}')">
+                                    <i class="fa fa-check-circle"></i>
+                                    Pilih
                                 </button>
                             </td>
                         </tr>
@@ -685,14 +791,24 @@
     }
 
     function tambahProduk() {
+        console.log('tambahProduk called');
         $.post('{{ route('admin.pembelian_detail.store') }}', $('.form-produk').serialize())
             .done(response => {
+                console.log('Product added successfully:', response);
                 $('#kode_produk').val('').focus();
                 $('#id_produk').val('');
                 $('#variant_id').val('');
-                table.ajax.reload(() => loadForm($('#diskon').val()));
+                table.ajax.reload(() => {
+                    console.log('Table reloaded after adding product');
+                    loadForm($('#diskon').val());
+                    setTimeout(() => {
+                        console.log('Calling fetchRealtimeStock after adding product');
+                        fetchRealtimeStock();
+                    }, 1000);
+                });
             })
             .fail(xhr => {
+                console.error('Failed to add product:', xhr);
                 let errorMsg = 'Tidak dapat menyimpan data';
                 if (xhr.responseJSON && xhr.responseJSON.message) {
                     errorMsg = xhr.responseJSON.message;
@@ -711,7 +827,10 @@
                     '_method': 'delete'
                 })
                 .done((response) => {
-                    table.ajax.reload(() => loadForm($('#diskon').val()));
+                    table.ajax.reload(() => {
+                        loadForm($('#diskon').val());
+                        fetchRealtimeStock();
+                    });
                 })
                 .fail((errors) => {
                     alert('Tidak dapat menghapus data');

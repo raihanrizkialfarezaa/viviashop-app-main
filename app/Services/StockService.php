@@ -43,7 +43,7 @@ class StockService
     public static function recordSimpleProductMovement($productId, $movementType, $quantity, $referenceType, $referenceId, $reason, $notes = null)
     {
         return DB::transaction(function () use ($productId, $movementType, $quantity, $referenceType, $referenceId, $reason, $notes) {
-            $product = Product::with('productInventory')->findOrFail($productId);
+            $product = Product::with(['productInventory', 'productVariants'])->findOrFail($productId);
             
             if (!$product->productInventory) {
                 ProductInventory::create([
@@ -63,9 +63,24 @@ class StockService
             
             $product->productInventory->update(['qty' => $newStock]);
             
+            // Get or create default variant for simple products
             $variant = $product->productVariants()->first();
-            if ($variant) {
+            
+            if (!$variant && $product->type === 'simple') {
+                // Create default variant for simple product
+                $variant = ProductVariant::create([
+                    'product_id' => $productId,
+                    'sku' => $product->sku ?? "VAR-{$productId}-DEFAULT",
+                    'name' => $product->name . ' (Default)',
+                    'price' => $product->price ?? 0,
+                    'harga_beli' => $product->harga_beli ?? 0,
+                    'stock' => $newStock
+                ]);
+            } elseif ($variant) {
                 $variant->update(['stock' => $newStock]);
+            }
+            
+            if ($variant) {
                 return self::recordMovement($variant->id, $movementType, $quantity, $referenceType, $referenceId, $reason, $notes);
             }
             
