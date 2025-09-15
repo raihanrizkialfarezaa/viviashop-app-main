@@ -527,9 +527,44 @@ class PrintService
 
     private function storePaymentProof(UploadedFile $file, PrintOrder $printOrder)
     {
-        $directory = "print-payments/{$printOrder->order_code}";
-        $filename = 'payment_proof_' . time() . '.' . $file->getClientOriginalExtension();
-        return $file->storeAs($directory, $filename, 'local');
+        try {
+            // Validate file
+            if (!$file->isValid()) {
+                throw new \Exception('Invalid file upload');
+            }
+            
+            $directory = "print-payments/{$printOrder->order_code}";
+            $filename = 'payment_proof_' . time() . '.' . $file->getClientOriginalExtension();
+            
+            // Ensure directory exists
+            $fullDir = storage_path("app/{$directory}");
+            if (!is_dir($fullDir)) {
+                mkdir($fullDir, 0755, true);
+            }
+            
+            // Store file
+            $path = $file->storeAs($directory, $filename, 'local');
+            
+            // Verify file was stored
+            if (!Storage::disk('local')->exists($path)) {
+                throw new \Exception('File was not stored successfully');
+            }
+            
+            Log::info('Payment proof stored successfully', [
+                'order_code' => $printOrder->order_code,
+                'file_path' => $path,
+                'file_size' => $file->getSize()
+            ]);
+            
+            return $path;
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to store payment proof', [
+                'order_code' => $printOrder->order_code,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
     }
 
     private function generateMidtransToken(PrintOrder $printOrder)

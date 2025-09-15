@@ -103,28 +103,8 @@ class PrintServiceController extends Controller
                 return response()->json(['error' => 'Payment already confirmed'], 400);
             }
 
-            $printOrder->update([
-                'payment_status' => PrintOrder::PAYMENT_PAID,
-                'status' => PrintOrder::STATUS_PAYMENT_CONFIRMED,
-                'paid_at' => now()
-            ]);
-
-            $requiredStock = $printOrder->total_pages * $printOrder->quantity;
-            
-            try {
-                app(StockService::class)->recordMovement(
-                    $printOrder->paper_product_id,
-                    $printOrder->paper_variant_id,
-                    $requiredStock,
-                    'out',
-                    'Smart Print Service',
-                    "Print Order #{$printOrder->order_code} - Payment Confirmed"
-                );
-                
-                Log::info("Stock reduced for print order {$printOrder->order_code}: {$requiredStock} units");
-            } catch (\Exception $stockException) {
-                Log::error("Stock reduction failed for print order {$printOrder->order_code}: " . $stockException->getMessage());
-            }
+            // Use PrintService confirmPayment method (with stock reduction and duplicate prevention)
+            $this->printService->confirmPayment($printOrder);
 
             return response()->json([
                 'success' => true,
@@ -447,13 +427,59 @@ class PrintServiceController extends Controller
             $printOrder = PrintOrder::findOrFail($id);
             
             if (!$printOrder->payment_proof) {
-                return abort(404, 'Payment proof not found');
+                return response()->json([
+                    'error' => 'No payment proof found for this order',
+                    'order_code' => $printOrder->order_code
+                ], 404);
             }
 
-            return response()->download(storage_path('app/' . $printOrder->payment_proof));
+            $filePath = storage_path('app/' . $printOrder->payment_proof);
+            
+            if (!file_exists($filePath)) {
+                Log::warning('Payment proof file not found', [
+                    'order_id' => $id,
+                    'order_code' => $printOrder->order_code,
+                    'expected_path' => $filePath,
+                    'stored_path' => $printOrder->payment_proof
+                ]);
+                
+                return response()->json([
+                    'error' => 'Payment proof file not found on server',
+                    'order_code' => $printOrder->order_code,
+                    'stored_path' => $printOrder->payment_proof
+                ], 404);
+            }
+
+            // Get file extension for proper content type
+            $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+            $mimeType = match(strtolower($extension)) {
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'pdf' => 'application/pdf',
+                default => 'application/octet-stream'
+            };
+
+            return response()->file($filePath, [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'inline; filename="payment_proof_' . $printOrder->order_code . '.' . $extension . '"'
+            ]);
+            
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Order not found',
+                'order_id' => $id
+            ], 404);
         } catch (\Exception $e) {
-            Log::error('Download payment proof error: ' . $e->getMessage());
-            return abort(500, 'File download failed');
+            Log::error('Download payment proof error', [
+                'order_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'File download failed: ' . $e->getMessage()
+            ], 500);
         }
     }
 }
