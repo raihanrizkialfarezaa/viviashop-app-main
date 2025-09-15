@@ -252,9 +252,27 @@ class PrintServiceController extends Controller
         try {
             $printOrder = PrintOrder::with('files')->findOrFail($id);
 
-            $validStatuses = ['payment_confirmed', 'ready_to_print', 'printing'];
+            if ($printOrder->isCompleted()) {
+                return response()->json(['error' => 'Order is already completed'], 400);
+            }
+
+            if ($printOrder->status === PrintOrder::STATUS_CANCELLED) {
+                return response()->json(['error' => 'Cannot complete a cancelled order'], 400);
+            }
+
+            if (!$printOrder->isPaid()) {
+                return response()->json(['error' => 'Order must be paid before completion'], 400);
+            }
+
+            $validStatuses = [
+                PrintOrder::STATUS_PAYMENT_CONFIRMED,
+                PrintOrder::STATUS_READY_TO_PRINT,
+                PrintOrder::STATUS_PRINTING,
+                PrintOrder::STATUS_PRINTED
+            ];
+            
             if (!in_array($printOrder->status, $validStatuses)) {
-                return response()->json(['error' => 'Order cannot be completed from current status'], 400);
+                return response()->json(['error' => 'Order cannot be completed from current status: ' . $printOrder->status], 400);
             }
 
             foreach ($printOrder->files as $file) {
@@ -271,18 +289,31 @@ class PrintServiceController extends Controller
                 $file->delete();
             }
 
-            $printOrder->update(['status' => 'completed']);
+            $printOrder->update([
+                'status' => PrintOrder::STATUS_COMPLETED,
+                'completed_at' => now()
+            ]);
 
-            // Record stock movement for print order completion
             if ($printOrder->paper_product_id) {
-                app(StockService::class)->recordMovement(
-                    $printOrder->paper_product_id,
-                    $printOrder->paper_variant_id,
-                    $printOrder->quantity,
-                    'out',
-                    'Smart Print Service',
-                    "Print Order #{$printOrder->order_code}"
-                );
+                try {
+                    $product = \App\Models\Product::find($printOrder->paper_product_id);
+                    $variant = \App\Models\ProductVariant::find($printOrder->paper_variant_id);
+                    
+                    if ($product && $variant) {
+                        app(StockService::class)->recordMovement(
+                            $printOrder->paper_product_id,
+                            $printOrder->paper_variant_id,
+                            $printOrder->quantity,
+                            'out',
+                            'Smart Print Service',
+                            "Print Order #{$printOrder->order_code}"
+                        );
+                    } else {
+                        Log::warning("Stock movement skipped for print order {$printOrder->order_code}: Missing product (ID: {$printOrder->paper_product_id}) or variant (ID: {$printOrder->paper_variant_id})");
+                    }
+                } catch (\Exception $stockException) {
+                    Log::error("Stock movement failed for print order {$printOrder->order_code}: " . $stockException->getMessage());
+                }
             }
 
             return response()->json([
