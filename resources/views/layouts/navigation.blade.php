@@ -65,6 +65,12 @@
                             <p>Produk</p>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{ route('admin.smart-print-converter.index') }}" class="nav-link">
+                            <i class="fa fa-magic nav-icon"></i>
+                            <p>Smart Print Converter</p>
+                        </a>
+                    </li>
                 </ul>
             </li>
             <li class="nav-item">

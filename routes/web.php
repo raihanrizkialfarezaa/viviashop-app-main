@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\StockCardController;
+use App\Http\Controllers\Admin\SmartPrintConverterController;
 use App\Http\Controllers\Frontend\HomepageController;
 
 Route::post('payments/notification', [App\Http\Controllers\Frontend\OrderController::class, 'notificationHandler'])
@@ -847,6 +848,14 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
     Route::get('/laporan/export/{awal}/{akhir}', [HomepageController::class, 'data'])->name('laporan.exportPDF');
 
     Route::get('/instagram/create', [InstagramController::class, 'create'])->name('instagram.create');
+    
+    // Smart Print Converter Routes
+    Route::get('/smart-print-converter', [SmartPrintConverterController::class, 'index'])
+        ->name('smart-print-converter.index');
+    Route::post('/smart-print-converter/convert/{id}', [SmartPrintConverterController::class, 'convert'])
+        ->name('smart-print-converter.convert');
+    Route::post('/smart-print-converter/bulk-convert', [SmartPrintConverterController::class, 'bulkConvert'])
+        ->name('smart-print-converter.bulk-convert');
     Route::post('/instagram/post', [InstagramController::class, 'postToInstagram'])->name('instagram.store');
     Route::get('/instagram/postProduct/{id}', [InstagramController::class, 'postToInstagramFromProducts'])
         ->name('instagram.postProduct');

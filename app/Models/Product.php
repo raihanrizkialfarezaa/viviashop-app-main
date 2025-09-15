@@ -15,6 +15,7 @@ class Product extends Model
 
     protected $casts = [
         'is_smart_print_enabled' => 'boolean',
+        'is_print_service' => 'boolean',
     ];
 
     public const DRAFT = 0;

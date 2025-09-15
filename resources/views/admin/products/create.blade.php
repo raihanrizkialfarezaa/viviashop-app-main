@@ -57,15 +57,23 @@
                         </div>
                     </div>
                     <div class="form-group row border-bottom pb-4">
-                        <label class="col-sm-2 col-form-label">Smart Print</label>
+                        <label class="col-sm-2 col-form-label">Layanan Cetak</label>
                         <div class="col-sm-10">
-                            <div class="form-check">
+                            <div class="form-check mb-2">
+                                <input type="checkbox" class="form-check-input" name="is_print_service" value="1" id="is_print_service" {{ old('is_print_service') ? 'checked' : '' }}>
+                                <label class="form-check-label" for="is_print_service">
+                                    Aktifkan sebagai produk layanan cetak
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">Produk ini dapat digunakan untuk layanan cetak dokumen</small>
+                            
+                            <div class="form-check mt-2" id="smart_print_section" style="display: none;">
                                 <input type="checkbox" class="form-check-input" name="is_smart_print_enabled" value="1" id="is_smart_print_enabled" {{ old('is_smart_print_enabled') ? 'checked' : '' }}>
                                 <label class="form-check-label" for="is_smart_print_enabled">
                                     Aktifkan Smart Print untuk produk ini
                                 </label>
+                                <small class="form-text text-muted d-block">Smart Print memungkinkan cetak otomatis tanpa operator</small>
                             </div>
-                            <small class="form-text text-muted">Produk dengan smart print dapat digunakan untuk fitur cetak otomatis</small>
                         </div>
                     </div>
                     <div class="configurable-attributes">
@@ -156,10 +164,32 @@
 				$(".configurable-attributes").hide();
 			}
 		}
+		
+		function handlePrintServiceLogic() {
+		    var printServiceChecked = $("#is_print_service").is(':checked');
+		    var smartPrintSection = $("#smart_print_section");
+		    var smartPrintCheckbox = $("#is_smart_print_enabled");
+		    
+		    if (printServiceChecked) {
+		        smartPrintSection.show();
+		    } else {
+		        smartPrintSection.hide();
+		        smartPrintCheckbox.prop('checked', false);
+		    }
+		}
+		
 		$(function(){
 			showHideConfigurableAttributes();
 			$(".product-type").change(function() {
 				showHideConfigurableAttributes();
+			});
+			
+			// Initialize print service logic
+			handlePrintServiceLogic();
+			
+			// Handle print service checkbox change
+			$("#is_print_service").change(function() {
+			    handlePrintServiceLogic();
 			});
 		});
 </script>

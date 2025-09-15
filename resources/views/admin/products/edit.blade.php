@@ -190,13 +190,21 @@
                                     <div class="row">
                                         <div class="col-md-12">
                                             <div class="form-group">
-                                                <div class="form-check">
+                                                <div class="form-check mb-2">
+                                                    <input type="checkbox" class="form-check-input" name="is_print_service" value="1" id="is_print_service" {{ old('is_print_service', $product->is_print_service) ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="is_print_service">
+                                                        Aktifkan sebagai produk layanan cetak
+                                                    </label>
+                                                </div>
+                                                <small class="form-text text-muted">Produk ini dapat digunakan untuk layanan cetak dokumen</small>
+                                                
+                                                <div class="form-check mt-2" id="smart_print_section_edit" style="display: {{ old('is_print_service', $product->is_print_service) ? 'block' : 'none' }};">
                                                     <input type="checkbox" class="form-check-input" name="is_smart_print_enabled" value="1" id="is_smart_print_enabled" {{ old('is_smart_print_enabled', $product->is_smart_print_enabled) ? 'checked' : '' }}>
                                                     <label class="form-check-label" for="is_smart_print_enabled">
                                                         Aktifkan Smart Print untuk produk ini
                                                     </label>
+                                                    <small class="form-text text-muted d-block">Smart Print memungkinkan cetak otomatis tanpa operator</small>
                                                 </div>
-                                                <small class="form-text text-muted">Produk dengan smart print dapat digunakan untuk fitur cetak otomatis</small>
                                             </div>
                                         </div>
                                     </div>
@@ -517,27 +525,28 @@
 											</div>
 										</div>
 									</div>
-										</div>
-									</div>
-									<h6>Variant Attributes</h6>
+									<hr style="margin: 20px 0;">
+									<h6 style="color: #495057; margin-bottom: 15px; font-weight: 600;">Variant Attributes</h6>
 									<div id="attributeContainer">
-										<div class="attribute-row row mb-2">
+										<div class="attribute-row row mb-3" style="align-items: end;">
 											<div class="col-md-5">
-												<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name (e.g. Color, Size)">
+												<label style="font-size: 14px; color: #495057;">Attribute Name</label>
+												<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name (e.g. Color, Size)" style="border: 1px solid #ced4da;">
 											</div>
 											<div class="col-md-5">
-												<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value (e.g. Red, XL)">
+												<label style="font-size: 14px; color: #495057;">Attribute Value</label>
+												<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value (e.g. Red, XL)" style="border: 1px solid #ced4da;">
 											</div>
 											<div class="col-md-2">
-												<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
+												<button type="button" class="btn btn-sm btn-danger remove-attribute" style="margin-top: 5px;">Remove</button>
 											</div>
 										</div>
 									</div>
-									<button type="button" class="btn btn-sm btn-secondary" id="addAttribute">Add Attribute</button>
+									<button type="button" class="btn btn-sm btn-secondary" id="addAttribute" style="margin-bottom: 15px;">Add Attribute</button>
 								</form>
 							</div>
-							<div class="modal-footer">
-								<button type="button" class="btn btn-secondary" onclick="closeVariantModal()">Cancel</button>
+							<div class="modal-footer" style="background-color: #f8f9fa; border-top: 1px solid #dee2e6; padding: 15px 20px;">
+								<button type="button" class="btn btn-secondary" onclick="closeVariantModal()" style="margin-right: 10px;">Cancel</button>
 								<button type="button" class="btn btn-primary" id="saveVariant">Save Variant</button>
 							</div>
 						</div>
@@ -550,15 +559,17 @@
 			
 			$('#addAttribute').on('click', function() {
 				var newRow = `
-					<div class="attribute-row row mb-2">
+					<div class="attribute-row row mb-3" style="align-items: end;">
 						<div class="col-md-5">
-							<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name">
+							<label style="font-size: 14px; color: #495057;">Attribute Name</label>
+							<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name" style="border: 1px solid #ced4da;">
 						</div>
 						<div class="col-md-5">
-							<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value">
+							<label style="font-size: 14px; color: #495057;">Attribute Value</label>
+							<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value" style="border: 1px solid #ced4da;">
 						</div>
 						<div class="col-md-2">
-							<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
+							<button type="button" class="btn btn-sm btn-danger remove-attribute" style="margin-top: 5px;">Remove</button>
 						</div>
 					</div>
 				`;
@@ -873,5 +884,28 @@
 				});
 			}
 		}
+		
+		function handlePrintServiceLogicEdit() {
+		    var printServiceChecked = $("#is_print_service").is(':checked');
+		    var smartPrintSection = $("#smart_print_section_edit");
+		    var smartPrintCheckbox = $("#is_smart_print_enabled");
+		    
+		    if (printServiceChecked) {
+		        smartPrintSection.show();
+		    } else {
+		        smartPrintSection.hide();
+		        smartPrintCheckbox.prop('checked', false);
+		    }
+		}
+		
+		$(document).ready(function() {
+		    // Initialize print service logic
+		    handlePrintServiceLogicEdit();
+		    
+		    // Handle print service checkbox change
+		    $("#is_print_service").change(function() {
+		        handlePrintServiceLogicEdit();
+		    });
+		});
 </script>
 @endpush

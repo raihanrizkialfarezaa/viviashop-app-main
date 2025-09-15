@@ -238,17 +238,29 @@ class ProductController extends Controller
     public function store(ProductRequest $request)
     {
         try {
+            // Ensure checkbox values are properly handled
+            $data = $request->validated();
+            
+            // CRITICAL FIX: Force checkbox handling regardless of form submission
+            $data['is_print_service'] = $request->has('is_print_service') || $request->get('is_print_service') == '1' || $request->get('is_print_service') === 'on';
+            $data['is_smart_print_enabled'] = $request->has('is_smart_print_enabled') || $request->get('is_smart_print_enabled') == '1' || $request->get('is_smart_print_enabled') === 'on';
+            
             if ($request->type === 'configurable' && !empty($request->variants)) {
                 $result = $this->productVariantService->createConfigurableProduct(
-                    $request->validated(),
+                    $data,
                     $request->variants
                 );
                 $product = $result['product'];
             } else {
-                $product = $this->productVariantService->createBaseProduct($request->validated());
+                $product = $this->productVariantService->createBaseProduct($data);
                 
                 if ($request->type === 'simple') {
                     $this->createSimpleProductInventory($product, $request);
+                    
+                    // Auto-create variants for smart print products
+                    if ($data['is_smart_print_enabled'] && $data['is_print_service']) {
+                        $this->createDefaultSmartPrintVariants($product);
+                    }
                 }
             }
 
@@ -271,6 +283,49 @@ class ProductController extends Controller
             ProductInventory::create([
                 'product_id' => $product->id,
                 'qty' => $request->qty,
+            ]);
+        }
+    }
+    
+    private function createDefaultSmartPrintVariants(Product $product)
+    {
+        $defaultVariants = [
+            [
+                'name' => $product->name . ' - Black & White',
+                'sku' => $product->sku . '-BW',
+                'paper_size' => 'A4',
+                'print_type' => 'bw',
+                'stock' => 100,
+                'price' => $product->price ?: 1000,
+                'harga_beli' => $product->harga_beli ?: 500,
+            ],
+            [
+                'name' => $product->name . ' - Color',
+                'sku' => $product->sku . '-CLR',
+                'paper_size' => 'A4', 
+                'print_type' => 'color',
+                'stock' => 50,
+                'price' => ($product->price ?: 1000) * 1.5,
+                'harga_beli' => $product->harga_beli ?: 500,
+            ]
+        ];
+        
+        foreach ($defaultVariants as $variantData) {
+            \App\Models\ProductVariant::create([
+                'product_id' => $product->id,
+                'sku' => $variantData['sku'],
+                'name' => $variantData['name'],
+                'price' => $variantData['price'],
+                'harga_beli' => $variantData['harga_beli'],
+                'stock' => $variantData['stock'],
+                'weight' => $product->weight ?: 0.1,
+                'length' => $product->length,
+                'width' => $product->width,
+                'height' => $product->height,
+                'print_type' => $variantData['print_type'],
+                'paper_size' => $variantData['paper_size'],
+                'is_active' => true,
+                'min_stock_threshold' => $variantData['stock'] * 0.1, // 10% of initial stock
             ]);
         }
     }
@@ -534,7 +589,13 @@ class ProductController extends Controller
     {
         try {
             DB::transaction(function () use ($product, $request) {
-                $product->update($request->validated());
+                $data = $request->validated();
+                
+                // CRITICAL FIX: Force checkbox handling regardless of form submission
+                $data['is_print_service'] = $request->has('is_print_service') || $request->get('is_print_service') == '1' || $request->get('is_print_service') === 'on';
+                $data['is_smart_print_enabled'] = $request->has('is_smart_print_enabled') || $request->get('is_smart_print_enabled') == '1' || $request->get('is_smart_print_enabled') === 'on';
+                
+                $product->update($data);
                 
                 if (!empty($request->category_id)) {
                     $product->categories()->sync($request->category_id);
