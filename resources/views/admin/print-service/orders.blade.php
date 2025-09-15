@@ -102,6 +102,12 @@
                                             </button>
                                             @endif
                                             
+                                            @if($order->payment_method === 'manual' && $order->payment_proof)
+                                            <button class="btn btn-sm btn-info" onclick="viewPaymentProof({{ $order->id }})" title="View Payment Proof">
+                                                <i class="mdi mdi-file-image"></i> View Payment Proof
+                                            </button>
+                                            @endif
+                                            
                                             @if($order->status === 'payment_confirmed' || $order->status === 'ready_to_print' || $order->status === 'printing')
                                             @if($order->status === 'completed')
                                             <button class="btn btn-sm btn-danger" disabled title="Order Completed - Files Deleted">
@@ -248,6 +254,15 @@ async function completeOrder(orderId) {
 function viewDetails(orderId) {
     // You can implement a modal or redirect to detailed view
     alert('View details functionality - to be implemented');
+}
+
+async function viewPaymentProof(orderId) {
+    try {
+        window.open(`/admin/print-service/orders/${orderId}/payment-proof`, '_blank');
+    } catch (error) {
+        alert('Error opening payment proof');
+        console.error('Payment proof error:', error);
+    }
 }
 </script>
 @endsection

@@ -276,4 +276,66 @@ class StockService
             ];
         }
     }
+
+    /**
+     * Reduce stock for a variant
+     */
+    public function reduceStock($variantId, $quantity, $referenceId, $reason, $notes = null)
+    {
+        return self::recordMovement(
+            $variantId,
+            StockMovement::MOVEMENT_OUT,
+            $quantity,
+            'print_order',
+            $referenceId,
+            $reason,
+            $notes
+        );
+    }
+
+    /**
+     * Restore stock for a variant
+     */
+    public function restoreStock($variantId, $quantity, $referenceId, $reason, $notes = null)
+    {
+        return self::recordMovement(
+            $variantId,
+            StockMovement::MOVEMENT_IN,
+            $quantity,
+            'print_order',
+            $referenceId,
+            $reason,
+            $notes
+        );
+    }
+
+    /**
+     * Check stock availability
+     */
+    public function checkStockAvailability($variantId, $requiredQuantity)
+    {
+        $variant = ProductVariant::find($variantId);
+        
+        if (!$variant) {
+            return [
+                'available' => false,
+                'message' => 'Variant not found'
+            ];
+        }
+
+        if ($variant->stock >= $requiredQuantity) {
+            return [
+                'available' => true,
+                'current_stock' => $variant->stock,
+                'required' => $requiredQuantity
+            ];
+        } else {
+            return [
+                'available' => false,
+                'message' => "Not enough stock. Available: {$variant->stock}, Required: {$requiredQuantity}",
+                'current_stock' => $variant->stock,
+                'required' => $requiredQuantity
+            ];
+        }
+    }
 }

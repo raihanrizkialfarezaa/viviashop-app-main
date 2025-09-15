@@ -99,7 +99,32 @@ class PrintServiceController extends Controller
                 return response()->json(['error' => 'Invalid payment method for manual confirmation'], 400);
             }
 
-            $confirmedOrder = $this->printService->confirmPayment($printOrder);
+            if ($printOrder->payment_status === PrintOrder::PAYMENT_PAID) {
+                return response()->json(['error' => 'Payment already confirmed'], 400);
+            }
+
+            $printOrder->update([
+                'payment_status' => PrintOrder::PAYMENT_PAID,
+                'status' => PrintOrder::STATUS_PAYMENT_CONFIRMED,
+                'paid_at' => now()
+            ]);
+
+            $requiredStock = $printOrder->total_pages * $printOrder->quantity;
+            
+            try {
+                app(StockService::class)->recordMovement(
+                    $printOrder->paper_product_id,
+                    $printOrder->paper_variant_id,
+                    $requiredStock,
+                    'out',
+                    'Smart Print Service',
+                    "Print Order #{$printOrder->order_code} - Payment Confirmed"
+                );
+                
+                Log::info("Stock reduced for print order {$printOrder->order_code}: {$requiredStock} units");
+            } catch (\Exception $stockException) {
+                Log::error("Stock reduction failed for print order {$printOrder->order_code}: " . $stockException->getMessage());
+            }
 
             return response()->json([
                 'success' => true,

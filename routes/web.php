@@ -971,6 +971,12 @@ Route::prefix('print-service')->group(function () {
     Route::post('/complete/{orderCode}', [\App\Http\Controllers\PrintServiceController::class, 'complete'])->name('print-service.complete');
     Route::post('/generate-session', [\App\Http\Controllers\PrintServiceController::class, 'generateSession'])->name('print-service.generate-session');
     Route::post('/midtrans-callback', [\App\Http\Controllers\PrintServiceController::class, 'midtransCallback'])->name('print-service.midtrans-callback');
+    
+    // Payment callback routes
+    Route::get('/payment/finish', [\App\Http\Controllers\PrintServiceController::class, 'paymentFinish'])->name('print-service.payment.finish');
+    Route::get('/payment/unfinish', [\App\Http\Controllers\PrintServiceController::class, 'paymentUnfinish'])->name('print-service.payment.unfinish');
+    Route::get('/payment/error', [\App\Http\Controllers\PrintServiceController::class, 'paymentError'])->name('print-service.payment.error');
+    
     // Route::get('/test-view-file/{fileId}', [\App\Http\Controllers\Admin\PrintServiceController::class, 'viewFile'])->name('print-service.test-view-file');
     Route::get('/{token}', [\App\Http\Controllers\PrintServiceController::class, 'index'])->name('print-service.customer');
 });

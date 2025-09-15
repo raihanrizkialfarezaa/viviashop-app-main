@@ -219,6 +219,25 @@ class PrintService
 
     public function confirmPayment(PrintOrder $printOrder)
     {
+        // Check if stock has already been reduced for this order
+        $existingMovement = \App\Models\StockMovement::where('reference_type', 'print_order')
+                                                    ->where('reference_id', $printOrder->id)
+                                                    ->where('variant_id', $printOrder->paper_variant_id)
+                                                    ->where('movement_type', 'out')
+                                                    ->first();
+        
+        if ($existingMovement) {
+            Log::info("Stock already reduced for order {$printOrder->order_code}, skipping stock reduction");
+            
+            // Just update status without reducing stock again
+            $printOrder->update([
+                'payment_status' => PrintOrder::PAYMENT_PAID,
+                'status' => PrintOrder::STATUS_READY_TO_PRINT
+            ]);
+            
+            return $printOrder;
+        }
+
         $printOrder->update([
             'payment_status' => PrintOrder::PAYMENT_PAID,
             'status' => PrintOrder::STATUS_READY_TO_PRINT
@@ -520,6 +539,18 @@ class PrintService
         \Midtrans\Config::$isSanitized = config('midtrans.isSanitized');
         \Midtrans\Config::$is3ds = config('midtrans.is3ds');
 
+        $isLocalhost = in_array(request()->getHost(), ['localhost', '127.0.0.1', '::1']) || 
+                       str_contains(request()->getHost(), '.local') ||
+                       str_contains(request()->getHost(), 'laragon');
+        
+        if ($isLocalhost) {
+            \Midtrans\Config::$curlOptions = [
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_HTTPHEADER => []
+            ];
+        }
+
         $params = [
             'transaction_details' => [
                 'order_id' => $printOrder->order_code,
@@ -528,7 +559,7 @@ class PrintService
             'item_details' => [
                 [
                     'id' => $printOrder->paper_variant_id,
-                    'price' => $printOrder->unit_price,
+                    'price' => (int) $printOrder->unit_price,
                     'quantity' => $printOrder->total_pages * $printOrder->quantity,
                     'name' => $printOrder->paperVariant->name . ' (' . $printOrder->total_pages . ' halaman)',
                 ]
@@ -537,17 +568,45 @@ class PrintService
                 'first_name' => $printOrder->customer_name,
                 'phone' => $printOrder->customer_phone,
             ],
+            'callbacks' => [
+                'finish' => url('/print-service/payment/finish?order_code=' . $printOrder->order_code),
+                'unfinish' => url('/print-service/payment/unfinish?order_code=' . $printOrder->order_code),
+                'error' => url('/print-service/payment/error?order_code=' . $printOrder->order_code),
+            ],
         ];
 
         try {
+            Log::info('Generating Midtrans token', [
+                'order_code' => $printOrder->order_code,
+                'amount' => $printOrder->total_price,
+                'params' => $params
+            ]);
+
             $snapToken = \Midtrans\Snap::getSnapToken($params);
+            
+            Log::info('Midtrans token generated successfully', [
+                'order_code' => $printOrder->order_code,
+                'token' => $snapToken
+            ]);
+
+            $isProduction = config('midtrans.isProduction');
+            $baseUrl = $isProduction ? 'https://app.midtrans.com' : 'https://app.sandbox.midtrans.com';
+
             return [
                 'token' => $snapToken,
-                'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/' . $snapToken
+                'redirect_url' => $baseUrl . '/snap/v2/vtweb/' . $snapToken
             ];
         } catch (\Exception $e) {
-            Log::error('Midtrans token generation failed: ' . $e->getMessage());
-            throw new \Exception('Payment gateway error');
+            Log::error('Midtrans token generation failed: ' . $e->getMessage(), [
+                'order_code' => $printOrder->order_code,
+                'config' => [
+                    'serverKey' => config('midtrans.serverKey') ? 'Set' : 'Not set',
+                    'isProduction' => config('midtrans.isProduction'),
+                    'isSanitized' => config('midtrans.isSanitized'),
+                    'is3ds' => config('midtrans.is3ds')
+                ]
+            ]);
+            throw new \Exception('Payment gateway error: ' . $e->getMessage());
         }
     }
 

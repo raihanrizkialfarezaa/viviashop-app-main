@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PrintSession;
 use App\Models\PrintOrder;
 use App\Services\PrintService;
+use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -337,6 +338,112 @@ class PrintServiceController extends Controller
         } catch (\Exception $e) {
             Log::error('Midtrans callback error: ' . $e->getMessage());
             return response()->json(['error' => 'Callback processing failed'], 500);
+        }
+    }
+
+    /**
+     * Handle payment finish callback
+     */
+    public function paymentFinish(Request $request)
+    {
+        try {
+            $orderId = $request->get('order_id');
+            $statusCode = $request->get('status_code');
+            $transactionStatus = $request->get('transaction_status');
+
+            Log::info('Payment finish callback', [
+                'order_id' => $orderId,
+                'status_code' => $statusCode,
+                'transaction_status' => $transactionStatus,
+                'all_params' => $request->all()
+            ]);
+
+            if ($orderId) {
+                $printOrder = PrintOrder::where('order_code', $orderId)->first();
+                
+                if ($printOrder) {
+                    // Update payment status jika berhasil settlement
+                    if ($transactionStatus === 'settlement' && $statusCode == '200') {
+                        // Confirm payment (this will handle stock reduction)
+                        $this->printService->confirmPayment($printOrder);
+                        
+                        Log::info('Payment confirmed via finish callback', [
+                            'order_code' => $printOrder->order_code,
+                            'payment_status' => $printOrder->payment_status,
+                            'status' => $printOrder->status
+                        ]);
+                        
+                        return redirect()->route('print-service.customer', $printOrder->session->token)
+                            ->with('success', 'Pembayaran berhasil! Pesanan Anda sedang diproses.');
+                    } else {
+                        return redirect()->route('print-service.customer', $printOrder->session->token)
+                            ->with('info', 'Status pembayaran: ' . $transactionStatus);
+                    }
+                }
+            }
+
+            return redirect('/')->with('error', 'Order tidak ditemukan');
+        } catch (\Exception $e) {
+            Log::error('Payment finish callback error: ' . $e->getMessage());
+            return redirect('/')->with('error', 'Terjadi kesalahan saat memproses callback');
+        }
+    }
+
+    /**
+     * Handle payment unfinish callback
+     */
+    public function paymentUnfinish(Request $request)
+    {
+        try {
+            $orderId = $request->get('order_id');
+            
+            Log::info('Payment unfinish callback', [
+                'order_id' => $orderId,
+                'all_params' => $request->all()
+            ]);
+
+            if ($orderId) {
+                $printOrder = PrintOrder::where('order_code', $orderId)->first();
+                
+                if ($printOrder) {
+                    return redirect()->route('print-service.customer', $printOrder->session->token)
+                        ->with('warning', 'Pembayaran belum selesai. Silakan lanjutkan pembayaran Anda.');
+                }
+            }
+
+            return redirect('/')->with('error', 'Order tidak ditemukan');
+        } catch (\Exception $e) {
+            Log::error('Payment unfinish callback error: ' . $e->getMessage());
+            return redirect('/')->with('error', 'Terjadi kesalahan saat memproses callback');
+        }
+    }
+
+    /**
+     * Handle payment error callback
+     */
+    public function paymentError(Request $request)
+    {
+        try {
+            $orderId = $request->get('order_id');
+            
+            Log::info('Payment error callback', [
+                'order_id' => $orderId,
+                'all_params' => $request->all()
+            ]);
+
+            if ($orderId) {
+                $printOrder = PrintOrder::where('order_code', $orderId)->first();
+                
+                if ($printOrder) {
+                    return redirect()->route('print-service.customer', $printOrder->session->token)
+                        ->with('error', 'Terjadi kesalahan pada pembayaran. Silakan coba lagi.');
+                }
+            }
+
+            return redirect('/')->with('error', 'Order tidak ditemukan');
+        } catch (\Exception $e) {
+            Log::error('Payment error callback error: ' . $e->getMessage());
+            return redirect('/')->with('error', 'Terjadi kesalahan saat memproses callback');
         }
     }
 }
