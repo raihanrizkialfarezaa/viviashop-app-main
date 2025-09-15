@@ -1,5 +1,145 @@
 @extends('frontend.layouts')
 @section('content')
+    <style>
+        /* Checkout page scoped styles - pro e-commerce (green theme) */
+        .checkout-card {
+            background: #fff;
+            border: 1px solid #eef7ef;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(14,81,54,0.06);
+            padding: 26px;
+        }
+
+        .page-header {
+            background: linear-gradient(90deg,#16a34a,#059669);
+            color: #fff;
+            border-radius: 10px;
+            margin-bottom: 22px;
+            padding: 28px 18px;
+        }
+
+        .page-header h1 { font-weight: 800; letter-spacing: 0.4px; margin-bottom:6px; font-size: 34px }
+
+        /* center breadcrumb and make it compact */
+        .breadcrumb {
+            justify-content: center !important;
+            background: transparent;
+            padding: 0;
+            margin-top: 6px;
+            color: rgba(255,255,255,0.92);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-item label {
+            font-weight: 700;
+            color: #0b3b2b;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .form-control {
+            border-radius: 8px;
+            border: 1px solid #e6f2ea;
+            padding: 14px 16px;
+            background: #ffffff;
+            transition: box-shadow .12s, border-color .12s, transform .06s;
+            font-size: 15px;
+            line-height: 1.3;
+        }
+
+        .form-control:focus {
+            box-shadow: 0 8px 24px rgba(16,185,129,0.12);
+            border-color: #10b981;
+            transform: translateY(-1px);
+        }
+
+        .table thead th {
+            background: transparent;
+            border-bottom: 2px solid rgba(16,185,129,0.06);
+            color: #0b3b2b;
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        .table tbody tr th img {
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid #f0fbf3;
+            width: 120px; height: 120px;
+        }
+
+    .summary-panel { background:#fbfffb; border-radius:10px; padding:18px; border:1px solid #eef7ef }
+
+        .total-amount {
+            font-size: 26px;
+            font-weight: 900;
+            color: #0f5134;
+        }
+
+        .total-amount small { color: #2f7f5a; }
+
+        .payment-option + .form-check-label {
+            font-weight: 700;
+            color: #0e5136;
+        }
+
+        #place-order-btn {
+            background: linear-gradient(90deg,#16a34a,#059669);
+            color: #fff !important;
+            border: 0;
+            border-radius: 10px;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            padding: 16px 20px;
+            box-shadow: 0 14px 36px rgba(5,150,105,0.14);
+            font-size: 16px;
+        }
+
+        #place-order-btn:disabled {
+            opacity: 0.6;
+        }
+
+        .summary-note {
+            background: #f8fffb;
+            border-left: 4px solid #d7f6df;
+            padding: 12px 14px;
+            border-radius: 8px;
+            color: #0e5136;
+            font-size: 13px;
+        }
+
+        .info-badge {
+            display:inline-block;
+            background:#ecfdf5;
+            color:#065f46;
+            border-radius:999px;
+            padding:6px 12px;
+            font-weight:700;
+            font-size:13px;
+            margin-left:6px;
+            border:1px solid #d1fae5;
+        }
+
+        /* subtle divider */
+        .section-divider { height:1px; background: linear-gradient(90deg, rgba(0,0,0,0), rgba(14,81,54,0.06), rgba(0,0,0,0)); margin:18px 0; }
+
+        /* Responsive tweaks */
+        @media (max-width: 991px) {
+            .table thead { display: none; }
+            .table tbody td, .table tbody th { display: block; width: 100%; }
+            .table tbody tr { margin-bottom: 14px; border-bottom: 1px dashed #eef7ef; padding-bottom: 8px; }
+            .page-header { padding: 18px 12px; }
+            .table tbody tr th img { width: 86px; height: 86px }
+            .page-header h1 { font-size: 22px }
+            .form-control { font-size: 15px; padding: 12px }
+            #place-order-btn { font-size: 15px; padding: 12px }
+        }
+    </style>
+
     <div class="container-fluid page-header py-5">
         <h1 class="text-center text-white display-6">Checkout</h1>
         <ol class="breadcrumb justify-center mb-0">
@@ -203,11 +343,7 @@
                                                 <p class="mb-0 text-dark total-amount">{{ number_format((int)Cart::subtotal(0,'','')) }}</p>
                                             </div>
                                             <p>harap tunggu nominal berubah sesuai dengan total sebelum checkout</p>
-                                            <!-- Debug buttons for testing -->
-                                            <div style="margin-top: 10px;">
-                                                <button type="button" id="test-update-total" class="btn btn-sm btn-info">🔄 Test Update Total</button>
-                                                <button type="button" id="show-debug" class="btn btn-sm btn-warning">🐛 Show Debug</button>
-                                            </div>
+                                            <!-- debug buttons removed for production UI -->
                                         </td>
                                     </tr>
                                 </tbody>
