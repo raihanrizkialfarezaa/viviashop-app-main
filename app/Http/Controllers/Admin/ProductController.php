@@ -412,6 +412,7 @@ class ProductController extends Controller
         $barcode = $request->input('barcode');
 
         $product = Product::where('barcode', $barcode)
+                        ->select('id', 'sku', 'name', 'price', 'type', 'total_stock')
                         ->first();
 
         if ($product) {
@@ -422,6 +423,8 @@ class ProductController extends Controller
                     'name' => $product->name,
                     'sku' => $product->sku,
                     'price' => $product->price,
+                    'type' => $product->type,
+                    'total_stock' => $product->total_stock,
                 ]
             ]);
         }
