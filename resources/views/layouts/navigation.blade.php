@@ -171,6 +171,14 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a href="{{ route('admin.smart-print-variant.index') }}" class="nav-link">
+                    <i class="nav-icon fas fa-magic"></i>
+                    <p>
+                        Smart Print Variant Manager
+                    </p>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="{{ route('admin.stock.index') }}" class="nav-link">
                     <i class="nav-icon fas fa-chart-area"></i>
                     <p>

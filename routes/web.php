@@ -856,6 +856,14 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
         ->name('smart-print-converter.convert');
     Route::post('/smart-print-converter/bulk-convert', [SmartPrintConverterController::class, 'bulkConvert'])
         ->name('smart-print-converter.bulk-convert');
+        
+    // Smart Print Variant Manager Routes
+    Route::get('/smart-print-variant', [\App\Http\Controllers\Admin\SmartPrintVariantController::class, 'index'])
+        ->name('smart-print-variant.index');
+    Route::post('/smart-print-variant/auto-fix', [\App\Http\Controllers\Admin\SmartPrintVariantController::class, 'autoFix'])
+        ->name('smart-print-variant.auto-fix');
+    Route::post('/smart-print-variant/create-variants/{id}', [\App\Http\Controllers\Admin\SmartPrintVariantController::class, 'createVariants'])
+        ->name('smart-print-variant.create-variants');
     Route::post('/instagram/post', [InstagramController::class, 'postToInstagram'])->name('instagram.store');
     Route::get('/instagram/postProduct/{id}', [InstagramController::class, 'postToInstagramFromProducts'])
         ->name('instagram.postProduct');
