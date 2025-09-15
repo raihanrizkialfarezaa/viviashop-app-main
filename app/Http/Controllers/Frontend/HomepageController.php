@@ -358,28 +358,54 @@ class HomepageController extends Controller
         view()->share('countCart', $cart);
         $categories = Category::all();
 
+        // Handle search with fuzzy matching
         if ($request->has('search')) {
             $searchTerm = $request->get('search', '');
             $filteredProducts = collect();
             
             foreach ($products as $row) {
-                if ($row->products && stripos($row->products->name, $searchTerm) !== false) {
-                    if ($row->products->parent_id) {
-                        $parentProduct = Product::find($row->products->parent_id);
-                        if ($parentProduct) {
-                            $existingProduct = $filteredProducts->first(function($item) use ($parentProduct) {
-                                return $item->products && $item->products->id === $parentProduct->id;
-                            });
-                            
-                            if (!$existingProduct) {
-                                $parentProductCategory = ProductCategory::where('product_id', $parentProduct->id)->first();
-                                if ($parentProductCategory) {
-                                    $filteredProducts->push($parentProductCategory);
+                if ($row->products) {
+                    // Exact match first
+                    if (stripos($row->products->name, $searchTerm) !== false) {
+                        if ($row->products->parent_id) {
+                            $parentProduct = Product::find($row->products->parent_id);
+                            if ($parentProduct) {
+                                $existingProduct = $filteredProducts->first(function($item) use ($parentProduct) {
+                                    return $item->products && $item->products->id === $parentProduct->id;
+                                });
+                                
+                                if (!$existingProduct) {
+                                    $parentProductCategory = ProductCategory::where('product_id', $parentProduct->id)->first();
+                                    if ($parentProductCategory) {
+                                        $filteredProducts->push($parentProductCategory);
+                                    }
                                 }
                             }
+                        } else {
+                            $filteredProducts->push($row);
                         }
                     } else {
-                        $filteredProducts->push($row);
+                        // Fuzzy matching for typos
+                        $similarity = $this->calculateSimilarity($searchTerm, $row->products->name);
+                        if ($similarity >= 50) { // 50% similarity threshold
+                            if ($row->products->parent_id) {
+                                $parentProduct = Product::find($row->products->parent_id);
+                                if ($parentProduct) {
+                                    $existingProduct = $filteredProducts->first(function($item) use ($parentProduct) {
+                                        return $item->products && $item->products->id === $parentProduct->id;
+                                    });
+                                    
+                                    if (!$existingProduct) {
+                                        $parentProductCategory = ProductCategory::where('product_id', $parentProduct->id)->first();
+                                        if ($parentProductCategory) {
+                                            $filteredProducts->push($parentProductCategory);
+                                        }
+                                    }
+                                }
+                            } else {
+                                $filteredProducts->push($row);
+                            }
+                        }
                     }
                 }
             }
@@ -389,10 +415,205 @@ class HomepageController extends Controller
             $producted = $producteds;
         }
 
+        // Handle sorting
+        if ($request->has('sort')) {
+            $sortBy = $request->get('sort');
+            
+            switch ($sortBy) {
+                case 'name_asc':
+                    $producted = $producted->sortBy(function($item) {
+                        return $item->products->name ?? '';
+                    });
+                    break;
+                case 'name_desc':
+                    $producted = $producted->sortByDesc(function($item) {
+                        return $item->products->name ?? '';
+                    });
+                    break;
+                case 'price_asc':
+                    $producted = $producted->sortBy(function($item) {
+                        return $item->products->price ?? 0;
+                    });
+                    break;
+                case 'price_desc':
+                    $producted = $producted->sortByDesc(function($item) {
+                        return $item->products->price ?? 0;
+                    });
+                    break;
+                case 'newest':
+                    $producted = $producted->sortByDesc(function($item) {
+                        return $item->products->created_at ?? '';
+                    });
+                    break;
+            }
+        }
+
         return view('frontend.shop.index', [
             'products' => $producted,
             'categories' => $categories,
         ]);
+    }
+
+    /**
+     * Calculate similarity percentage between two strings
+     * Supports fuzzy matching for typos
+     */
+    private function calculateSimilarity($search, $target)
+    {
+        if (empty($search) || empty($target)) {
+            return 0;
+        }
+        
+        $search = strtolower(trim($search));
+        $target = strtolower(trim($target));
+        
+        // If search term is contained in target, return high similarity
+        if (strpos($target, $search) !== false) {
+            return 90;
+        }
+        
+        // If target is contained in search, also return high similarity
+        if (strpos($search, $target) !== false) {
+            return 85;
+        }
+        
+        try {
+            // Calculate similarity using multiple methods
+            $levSimilarity = $this->levenshteinSimilarity($search, $target);
+            $jaSimilarity = $this->jaroWinklerSimilarity($search, $target);
+            $substrSimilarity = $this->substringMatchingSimilarity($search, $target);
+            
+            // Return the highest similarity score
+            return max($levSimilarity, $jaSimilarity, $substrSimilarity);
+        } catch (Exception $e) {
+            // Fallback to simple string comparison if algorithms fail
+            return $this->simpleSimilarity($search, $target);
+        }
+    }
+    
+    /**
+     * Simple similarity fallback method
+     */
+    private function simpleSimilarity($search, $target)
+    {
+        $searchLen = strlen($search);
+        $targetLen = strlen($target);
+        
+        if ($searchLen == 0 || $targetLen == 0) return 0;
+        
+        $common = 0;
+        $searchChars = str_split($search);
+        $targetChars = str_split($target);
+        
+        foreach ($searchChars as $char) {
+            if (in_array($char, $targetChars)) {
+                $common++;
+            }
+        }
+        
+        return ($common / $searchLen) * 100;
+    }
+    
+    /**
+     * Levenshtein distance similarity
+     */
+    private function levenshteinSimilarity($s1, $s2)
+    {
+        $maxLen = max(strlen($s1), strlen($s2));
+        if ($maxLen == 0) return 100;
+        
+        $distance = levenshtein($s1, $s2);
+        return (1 - $distance / $maxLen) * 100;
+    }
+    
+    /**
+     * Jaro-Winkler similarity
+     */
+    private function jaroWinklerSimilarity($s1, $s2)
+    {
+        $len1 = strlen($s1);
+        $len2 = strlen($s2);
+        
+        if ($len1 == 0 && $len2 == 0) return 100;
+        if ($len1 == 0 || $len2 == 0) return 0;
+        
+        $matchWindow = intval(max($len1, $len2) / 2) - 1;
+        if ($matchWindow < 0) $matchWindow = 0;
+        
+        $s1Matches = array_fill(0, $len1, false);
+        $s2Matches = array_fill(0, $len2, false);
+        
+        $matches = 0;
+        $transpositions = 0;
+        
+        // Convert strings to arrays for safer access
+        $s1Array = str_split($s1);
+        $s2Array = str_split($s2);
+        
+        // Find matches
+        for ($i = 0; $i < $len1; $i++) {
+            $start = max(0, $i - $matchWindow);
+            $end = min($i + $matchWindow + 1, $len2);
+            
+            for ($j = $start; $j < $end; $j++) {
+                if ($s2Matches[$j] || $s1Array[$i] != $s2Array[$j]) continue;
+                
+                $s1Matches[$i] = true;
+                $s2Matches[$j] = true;
+                $matches++;
+                break;
+            }
+        }
+        
+        if ($matches == 0) return 0;
+        
+        // Find transpositions
+        $k = 0;
+        for ($i = 0; $i < $len1; $i++) {
+            if (!$s1Matches[$i]) continue;
+            
+            while (!$s2Matches[$k]) $k++;
+            
+            if ($s1Array[$i] != $s2Array[$k]) $transpositions++;
+            $k++;
+        }
+        
+        $jaro = ($matches / $len1 + $matches / $len2 + ($matches - $transpositions / 2) / $matches) / 3;
+        
+        // Jaro-Winkler prefix scaling
+        $prefix = 0;
+        $minLen = min($len1, $len2);
+        for ($i = 0; $i < $minLen && $i < 4; $i++) {
+            if ($s1Array[$i] == $s2Array[$i]) {
+                $prefix++;
+            } else {
+                break;
+            }
+        }
+        
+        return ($jaro + 0.1 * $prefix * (1 - $jaro)) * 100;
+    }
+    
+    /**
+     * Substring matching similarity
+     */
+    private function substringMatchingSimilarity($search, $target)
+    {
+        $searchLen = strlen($search);
+        $targetLen = strlen($target);
+        
+        if ($searchLen == 0 || $targetLen == 0) return 0;
+        
+        $commonSubstrings = 0;
+        $searchWords = explode(' ', $search);
+        
+        foreach ($searchWords as $word) {
+            if (strlen($word) >= 2 && strpos($target, $word) !== false) {
+                $commonSubstrings += strlen($word);
+            }
+        }
+        
+        return ($commonSubstrings / $searchLen) * 100;
     }
 
     public function shopCetak(Request $request)
@@ -413,12 +634,73 @@ class HomepageController extends Controller
         $cat = Category::where('slug', 'like', '%' . $slug . '%')->get()->pluck('id');
         $cats = array($cat);
         $products = ProductCategory::with(['products', 'categories'])->whereIn('category_id', $cats[0])->get();
-        $producteds = ProductCategory::with(['products', 'categories'])->whereIn('category_id', $cats[0])->get();
         $cart = Cart::content()->count();
         $setting = Setting::first();
         view()->share('setting', $setting);
         view()->share('countCart', $cart);
         $categories = Category::all();
-        return view('frontend.shop.index', compact('products', 'categories', 'producteds'));
+        
+        $producted = $products;
+        
+        // Handle search with fuzzy matching
+        if ($request->has('search')) {
+            $searchTerm = $request->get('search', '');
+            $filteredProducts = collect();
+            
+            foreach ($products as $row) {
+                if ($row->products) {
+                    // Exact match first
+                    if (stripos($row->products->name, $searchTerm) !== false) {
+                        $filteredProducts->push($row);
+                    } else {
+                        // Fuzzy matching for typos
+                        $similarity = $this->calculateSimilarity($searchTerm, $row->products->name);
+                        if ($similarity >= 50) { // 50% similarity threshold
+                            $filteredProducts->push($row);
+                        }
+                    }
+                }
+            }
+            
+            $producted = $filteredProducts;
+        }
+
+        // Handle sorting
+        if ($request->has('sort')) {
+            $sortBy = $request->get('sort');
+            
+            switch ($sortBy) {
+                case 'name_asc':
+                    $producted = $producted->sortBy(function($item) {
+                        return $item->products->name ?? '';
+                    });
+                    break;
+                case 'name_desc':
+                    $producted = $producted->sortByDesc(function($item) {
+                        return $item->products->name ?? '';
+                    });
+                    break;
+                case 'price_asc':
+                    $producted = $producted->sortBy(function($item) {
+                        return $item->products->price ?? 0;
+                    });
+                    break;
+                case 'price_desc':
+                    $producted = $producted->sortByDesc(function($item) {
+                        return $item->products->price ?? 0;
+                    });
+                    break;
+                case 'newest':
+                    $producted = $producted->sortByDesc(function($item) {
+                        return $item->products->created_at ?? '';
+                    });
+                    break;
+            }
+        }
+        
+        return view('frontend.shop.index', [
+            'products' => $producted,
+            'categories' => $categories,
+        ]);
     }
 }
