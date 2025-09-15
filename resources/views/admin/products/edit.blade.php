@@ -187,6 +187,19 @@
                                             </div>
                                         </div>
                                     </div>
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <div class="form-check">
+                                                    <input type="checkbox" class="form-check-input" name="is_smart_print_enabled" value="1" id="is_smart_print_enabled" {{ old('is_smart_print_enabled', $product->is_smart_print_enabled) ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="is_smart_print_enabled">
+                                                        Aktifkan Smart Print untuk produk ini
+                                                    </label>
+                                                </div>
+                                                <small class="form-text text-muted">Produk dengan smart print dapat digunakan untuk fitur cetak otomatis</small>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         @elseif ($product->type == 'simple')

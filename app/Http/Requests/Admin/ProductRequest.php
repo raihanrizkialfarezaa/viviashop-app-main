@@ -44,6 +44,7 @@ class ProductRequest extends FormRequest
                     'short_description' => 'nullable|string',
                     'description' => 'nullable|string',
                     'is_featured' => 'nullable|boolean',
+                    'is_smart_print_enabled' => 'nullable|boolean',
                     'category_id' => 'nullable|array',
                     'category_id.*' => 'exists:categories,id',
                     'variants' => 'nullable|array',
@@ -80,6 +81,7 @@ class ProductRequest extends FormRequest
                         'description' => 'nullable',
                         'barcode' => 'nullable',
                         'is_featured' => 'nullable|boolean',
+                        'is_smart_print_enabled' => 'nullable|boolean',
                         'category_id' => 'nullable|array',
                         'category_id.*' => 'exists:categories,id',
                     ];
@@ -104,6 +106,7 @@ class ProductRequest extends FormRequest
                         'description' => 'nullable',
                         'barcode' => 'nullable',
                         'is_featured' => 'nullable|boolean',
+                        'is_smart_print_enabled' => 'nullable|boolean',
                         'category_id' => 'nullable|array',
                         'category_id.*' => 'exists:categories,id',
                         'variants' => 'nullable|array',

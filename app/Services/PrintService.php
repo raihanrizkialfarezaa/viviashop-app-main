@@ -39,6 +39,7 @@ class PrintService
     public function getPrintProducts()
     {
         return Product::where('is_print_service', true)
+                     ->where('is_smart_print_enabled', true)
                      ->where('status', Product::ACTIVE)
                      ->with(['activeVariants' => function($query) {
                          $query->orderBy('paper_size', 'asc')

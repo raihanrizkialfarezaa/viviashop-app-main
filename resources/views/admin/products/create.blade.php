@@ -56,6 +56,18 @@
                           <input type="number" step="0.01" class="form-control" name="weight" value="{{ old('weight') }}" id="weight" placeholder="Contoh: 1.5 (untuk 1.5 kg)">
                         </div>
                     </div>
+                    <div class="form-group row border-bottom pb-4">
+                        <label class="col-sm-2 col-form-label">Smart Print</label>
+                        <div class="col-sm-10">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" name="is_smart_print_enabled" value="1" id="is_smart_print_enabled" {{ old('is_smart_print_enabled') ? 'checked' : '' }}>
+                                <label class="form-check-label" for="is_smart_print_enabled">
+                                    Aktifkan Smart Print untuk produk ini
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">Produk dengan smart print dapat digunakan untuk fitur cetak otomatis</small>
+                        </div>
+                    </div>
                     <div class="configurable-attributes">
                       @if(count($configurable_attributes) > 0)
                         <p class="text-primary mt-4">Konfigurasi Attribute Produk</p>
