@@ -8,8 +8,8 @@
 		--muted: #6c757d;
 		--surface: #ffffff;
 		--bg-soft: #fbfff9;
-		--radius: 10px;
-		--shadow-sm: 0 6px 18px rgba(16,24,32,0.06);
+		--radius: 12px;
+		--shadow-sm: 0 8px 24px rgba(16,24,32,0.06);
 	}
 
 	/* Preserve print helpers (no functional change) */
@@ -22,17 +22,17 @@
 	}
 
 	/* Breadcrumb / Hero */
-	.breadcrumb-area { margin-top: 3.6rem; padding: 1.6rem 0; background: linear-gradient(180deg, rgba(40,167,69,0.04), rgba(255,255,255,0)); border-bottom:1px solid rgba(40,167,69,0.06); }
-	.breadcrumb-content h2 { color:var(--brand-dark); font-weight:800; font-size:26px; margin-bottom:6px; }
+	.breadcrumb-area { margin-top: 3.2rem; padding: 2.2rem 0; background: linear-gradient(180deg, rgba(40,167,69,0.06), rgba(255,255,255,0)); border-bottom:1px solid rgba(40,167,69,0.08); }
+	.breadcrumb-content h2 { color:var(--brand-dark); font-weight:900; font-size:30px; margin-bottom:6px; letter-spacing:0.2px; }
 	.breadcrumb-content p { color:var(--muted); font-size:14px; margin:0; }
 
 	/* Page heading */
-	.cart-heading { font-size:18px; font-weight:700; margin-bottom:.6rem; color:#1f2933; }
+	.cart-heading { font-size:18px; font-weight:800; margin-bottom:.6rem; color:#0f1720; }
 
 	/* Cards & product rows */
-	.card { border-radius:var(--radius); box-shadow:var(--shadow-sm); border: 1px solid rgba(0,0,0,0.04); }
-	.card-header { background:transparent; border-bottom:0; font-weight:700; color:var(--brand-dark); }
-	.card-body { padding:1rem; }
+	.card { border-radius:var(--radius); box-shadow:var(--shadow-sm); border: 1px solid rgba(11,83,63,0.06); background: linear-gradient(180deg, #ffffff, #fbfff9 60%); }
+	.card-header { background:transparent; border-bottom:0; font-weight:800; color:var(--brand-dark); padding:1rem 1rem; font-size:15px; }
+	.card-body { padding:1.15rem; }
 
 	.card.mb-3 { margin-bottom:1rem; }
 
@@ -40,18 +40,21 @@
 	.card .muted { color:var(--muted); }
 	.card .text-right { text-align:right; }
 	.card .text-right .muted { font-size:13px; }
-	.card .product-qty { font-weight:700; color:var(--brand-dark); }
+	.card .product-qty { font-weight:800; color:var(--brand-dark); }
+
+	/* Make product rows feel lighter */
+	.card .d-flex.align-items-center { gap: .75rem; }
 
 	/* Summary card specifics */
-	.summary-card .card-body { display:flex; flex-direction:column; gap:.75rem; }
-	.summary-card .list-unstyled li { padding:.45rem 0; border-bottom:1px dashed rgba(0,0,0,0.04); }
+	.summary-card .card-body { display:flex; flex-direction:column; gap:.6rem; }
+	.summary-card .list-unstyled li { padding:.55rem 0; border-bottom:1px dashed rgba(11,83,63,0.05); }
 	.summary-card .list-unstyled li:last-child { border-bottom:0; }
 
-	.summary-card hr { margin: .5rem 0; border-color: rgba(0,0,0,0.06); }
+	.summary-card hr { margin: .6rem 0; border-color: rgba(11,83,63,0.06); }
 
 	/* Buttons styling (purely presentational) */
-	.btn { border-radius:8px; font-weight:700; }
-	.btn-success { background:var(--brand-green); border-color:var(--brand-dark); color:#fff; }
+	.btn { border-radius:10px; font-weight:800; letter-spacing:0.2px; }
+	.btn-success { background:var(--brand-green); border-color:var(--brand-dark); color:#fff; box-shadow: 0 6px 18px rgba(40,167,69,0.12); }
 	.btn-success:hover, .btn-success:focus { background: #23913a; border-color: #1b6f2e; }
 	.btn-primary { background:#0b5e46; border-color:#094a39; color:#fff; }
 	.btn-secondary { background:#f3f4f6; color:#222; border-color:transparent; }
@@ -59,13 +62,23 @@
 	.btn-block { display:block; width:100%; }
 
 	/* Badges */
-	.badge-success { background: linear-gradient(90deg, rgba(40,167,69,0.12), rgba(40,167,69,0.02)); color:var(--brand-dark); font-weight:700; padding:.35rem .6rem; border-radius:999px; }
+	.badge-success { background: linear-gradient(90deg, rgba(40,167,69,0.14), rgba(40,167,69,0.02)); color:var(--brand-dark); font-weight:800; padding:.45rem .65rem; border-radius:999px; }
+
+	/* Attachment preview for manual payments (UI only) */
+	.attachment-card { display:flex; gap:.75rem; align-items:center; padding:.8rem; border-radius:8px; background: rgba(12,89,63,0.03); border:1px solid rgba(11,83,63,0.04); }
+	.attachment-thumb { width:84px; height:64px; background:#fff; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 12px rgba(11,83,63,0.04); }
+	.attachment-thumb img { max-width:100%; max-height:100%; display:block; }
+	.attachment-meta { flex:1; }
+	.attachment-meta .title { font-weight:800; color:var(--brand-dark); margin-bottom:4px; }
+	.attachment-meta .hint { color:var(--muted); font-size:13px; }
+	.attachment-actions a { text-decoration:none; }
 
 	/* Responsive tweaks */
 	@media (max-width: 991px) {
 		.breadcrumb-area { margin-top: 2.2rem; padding:1rem 0; }
 		.card-body { padding:.9rem; }
 		.summary-card { position:relative; top:auto; }
+		.attachment-card { flex-direction:row; }
 	}
 
 	/* Small utilities kept for compatibility */
@@ -156,6 +169,28 @@
 									<p class="muted">{{ $order->tracking_number ?? '—' }}</p>
 									<p class="mb-1"><strong>Payment Method</strong></p>
 									<p class="muted">{{ ucfirst($order->payment_method) }} @if($order->isPaid()) · <span style="color:var(--brand-dark);font-weight:700;">PAID</span>@endif</p>
+
+									{{-- Attachment preview (UI only) --}}
+									@if(!empty($order->payment_attachment))
+										<div class="mt-3 attachment-card">
+											<div class="attachment-thumb">
+												{{-- Show image thumbnail if image, else show file icon --}}
+												@if( preg_match('/\.(jpg|jpeg|png|gif)$/i', $order->payment_attachment) )
+													<img src="{{ asset('storage/' . $order->payment_attachment) }}" alt="Bukti Pembayaran">
+												@else
+													<img src="{{ asset('images/file-icon.png') }}" alt="file">
+												@endif
+											</div>
+											<div class="attachment-meta">
+												<div class="title">Bukti Pembayaran</div>
+												<div class="hint">Diterima pada {{ date('d M Y H:i', strtotime($order->updated_at ?? $order->order_date)) }}</div>
+											</div>
+											<div class="attachment-actions">
+												<a class="btn btn-success btn-sm" href="{{ asset('storage/' . $order->payment_attachment) }}" target="_blank" rel="noopener">Lihat</a>
+												<a class="btn btn-secondary btn-sm ml-2" href="{{ asset('storage/' . $order->payment_attachment) }}" download>Unduh</a>
+											</div>
+										</div>
+									@endif
 								</div>
 							</div>
 						</div>
