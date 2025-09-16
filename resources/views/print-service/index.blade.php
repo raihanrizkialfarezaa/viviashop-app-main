@@ -532,14 +532,44 @@
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('session_token', sessionToken);
-            
+            // 🛡️ FRONTEND SAFEGUARD: Check for duplicate files
+            const newFiles = [];
+            const duplicateFiles = [];
+
             for (let file of files) {
                 if (file.size > 50 * 1024 * 1024) {
                     alert(`File ${file.name} is too large (max 50MB)`);
                     return;
                 }
+
+                // Check if file already exists in uploaded files
+                const isDuplicate = uploadedFiles.some(existingFile => 
+                    existingFile.file_name === file.name && 
+                    existingFile.file_size === file.size
+                );
+
+                if (isDuplicate) {
+                    duplicateFiles.push(file.name);
+                } else {
+                    newFiles.push(file);
+                }
+            }
+
+            // Alert user about duplicates
+            if (duplicateFiles.length > 0) {
+                const message = `The following file(s) are already uploaded:\n${duplicateFiles.join('\n')}\n\nThey will be skipped.`;
+                alert(message);
+            }
+
+            // If no new files to upload
+            if (newFiles.length === 0) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('session_token', sessionToken);
+            
+            for (let file of newFiles) {
                 formData.append('files[]', file);
             }
 
@@ -561,6 +591,12 @@
                     displayUploadedFiles();
                     document.getElementById('total-pages').value = data.total_pages;
                     document.getElementById('upload-btn').disabled = false;
+
+                    // Show message about skipped files if any
+                    if (data.skipped_files && data.skipped_files.length > 0) {
+                        const skippedNames = data.skipped_files.map(f => f.name).join(', ');
+                        alert(`Note: ${skippedNames} were skipped (already uploaded)`);
+                    }
                 } else {
                     alert('Upload failed: ' + (data.error || 'Unknown error'));
                 }

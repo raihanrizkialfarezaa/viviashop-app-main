@@ -52,9 +52,30 @@ class PrintService
     {
         $uploadedFiles = [];
         $totalPages = 0;
+        $skippedFiles = [];
 
         foreach ($files as $file) {
             if ($this->validateFile($file)) {
+                // 🛡️ SAFEGUARD: Check for duplicate file in same session
+                $existingFile = PrintFile::where('print_session_id', $session->id)
+                    ->where('file_name', $file->getClientOriginalName())
+                    ->where('file_size', $file->getSize())
+                    ->first();
+
+                if ($existingFile) {
+                    Log::warning('Duplicate file upload prevented', [
+                        'session_id' => $session->id,
+                        'file_name' => $file->getClientOriginalName(),
+                        'existing_file_id' => $existingFile->id
+                    ]);
+                    
+                    $skippedFiles[] = [
+                        'name' => $file->getClientOriginalName(),
+                        'reason' => 'File already exists in this session'
+                    ];
+                    continue;
+                }
+
                 $fileData = $this->storeFile($file, $session);
                 
                 $printFile = PrintFile::create([
@@ -66,12 +87,19 @@ class PrintService
                     'pages_count' => $fileData['pages_count'],
                 ]);
                 
+                Log::info('File uploaded successfully', [
+                    'session_id' => $session->id,
+                    'file_id' => $printFile->id,
+                    'file_name' => $printFile->file_name,
+                    'pages_count' => $printFile->pages_count
+                ]);
+                
                 $uploadedFiles[] = $printFile;
                 $totalPages += $fileData['pages_count'];
             }
         }
 
-        return [
+        $response = [
             'success' => true,
             'files' => collect($uploadedFiles)->map(function($file) {
                 return [
@@ -86,6 +114,14 @@ class PrintService
             })->toArray(),
             'total_pages' => $totalPages
         ];
+
+        // Include skipped files info if any
+        if (!empty($skippedFiles)) {
+            $response['skipped_files'] = $skippedFiles;
+            $response['message'] = count($skippedFiles) . ' duplicate file(s) were skipped.';
+        }
+
+        return $response;
     }
 
     public function deleteFile($fileId, PrintSession $session)
