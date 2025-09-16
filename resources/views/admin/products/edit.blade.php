@@ -317,7 +317,7 @@
         } = CKEDITOR;
         const div = document.querySelector('.editor');
         ClassicEditor.create(div, {
-                licenseKey: 'eyJhbGciOiJFUzI1NiJ9.eyJleHAiOjE3Nzg0NTc1OTksImp0aSI6ImUzOTNmNGFjLTU5NmUtNDZiMy05NzljLWQ4OTY3MWI1ZmZiZSIsImxpY2Vuc2VkSG9zdHMiOlsidml2aWFzaG9wLmNvbSJdLCJ1c2FnZUVuZHBvaW50IjoiaHR0cHM6Ly9wcm94eS1ldmVudC5ja2VkaXRvci5jb20iLCJkaXN0cmlidXRpb25DaGFubmVsIjpbImNsb3VkIiwiZHJ1cGFsIl0sImZlYXR1cmVzIjpbIkRSVVAiXSwidmMiOiIxNWNhNGM1NiJ9.kclrvOcI4ObdmuuKxhY74CEN8pxYmxFBP_ucNNwfLpamfmoVtuNGiXdNbO8NyEnGYmCNvfFUye2QH3KZ19seCA',
+                licenseKey: 'eyJhbGciOiJFUzI1NiJ9.eyJleHAiOjE3Nzk0OTQzOTksImp0aSI6IjkwZThjMjcwLWY4MTUtNGJiMi1iOGFjLTU1MWQ5MzU2NjcyMSIsInVzYWdlRW5kcG9pbnQiOiJodHRwczovL3Byb3h5LWV2ZW50LmNrZWRpdG9yLmNvbSIsImRpc3RyaWJ1dGlvbkNoYW5uZWwiOlsiY2xvdWQiLCJkcnVwYWwiXSwiZmVhdHVyZXMiOlsiRFJVUCIsIkUyUCIsIkUyVyJdLCJ2YyI6ImQzODM5YWE5In0.-I-GMQkIpP1-tYVtdfTV8o-xdp1rYGe6ew4yUOEX3K-hfC_ZLi8CPTcvwWiQQ-HNBnZRhQYv_UVzsbGQUZJkhA',
                 plugins: [ Autoformat,
                             BlockQuote,
                             Bold,

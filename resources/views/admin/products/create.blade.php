@@ -76,6 +76,18 @@
                             </div>
                         </div>
                     </div>
+                    <div class="form-group row border-bottom pb-4">
+                        <label for="short_description" class="col-sm-2 col-form-label">Deskripsi Singkat</label>
+                        <div class="col-sm-10">
+                          <textarea class="form-control" name="short_description" id="short_description" cols="30" rows="5" placeholder="Masukkan deskripsi singkat produk...">{{ old('short_description') }}</textarea>
+                        </div>
+                    </div>
+                    <div class="form-group row border-bottom pb-4">
+                        <label for="description" class="col-sm-2 col-form-label">Deskripsi Produk</label>
+                        <div class="col-sm-10">
+                          <textarea class="form-control editor" name="description" id="description" cols="30" rows="5" placeholder="Masukkan deskripsi detail produk...">{{ old('description') }}</textarea>
+                        </div>
+                    </div>
                     <div class="configurable-attributes">
                       @if(count($configurable_attributes) > 0)
                         <p class="text-primary mt-4">Konfigurasi Attribute Produk</p>
@@ -127,6 +139,101 @@
 @endpush
 
 @push('script-alt')
+<script
+        src="https://code.jquery.com/jquery-3.6.3.min.js"
+        integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU="
+        crossorigin="anonymous"
+    >
+    </script>
+    <script>
+        const {
+            ClassicEditor,
+            Autoformat,
+            Font,
+            Bold,
+            Italic,
+            Underline,
+            BlockQuote,
+            Base64UploadAdapter,
+            CloudServices,
+            Essentials,
+            Heading,
+            Image,
+            ImageCaption,
+            ImageResize,
+            ImageStyle,
+            ImageToolbar,
+            ImageUpload,
+            PictureEditing,
+            Indent,
+            IndentBlock,
+            Link,
+            List,
+            MediaEmbed,
+            Mention,
+            Paragraph,
+            PasteFromOffice,
+            Table,
+            TableColumnResize,
+            TableToolbar,
+            TextTransformation
+        } = CKEDITOR;
+        const div = document.querySelector('.editor');
+        ClassicEditor.create(div, {
+                licenseKey: 'eyJhbGciOiJFUzI1NiJ9.eyJleHAiOjE3Nzk0OTQzOTksImp0aSI6IjkwZThjMjcwLWY4MTUtNGJiMi1iOGFjLTU1MWQ5MzU2NjcyMSIsInVzYWdlRW5kcG9pbnQiOiJodHRwczovL3Byb3h5LWV2ZW50LmNrZWRpdG9yLmNvbSIsImRpc3RyaWJ1dGlvbkNoYW5uZWwiOlsiY2xvdWQiLCJkcnVwYWwiXSwiZmVhdHVyZXMiOlsiRFJVUCIsIkUyUCIsIkUyVyJdLCJ2YyI6ImQzODM5YWE5In0.-I-GMQkIpP1-tYVtdfTV8o-xdp1rYGe6ew4yUOEX3K-hfC_ZLi8CPTcvwWiQQ-HNBnZRhQYv_UVzsbGQUZJkhA',
+                plugins: [ Autoformat,
+                            BlockQuote,
+                            Bold,
+                            CloudServices,
+                            Essentials,
+                            Heading,
+                            Image,
+                            ImageCaption,
+                            ImageResize,
+                            ImageStyle,
+                            ImageToolbar,
+                            ImageUpload,
+                            Base64UploadAdapter,
+                            Indent,
+                            IndentBlock,
+                            Italic,
+                            Link,
+                            List,
+                            MediaEmbed,
+                            Mention,
+                            Paragraph,
+                            PasteFromOffice,
+                            PictureEditing,
+                            Table,
+                            TableColumnResize,
+                            TableToolbar,
+                            TextTransformation,
+                            Underline,
+                            Font, Essentials ],
+                toolbar: [
+                    'undo',
+                    'redo',
+                    '|',
+                    'heading',
+                    '|',
+                    'bold',
+                    'italic',
+                    'underline',
+                    '|',
+                    'link',
+                    'insertTable',
+                    'blockQuote',
+                    '|',
+                    'bulletedList',
+                    'numberedList',
+                    '|',
+                    'outdent',
+                    'indent'
+                ]
+            } )
+            .then( /* ... */ )
+            .catch( /* ... */ );
+    </script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
       $('.select-multiple').select2();
