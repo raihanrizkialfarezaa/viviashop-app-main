@@ -85,6 +85,23 @@
             border-radius: 10px;
             margin: 15px 0;
         }
+        .product-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .product-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            border-color: #007bff;
+        }
+        .product-card.selected {
+            border-color: #007bff !important;
+            background: #f8f9ff;
+        }
+        .product-card.selected .card-body {
+            background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+        }
         .session-info {
             background: rgba(255,255,255,0.1);
             padding: 10px;
@@ -114,6 +131,7 @@
                     <div class="step" id="step-2">2</div>
                     <div class="step" id="step-3">3</div>
                     <div class="step" id="step-4">4</div>
+                    <div class="step" id="step-5">5</div>
                 </div>
 
                 <!-- Step 1: File Upload -->
@@ -134,9 +152,28 @@
                     </button>
                 </div>
 
-                <!-- Step 2: Paper Selection -->
+                <!-- Step 2: Product Selection -->
+                <div id="product-section" class="step-content" style="display: none;">
+                    <h4 class="mb-3"><i class="fas fa-box"></i> Select Paper Type</h4>
+                    <p class="text-muted mb-4">Choose the type of paper that best suits your printing needs.</p>
+                    
+                    <div class="row" id="product-list">
+                        <!-- Products will be loaded here -->
+                    </div>
+                    
+                    <div class="mt-4 d-flex justify-content-between">
+                        <button class="btn btn-secondary" onclick="previousStep()">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <button class="btn btn-primary" id="product-next-btn" disabled>
+                            <i class="fas fa-arrow-right"></i> Next Step
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Paper Size & Print Type Selection -->
                 <div id="selection-section" class="step-content" style="display: none;">
-                    <h4 class="mb-3"><i class="fas fa-paper-plane"></i> Select Paper & Print Type</h4>
+                    <h4 class="mb-3"><i class="fas fa-paper-plane"></i> Select Paper Size & Print Type</h4>
                     
                     <div class="row">
                         <div class="col-md-6">
@@ -167,6 +204,10 @@
                     <div class="price-display" id="price-display" style="display: none;">
                         <h5>Price Calculation</h5>
                         <div class="row">
+                            <div class="col-6">Product:</div>
+                            <div class="col-6 text-end" id="selected-product-name">-</div>
+                        </div>
+                        <div class="row">
                             <div class="col-6">Unit Price:</div>
                             <div class="col-6 text-end" id="unit-price">-</div>
                         </div>
@@ -185,7 +226,7 @@
                         </div>
                     </div>
 
-                    <button class="btn btn-secondary me-2" id="back-to-upload">
+                    <button class="btn btn-secondary me-2" onclick="previousStep()">
                         <i class="fas fa-arrow-left"></i> Back
                     </button>
                     <button class="btn btn-primary" id="selection-next" disabled>
@@ -193,7 +234,7 @@
                     </button>
                 </div>
 
-                <!-- Step 3: Customer Info & Payment -->
+                <!-- Step 4: Customer Info & Payment -->
                 <div id="payment-section" class="step-content" style="display: none;">
                     <h4 class="mb-3"><i class="fas fa-user"></i> Customer Information</h4>
                     
@@ -252,7 +293,7 @@
                     </button>
                 </div>
 
-                <!-- Step 4: Status -->
+                <!-- Step 5: Status -->
                 <div id="status-section" class="step-content" style="display: none;">
                     <div class="text-center">
                         <div id="status-content"></div>
@@ -272,20 +313,34 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            loadProducts();
+            console.log('DOM Content Loaded');
             setupEventListeners();
+            loadProducts();
         });
 
         function setupEventListeners() {
+            console.log('Setting up event listeners');
+            
             // File upload
             const uploadArea = document.getElementById('upload-area');
             const fileInput = document.getElementById('file-input');
+            
+            console.log('Upload area:', uploadArea);
+            console.log('File input:', fileInput);
 
-            uploadArea.addEventListener('click', () => fileInput.click());
-            uploadArea.addEventListener('dragover', handleDragOver);
-            uploadArea.addEventListener('dragleave', handleDragLeave);
-            uploadArea.addEventListener('drop', handleDrop);
-            fileInput.addEventListener('change', handleFileSelect);
+            if (uploadArea && fileInput) {
+                uploadArea.addEventListener('click', function() {
+                    console.log('Upload area clicked');
+                    fileInput.click();
+                });
+                uploadArea.addEventListener('dragover', handleDragOver);
+                uploadArea.addEventListener('dragleave', handleDragLeave);
+                uploadArea.addEventListener('drop', handleDrop);
+                fileInput.addEventListener('change', handleFileSelect);
+                console.log('File upload events attached');
+            } else {
+                console.error('Upload area or file input not found');
+            }
 
             // Product selection
             const quantityInput = document.getElementById('quantity');
@@ -294,14 +349,19 @@
             }
 
             // Step navigation
-            document.getElementById('upload-btn').addEventListener('click', goToSelection);
-            document.getElementById('back-to-upload').addEventListener('click', goToUpload);
-            document.getElementById('selection-next').addEventListener('click', goToPayment);
-            document.getElementById('back-to-selection').addEventListener('click', goToSelection);
-            document.getElementById('checkout-btn').addEventListener('click', doCheckout);
+            const uploadBtn = document.getElementById('upload-btn');
+            const productNextBtn = document.getElementById('product-next-btn');
+            const selectionNext = document.getElementById('selection-next');
+            const checkoutBtn = document.getElementById('checkout-btn');
+
+            if (uploadBtn) uploadBtn.addEventListener('click', goToProductSelection);
+            if (productNextBtn) productNextBtn.addEventListener('click', goToSelection);
+            if (selectionNext) selectionNext.addEventListener('click', goToPayment);
+            if (checkoutBtn) checkoutBtn.addEventListener('click', doCheckout);
 
             // Selection changes
-            document.getElementById('paper-size').addEventListener('change', updatePrintTypes);
+            const paperSize = document.getElementById('paper-size');
+            if (paperSize) paperSize.addEventListener('change', updatePrintTypes);
             document.getElementById('print-type').addEventListener('change', calculatePrice);
             document.getElementById('quantity').addEventListener('input', calculatePrice);
 
@@ -314,48 +374,86 @@
         }
 
         let productData = null;
+        let allProducts = [];
 
         async function loadProducts() {
+            console.log('Loading products...');
             try {
                 const response = await fetch('/print-service/products');
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
+                console.log('Products data:', data);
                 
                 if (data.success && data.products.length > 0) {
-                    const allVariants = [];
-                    const seenCombinations = new Map();
-                    
-                    data.products.forEach(product => {
-                        product.variants.forEach(variant => {
-                            const combo = `${variant.paper_size}_${variant.print_type}`;
-                            
-                            if (!seenCombinations.has(combo)) {
-                                allVariants.push(variant);
-                                seenCombinations.set(combo, variant);
-                            } else {
-                                const existing = seenCombinations.get(combo);
-                                const existingIndex = allVariants.findIndex(v => v.id === existing.id);
-                                
-                                if (existingIndex !== -1 && variant.stock > existing.stock) {
-                                    allVariants[existingIndex] = variant;
-                                    seenCombinations.set(combo, variant);
-                                }
-                            }
-                        });
-                    });
-                    
-                    productData = {
-                        id: data.products[0].id,
-                        name: data.products[0].name,
-                        variants: allVariants
-                    };
-                    
-                    populateProductOptions(productData);
+                    allProducts = data.products;
+                    displayProductList();
+                    console.log('Products loaded successfully');
                 } else {
-                    console.error('No products found');
+                    console.error('No products found or API error:', data);
+                    // Fallback - hide product step or show error
+                    document.getElementById('product-section').style.display = 'none';
                 }
             } catch (error) {
                 console.error('Error loading products:', error);
+                // Fallback - hide product step or show error
+                document.getElementById('product-section').style.display = 'none';
             }
+        }
+
+        function displayProductList() {
+            const productList = document.getElementById('product-list');
+            productList.innerHTML = '';
+            
+            allProducts.forEach(product => {
+                const productCard = `
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100 product-card" data-product-id="${product.id}" onclick="selectProduct(${product.id})">
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <i class="fas fa-file-text fa-3x text-primary"></i>
+                                </div>
+                                <h5 class="card-title">${product.name}</h5>
+                                <p class="card-text text-muted">
+                                    Available sizes: ${[...new Set(product.variants.map(v => v.paper_size))].join(', ')}<br>
+                                    Print types: ${[...new Set(product.variants.map(v => v.print_type))].join(', ')}
+                                </p>
+                                <div class="price-range">
+                                    <small class="text-success">
+                                        From Rp ${Math.min(...product.variants.map(v => v.price)).toLocaleString()}
+                                        - Rp ${Math.max(...product.variants.map(v => v.price)).toLocaleString()}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                productList.innerHTML += productCard;
+            });
+        }
+
+        function selectProduct(productId) {
+            // Remove previous selection
+            document.querySelectorAll('.product-card').forEach(card => {
+                card.classList.remove('border-primary', 'selected');
+            });
+            
+            // Add selection to clicked card
+            const selectedCard = document.querySelector(`[data-product-id="${productId}"]`);
+            selectedCard.classList.add('border-primary', 'selected');
+            
+            // Store selected product
+            productData = allProducts.find(p => p.id === productId);
+            
+            // Enable next button
+            document.getElementById('product-next-btn').disabled = false;
+            
+            // Populate paper options for selected product
+            populateProductOptions(productData);
         }
 
         function populateProductOptions(product) {
@@ -499,31 +597,28 @@
             const quantity = parseInt(document.getElementById('quantity').value) || 1;
             const totalPages = parseInt(document.getElementById('total-pages').value) || 0;
 
-            if (!paperSize || !printType || !totalPages) return;
+            if (!paperSize || !printType || !totalPages || !productData) return;
 
             try {
-                const response = await fetch('/print-service/products');
-                const data = await response.json();
+                // Use the selected product from step 2, not the first product
+                const variant = productData.variants.find(v => 
+                    v.paper_size === paperSize && v.print_type === printType
+                );
                 
-                if (data.success) {
-                    const variant = data.products[0].variants.find(v => 
-                        v.paper_size === paperSize && v.print_type === printType
-                    );
+                if (variant) {
+                    selectedVariant = variant;
                     
-                    if (variant) {
-                        selectedVariant = variant;
-                        
-                        const requiredStock = totalPages * quantity;
-                        if (variant.stock < requiredStock) {
-                            alert(`Insufficient stock! Available: ${variant.stock} sheets, Required: ${requiredStock} sheets`);
-                            document.getElementById('selection-next').disabled = true;
-                            return;
-                        }
-                        
-                        const calcResponse = await fetch('/print-service/calculate', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
+                    const requiredStock = totalPages * quantity;
+                    if (variant.stock < requiredStock) {
+                        alert(`Insufficient stock! Available: ${variant.stock} sheets, Required: ${requiredStock} sheets`);
+                        document.getElementById('selection-next').disabled = true;
+                        return;
+                    }
+                    
+                    const calcResponse = await fetch('/print-service/calculate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
                             },
                             body: JSON.stringify({
@@ -540,14 +635,21 @@
                             displayPrice(calcData.calculation, variant);
                             document.getElementById('selection-next').disabled = false;
                         }
+                    } else {
+                        console.error('Variant not found for selected options');
                     }
-                }
+                
             } catch (error) {
                 console.error('Price calculation error:', error);
             }
         }
 
         function displayPrice(calculation, variant = null) {
+            // Display selected product name
+            if (productData) {
+                document.getElementById('selected-product-name').textContent = productData.name;
+            }
+            
             document.getElementById('unit-price').textContent = `Rp ${calculation.unit_price.toLocaleString()}`;
             document.getElementById('display-total-pages').textContent = calculation.total_pages;
             document.getElementById('display-quantity').textContent = calculation.quantity;
@@ -693,38 +795,74 @@
 
         // Step navigation functions
         function goToUpload() {
-            document.querySelector('#step-1').classList.add('active');
-            document.querySelector('#step-2').classList.remove('active');
-            document.getElementById('upload-section').style.display = 'block';
-            document.getElementById('selection-section').style.display = 'none';
+            setActiveStep(1);
+            showSection('upload-section');
+        }
+
+        function goToProductSelection() {
+            setActiveStep(2);
+            showSection('product-section');
         }
 
         function goToSelection() {
-            document.querySelector('#step-1').classList.remove('active');
-            document.querySelector('#step-1').classList.add('completed');
-            document.querySelector('#step-2').classList.add('active');
-            document.getElementById('upload-section').style.display = 'none';
-            document.getElementById('selection-section').style.display = 'block';
-            
-            if (!productData) {
-                loadProducts();
-            }
+            setActiveStep(3);
+            showSection('selection-section');
         }
 
         function goToPayment() {
-            document.querySelector('#step-2').classList.remove('active');
-            document.querySelector('#step-2').classList.add('completed');
-            document.querySelector('#step-3').classList.add('active');
-            document.getElementById('selection-section').style.display = 'none';
-            document.getElementById('payment-section').style.display = 'block';
+            setActiveStep(4);
+            showSection('payment-section');
+            updatePaymentSummary();
         }
 
         function goToStatus() {
-            document.querySelector('#step-3').classList.remove('active');
-            document.querySelector('#step-3').classList.add('completed');
-            document.querySelector('#step-4').classList.add('active');
-            document.getElementById('payment-section').style.display = 'none';
-            document.getElementById('status-section').style.display = 'block';
+            setActiveStep(5);
+            showSection('status-section');
+        }
+
+        function previousStep() {
+            const currentActiveStep = document.querySelector('.step.active');
+            const currentStepNumber = parseInt(currentActiveStep.textContent);
+            
+            if (currentStepNumber === 2) {
+                goToUpload();
+            } else if (currentStepNumber === 3) {
+                goToProductSelection();
+            } else if (currentStepNumber === 4) {
+                goToSelection();
+            } else if (currentStepNumber === 5) {
+                goToPayment();
+            }
+        }
+
+        function setActiveStep(stepNumber) {
+            // Remove active from all steps
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active');
+            });
+            
+            // Add completed to previous steps
+            for (let i = 1; i < stepNumber; i++) {
+                document.querySelector(`#step-${i}`).classList.add('completed');
+            }
+            
+            // Set current step as active
+            document.querySelector(`#step-${stepNumber}`).classList.add('active');
+        }
+
+        function showSection(sectionId) {
+            // Hide all sections
+            document.querySelectorAll('.step-content').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Show target section
+            document.getElementById(sectionId).style.display = 'block';
+        }
+
+        function goToStatus() {
+            setActiveStep(5);
+            showSection('status-section');
         }
 
         async function deleteFile(fileId) {

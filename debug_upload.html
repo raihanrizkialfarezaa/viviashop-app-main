@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Debug Upload</title>
+        <style>
+            .upload-area {
+                border: 3px dashed #007bff;
+                border-radius: 10px;
+                padding: 40px;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin: 20px;
+            }
+            .upload-area:hover {
+                border-color: #0056b3;
+                background: #f8f9fa;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Debug Upload Test</h1>
+
+        <div class="upload-area" id="upload-area">
+            <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+            <h5>Drop files here or click to browse</h5>
+            <p>
+                Supports: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, TXT,
+                CSV, LOG, RTF, ODT, ODS
+            </p>
+            <input
+                type="file"
+                id="file-input"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.log,.rtf,.odt,.ods"
+                style="display: none"
+            />
+        </div>
+
+        <div id="file-list"></div>
+
+        <script>
+            console.log("Debug script loaded");
+
+            document.addEventListener("DOMContentLoaded", function () {
+                console.log("DOM loaded");
+                setupEventListeners();
+            });
+
+            function setupEventListeners() {
+                console.log("Setting up event listeners");
+
+                const uploadArea = document.getElementById("upload-area");
+                const fileInput = document.getElementById("file-input");
+
+                console.log("Upload area found:", uploadArea);
+                console.log("File input found:", fileInput);
+
+                uploadArea.addEventListener("click", function () {
+                    console.log("Upload area clicked!");
+                    fileInput.click();
+                });
+
+                fileInput.addEventListener("change", function (e) {
+                    console.log("File input changed:", e.target.files);
+                    handleFileSelect(e);
+                });
+
+                console.log("Event listeners set up");
+            }
+
+            function handleFileSelect(e) {
+                const files = e.target.files;
+                console.log("Files selected:", files.length);
+
+                const fileList = document.getElementById("file-list");
+                fileList.innerHTML = "";
+
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const div = document.createElement("div");
+                    div.textContent = `File: ${file.name} (${file.size} bytes)`;
+                    fileList.appendChild(div);
+                }
+            }
+        </script>
+    </body>
+</html>
