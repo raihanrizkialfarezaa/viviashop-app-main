@@ -32,10 +32,6 @@ use Illuminate\Support\Facades\Route;
 
 Auth::routes();
 
-Route::get('/test-add-cart', function() {
-    return view('test_add_cart');
-});
-
 // $cart = Cart::content()->count();
 // dd($cart);
 // view()->share('countCart', $cart);
@@ -1067,10 +1063,6 @@ Route::get('/api/attribute-options/{attributeId}/{variantId}', function($attribu
     $options = \App\Models\AttributeOption::where('attribute_variant_id', $variantId)->get();
     return response()->json(['options' => $options]);
 })->name('api.attribute-options');
-
-Route::get('/barcode-test-preview', function() {
-    return view('test_barcode_preview');
-})->name('barcode.test.preview');
 
 Route::get('/test-product-data/{id}', function($id) {
     $product = \App\Models\Product::find($id);
