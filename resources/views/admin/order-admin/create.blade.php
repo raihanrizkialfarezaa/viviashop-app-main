@@ -1039,15 +1039,50 @@ function updateVariantDisplay(itemIndex, variant) {
     $(`#variant-attributes-${itemIndex}`).text(attributesList);
     
     $(`#selected-variant-id-${itemIndex}`).val(variant.id);
+    $(`#selected-variant-id-${itemIndex}`).data('price', variant.price);
+    $(`#selected-variant-id-${itemIndex}`).data('sku', variant.sku);
+    $(`#selected-variant-id-${itemIndex}`).data('stock', variant.stock);
+    
+    const priceFormatted = new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0
+    }).format(variant.price);
+    if (typeof variant.stock !== 'undefined' && parseInt(variant.stock) <= 0) {
+        $(`#price-display-${itemIndex}`).html(`<span class="text-danger">Out of Stock</span>`);
+    } else {
+        $(`#price-display-${itemIndex}`).html(`<strong class="text-success">${priceFormatted}</strong>`);
+    }
+    
+    const qtyInput = $(`#qty-${itemIndex}`);
+    if (qtyInput.length) {
+        if (typeof variant.stock !== 'undefined') {
+            qtyInput.attr('max', variant.stock);
+            if (parseInt(variant.stock) <= 0) {
+                qtyInput.val(0).prop('disabled', true);
+            } else {
+                qtyInput.prop('disabled', false);
+                if (parseInt(qtyInput.val() || '0') > parseInt(variant.stock)) {
+                    qtyInput.val(variant.stock);
+                }
+            }
+        }
+    }
     
     $(`#variant-info-${itemIndex}`).show();
     $(`#selection-message-${itemIndex}`).hide();
+    updatePricingSummary();
 }
 
 function resetVariantDisplay(itemIndex) {
     $(`#selected-variant-id-${itemIndex}`).val('');
+    $(`#selected-variant-id-${itemIndex}`).removeData('price');
+    $(`#selected-variant-id-${itemIndex}`).removeData('sku');
+    $(`#selected-variant-id-${itemIndex}`).removeData('stock');
     $(`#variant-info-${itemIndex}`).hide();
     $(`#selection-message-${itemIndex}`).show();
+    $(`#price-display-${itemIndex}`).html('<span class="text-muted">Select variant to see price</span>');
+    updatePricingSummary();
 }
 
 function updatePriceField(itemIndex, price) {
