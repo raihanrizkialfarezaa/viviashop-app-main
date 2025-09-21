@@ -488,7 +488,18 @@ class OrderController extends Controller
 					'redirect_url' => 'orders/received/' . $order->id
 				]);
 
-				// Redirect to order received page
+				// If request expects JSON (AJAX), return JSON payload so frontend can handle redirects
+				if ($request->ajax() || $request->wantsJson()) {
+					return response()->json([
+						'success' => true,
+						'order_id' => $order->id,
+						'redirect' => url('orders/received/' . $order->id),
+						'payment_url' => $order->payment_url ?? null,
+						'message' => 'Order created successfully'
+					]);
+				}
+
+				// Fallback for normal form submit
 				return redirect('orders/received/' . $order->id);
 
 			} catch (\Exception $e) {
@@ -501,7 +512,14 @@ class OrderController extends Controller
 					'trace' => $e->getTraceAsString()
 				]);
 
-				// Redirect back with error message
+				// Redirect back with error message or return JSON for AJAX
+				if ($request->ajax() || $request->wantsJson()) {
+					return response()->json([
+						'success' => false,
+						'message' => 'There was an error processing your order: ' . $e->getMessage()
+					], 500);
+				}
+
 				return redirect()->back()->withInput()->with('error', 'There was an error processing your order: ' . $e->getMessage());
 			}
 		} catch (\Exception $e) {
@@ -510,6 +528,14 @@ class OrderController extends Controller
 				'line' => $e->getLine(),
 				'request_data' => $request->all()
 			]);
+
+			if ($request->ajax() || $request->wantsJson()) {
+				return response()->json([
+					'success' => false,
+					'message' => 'Please check your input: ' . $e->getMessage(),
+					'errors' => $e->getMessage()
+				], 422);
+			}
 
 			return redirect()->back()->withInput()->withErrors($e->getMessage())->with('error', 'Please check your input: ' . $e->getMessage());
 		}
@@ -702,6 +728,7 @@ class OrderController extends Controller
 
 		if ($order && $cartItems) {
 			foreach ($cartItems as $item) {
+				$variantId = null;
 				$itemTaxAmount = 0;
 				$itemTaxPercent = 0;
 				$itemDiscountAmount = 0;
@@ -713,8 +740,10 @@ class OrderController extends Controller
 				if (isset($item->options['type']) && $item->options['type'] === 'configurable') {
 					// Variant item
 					$product = \App\Models\Product::find($item->options['product_id']);
-					$productId = $item->options['variant_id']; // Store variant ID as product_id for order item
-					$sku = $item->options['sku'] ?? 'VAR-' . $item->options['variant_id'];
+					// For configurable items: product_id must reference the parent product
+					$productId = $product ? $product->id : ($item->options['product_id'] ?? null);
+					$variantId = $item->options['variant_id'] ?? null;
+					$sku = $item->options['sku'] ?? ($variantId ? 'VAR-' . $variantId : '');
 					$weight = $item->weight ?? 0;
 				} else {
 					// Simple item
@@ -735,6 +764,7 @@ class OrderController extends Controller
 				$orderItemParams = [
 					'order_id' => $order->id,
 					'product_id' => $productId,
+					'variant_id' => $variantId ?? null,
 					'qty' => $item->qty,
 					'base_price' => $item->price,
 					'base_total' => $itemBaseTotal,
@@ -1264,8 +1294,9 @@ view()->share('setting', $setting);
 		
 		$pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.orders.invoices', compact('order'))
 			->setOptions(['defaultFont' => 'sans-serif']);
-		$customPaper = array(0, 0, (58 * 2.83), auto);
-        $pdf->setPaper($customPaper);
+	// Use explicit numeric values for paper size (width and height in points)
+	$customPaper = array(0, 0, (58 * 2.83), (210 * 2.83));
+	$pdf->setPaper($customPaper, 'portrait');
 		
 		return $pdf->stream('invoice-' . $order->code . '.pdf');
 	}
