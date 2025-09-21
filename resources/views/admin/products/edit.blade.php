@@ -87,9 +87,9 @@
                                                                         <span class="badge badge-secondary">{{ $attr->attribute_name }}: {{ $attr->attribute_value }}</span>
                                                                     @endforeach
                                                                 </td>
-                                                                <td>Rp {{ number_format($variant->price, 0, ',', '.') }}</td>
-                                                                <td>Rp {{ number_format($variant->harga_beli ?? 0, 0, ',', '.') }}</td>
-                                                                <td>{{ $variant->stock }}</td>
+                                                                <td>Rp {{ number_format( ((float) ($variant->price ?? 0) ) > 0 ? $variant->price : ($product->price ?? 0), 0, ',', '.') }}</td>
+                                                                <td>Rp {{ number_format( ((float) ($variant->harga_beli ?? 0) ) > 0 ? $variant->harga_beli : ($product->harga_beli ?? 0), 0, ',', '.') }}</td>
+                                                                <td>{{ $variant->stock ?? ($product->productInventory ? $product->productInventory->qty : 0) }}</td>
                                                                 <td>
                                                                     <span class="badge badge-{{ $variant->is_active ? 'success' : 'secondary' }}">
                                                                         {{ $variant->is_active ? 'Active' : 'Inactive' }}
@@ -771,274 +771,213 @@
                 }
             });
 			
-			$('.edit-variant').on('click', function() {
-				var variantId = $(this).data('variant-id');
-				editVariant(variantId);
-			});
-			
-			$('.delete-variant').on('click', function() {
-				var variantId = $(this).data('variant-id');
-				var variantName = $(this).data('variant-name');
-				deleteVariant(variantId, variantName);
-			});
+            $(document).on('click', '.edit-variant', function() {
+                var variantId = $(this).data('variant-id');
+                editVariant(variantId);
+            });
+
+            $(document).on('click', '.delete-variant', function() {
+                var variantId = $(this).data('variant-id');
+                var variantName = $(this).data('variant-name');
+                deleteVariant(variantId, variantName);
+            });
 		});
 		
         
 		
-		function editVariant(variantId) {
-			// Temporary disabled - akan diperbaiki setelah Create First Variant berfungsi
-			alert('Edit Variant functionality temporarily disabled. Testing Create First Variant first.');
-			return;
-				
-				var modal = '<div class="modal fade show" id="editVariantModal" tabindex="-1" style="display: block; background-color: rgba(0,0,0,0.5);">';
-				modal += '<div class="modal-dialog modal-lg">';
-				modal += '<div class="modal-content">';
-				modal += '<div class="modal-header" ' + headerStyle + '>';
-				modal += '<h5 class="modal-title" style="' + titleStyle + '">' + modalTitle + '</h5>';
-				modal += '<button type="button" class="close" onclick="closeEditVariantModal()"><span>&times;</span></button>';
-				modal += '</div>';
-				modal += '<div class="modal-body">';
-				modal += '<form id="editVariantForm">';
-				modal += '<input type="hidden" id="edit_variant_id" value="' + variant.id + '">';
-				modal += '<div class="row">';
-				modal += '<div class="col-md-6"><div class="form-group"><label>Variant Name</label><input type="text" class="form-control" name="name" value="' + variant.name + '" required></div></div>';
-				modal += '<div class="col-md-6"><div class="form-group"><label>SKU</label><input type="text" class="form-control" name="sku" value="' + variant.sku + '" required></div></div>';
-				modal += '</div>';
-				modal += '<div class="row">';
-				modal += '<div class="col-md-4"><div class="form-group"><label>Harga Jual</label><input type="number" class="form-control" name="price" value="' + variant.price + '" step="0.01" required></div></div>';
-				modal += '<div class="col-md-4"><div class="form-group"><label>Harga Beli</label><input type="number" class="form-control" name="harga_beli" value="' + (variant.harga_beli !== null ? variant.harga_beli : '') + '" step="0.01"></div></div>';
-				modal += '<div class="col-md-4"><div class="form-group"><label>Stock</label><input type="number" class="form-control" name="stock" value="' + variant.stock + '" required></div></div>';
-				modal += '</div>';
-				modal += '<div class="row">';
-				modal += '<div class="col-md-3"><div class="form-group"><label>Berat (kg)</label><input type="number" step="0.01" class="form-control" name="weight" value="' + (variant.weight !== null ? variant.weight : '') + '"></div></div>';
-				modal += '<div class="col-md-3"><div class="form-group"><label>Panjang (cm)</label><input type="number" class="form-control" name="length" value="' + (variant.length !== null ? variant.length : '') + '"></div></div>';
-				modal += '<div class="col-md-3"><div class="form-group"><label>Lebar (cm)</label><input type="number" class="form-control" name="width" value="' + (variant.width !== null ? variant.width : '') + '"></div></div>';
-				modal += '<div class="col-md-3"><div class="form-group"><label>Tinggi (cm)</label><input type="number" class="form-control" name="height" value="' + (variant.height !== null ? variant.height : '') + '"></div></div>';
-				modal += '</div>';
-				modal += '<hr style="margin: 20px 0;">';
-				modal += '<h6 style="color: #495057; margin-bottom: 15px; font-weight: 600;">Variant Attributes</h6>';
-				modal += '<div id="editAttributeContainer">';
-				
-				if (isSmartPrint) {
-					modal += `
-						<div class="alert alert-info" style="margin-bottom: 15px; padding: 10px; background-color: #e3f2fd; border: 1px solid #1976d2; border-radius: 4px;">
-							<small><i class="fas fa-info-circle"></i> Smart Print Service: paper_size dan print_type fields are optimized for print services</small>
-						</div>`;
-				} else {
-					modal += `
-						<div class="alert alert-secondary" style="margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border: 1px solid #6c757d; border-radius: 4px;">
-							<small><i class="fas fa-box"></i> Regular Product: flexible attribute configuration for general products</small>
-						</div>`;
-				}
-				
-				modal += `<div id="editAttributeContainer">
-								`;
-								
-				if (variant.variant_attributes && variant.variant_attributes.length > 0) {
-					variant.variant_attributes.forEach(function(attr, index) {
-						const isReadonly = isSmartPrint && (attr.attribute_name === 'paper_size' || attr.attribute_name === 'print_type');
-						const readonlyAttr = isReadonly ? 'readonly style="background-color: #f8f9fa;"' : '';
-						modal += `
-							<div class="attribute-row row mb-2">
-								<div class="col-md-5">
-									<input type="text" class="form-control" name="attribute_names[]" value="${attr.attribute_name}" placeholder="Attribute Name" ${readonlyAttr}>
-								</div>
-								<div class="col-md-5">
-									<input type="text" class="form-control" name="attribute_values[]" value="${attr.attribute_value}" placeholder="Attribute Value">
-								</div>
-								<div class="col-md-2">
-									<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
-								</div>
-							</div>
-						`;
-					});
-				} else if (isSmartPrint) {
-					modal += `
-						<div class="attribute-row row mb-2">
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_names[]" value="paper_size" placeholder="Attribute Name" readonly style="background-color: #f8f9fa;">
-							</div>
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. A4, A3, A1001">
-							</div>
-							<div class="col-md-2">
-								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
-							</div>
-						</div>
-						<div class="attribute-row row mb-2">
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_names[]" value="print_type" placeholder="Attribute Name" readonly style="background-color: #f8f9fa;">
-							</div>
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. bw, color, multi color">
-							</div>
-							<div class="col-md-2">
-								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
-							</div>
-						</div>`;
-				} else {
-					modal += `
-						<div class="attribute-row row mb-2">
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name (e.g. Size, Color)">
-							</div>
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value">
-							</div>
-							<div class="col-md-2">
-								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
-							</div>
-						</div>`;
-				}
-								</div>
-								<div class="col-md-2">
-									<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
-								</div>
-							</div>
-						`;
-					});
-				} else {
-					modal += `
-						<div class="attribute-row row mb-2">
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_names[]" value="paper_size" placeholder="Attribute Name" readonly style="background-color: #f8f9fa;">
-							</div>
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. A4, A3, A1001">
-							</div>
-							<div class="col-md-2">
-								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
-							</div>
-						</div>
-						<div class="attribute-row row mb-2">
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_names[]" value="print_type" placeholder="Attribute Name" readonly style="background-color: #f8f9fa;">
-							</div>
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. bw, color, multi color">
-							</div>
-							<div class="col-md-2">
-								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
-							</div>
-						</div>
-					`;
-				}
-				
-				modal += `
-										</div>
-										<button type="button" class="btn btn-sm btn-secondary" id="addEditAttribute">Add Attribute</button>
-									</form>
-								</div>
-								<div class="modal-footer">
-									<button type="button" class="btn btn-secondary" onclick="closeEditVariantModal()">Cancel</button>
-									<button type="button" class="btn btn-primary" id="updateVariant">Update Variant</button>
-								</div>
-							</div>
-						</div>
-					</div>
-				`;
-				
-				$('body').append(modal);
-				document.body.classList.add('modal-open');
-				
-				$('#addEditAttribute').on('click', function() {
-					const newRow = isSmartPrint ? 
-						`<div class="attribute-row row mb-2">
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name (e.g. material, finish)">
-							</div>
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value">
-							</div>
-							<div class="col-md-2">
-								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
-							</div>
-						</div>` :
-						`<div class="attribute-row row mb-2">
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name">
-							</div>
-							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value">
-							</div>
-							<div class="col-md-2">
-								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
-							</div>
-						</div>`;
-					
-					$('#editAttributeContainer').append(newRow);
-				});
-				
-				$(document).on('click', '.remove-attribute', function() {
-					$(this).closest('.attribute-row').remove();
-				});
-				
-				$('#updateVariant').on('click', function() {
-					updateVariant();
-				});
-			}).fail(function() {
-				alert('Failed to load variant data');
-			});
-		}
+        function editVariant(variantId) {
+            // Load variant data and open edit modal (build modal after data arrives)
+            $.get('/admin/variants/' + variantId)
+                .done(function(res) {
+                    var variant = (res && res.variant) ? res.variant : res;
+                    if (!variant || !variant.id) {
+                        alert('Failed to load variant data');
+                        return;
+                    }
+
+                    var isSmartPrint = {{ $product->is_smart_print_enabled && $product->is_print_service ? 'true' : 'false' }};
+                    var modalTitle = 'Edit Variant';
+                    var headerStyle = isSmartPrint ? 'background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%); border-bottom: 2px solid #007bff;' : 'background: #f8f9fa; border-bottom: 1px solid #dee2e6;';
+                    var titleStyle = isSmartPrint ? 'color: #007bff; font-weight: 600;' : 'color: #495057;';
+
+                    // Build modal
+                    var modal = '<div class="modal fade show" id="editVariantModal" tabindex="-1" style="display: block; background-color: rgba(0,0,0,0.5);">';
+                    modal += '<div class="modal-dialog modal-lg">';
+                    modal += '<div class="modal-content">';
+                    modal += '<div class="modal-header" style="' + headerStyle + '">';
+                    modal += '<h5 class="modal-title" style="' + titleStyle + '">' + modalTitle + '</h5>';
+                    modal += '<button type="button" class="close" onclick="closeEditVariantModal()"><span>&times;</span></button>';
+                    modal += '</div>';
+                    modal += '<div class="modal-body">';
+                    modal += '<form id="editVariantForm">';
+                    modal += '<input type="hidden" id="edit_variant_id" value="' + variant.id + '">';
+
+                    modal += '<div class="row">';
+                    modal += '<div class="col-md-6"><div class="form-group"><label>Variant Name</label><input type="text" class="form-control" name="name" value="' + (variant.name || '') + '" required></div></div>';
+                    modal += '<div class="col-md-6"><div class="form-group"><label>SKU</label><input type="text" class="form-control" name="sku" value="' + (variant.sku || '') + '" required></div></div>';
+                    modal += '</div>';
+
+                    modal += '<div class="row">';
+                    modal += '<div class="col-md-4"><div class="form-group"><label>Harga Jual</label><input type="number" class="form-control" name="price" value="' + (variant.price !== null ? variant.price : '') + '" step="0.01" required></div></div>';
+                    modal += '<div class="col-md-4"><div class="form-group"><label>Harga Beli</label><input type="number" class="form-control" name="harga_beli" value="' + (variant.harga_beli !== null ? variant.harga_beli : '') + '" step="0.01"></div></div>';
+                    modal += '<div class="col-md-4"><div class="form-group"><label>Stock</label><input type="number" class="form-control" name="stock" value="' + (variant.stock !== null ? variant.stock : '') + '" required></div></div>';
+                    modal += '</div>';
+
+                    modal += '<div class="row">';
+                    modal += '<div class="col-md-3"><div class="form-group"><label>Berat (kg)</label><input type="number" step="0.01" class="form-control" name="weight" value="' + (variant.weight !== null ? variant.weight : ({{ $product->weight ?? 0 }})) + '"></div></div>';
+                    modal += '<div class="col-md-3"><div class="form-group"><label>Panjang (cm)</label><input type="number" class="form-control" name="length" value="' + (variant.length !== null ? variant.length : ({{ $product->length ?? 0 }})) + '"></div></div>';
+                    modal += '<div class="col-md-3"><div class="form-group"><label>Lebar (cm)</label><input type="number" class="form-control" name="width" value="' + (variant.width !== null ? variant.width : ({{ $product->width ?? 0 }})) + '"></div></div>';
+                    modal += '<div class="col-md-3"><div class="form-group"><label>Tinggi (cm)</label><input type="number" class="form-control" name="height" value="' + (variant.height !== null ? variant.height : ({{ $product->height ?? 0 }})) + '"></div></div>';
+                    modal += '</div>';
+
+                    modal += '<hr style="margin: 20px 0;">';
+                    modal += '<h6 style="color: #495057; margin-bottom: 15px; font-weight: 600;">Variant Attributes</h6>';
+                    modal += '<div id="editAttributeContainer">';
+
+                    // Build attribute rows from returned variant attributes if present
+                    if (variant.variant_attributes && variant.variant_attributes.length > 0) {
+                        variant.variant_attributes.forEach(function(attr) {
+                            var isReadonly = isSmartPrint && (attr.attribute_name === 'paper_size' || attr.attribute_name === 'print_type');
+                            var readonlyAttr = isReadonly ? 'readonly style="background-color: #f8f9fa;"' : '';
+                            modal += '<div class="attribute-row row mb-2">';
+                            modal += '<div class="col-md-5"><input type="text" class="form-control" name="attribute_names[]" value="' + (attr.attribute_name || '') + '" placeholder="Attribute Name" ' + readonlyAttr + '></div>';
+                            modal += '<div class="col-md-5"><input type="text" class="form-control" name="attribute_values[]" value="' + (attr.attribute_value || '') + '" placeholder="Attribute Value"></div>';
+                            modal += '<div class="col-md-2"><button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button></div>';
+                            modal += '</div>';
+                        });
+                    } else if (isSmartPrint) {
+                        modal += '<div class="attribute-row row mb-2">';
+                        modal += '<div class="col-md-5"><input type="text" class="form-control" name="attribute_names[]" value="paper_size" readonly style="background-color: #f8f9fa;"></div>';
+                        modal += '<div class="col-md-5"><input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. A4, A3, Letter"></div>';
+                        modal += '<div class="col-md-2"><button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button></div>';
+                        modal += '</div>';
+                        modal += '<div class="attribute-row row mb-2">';
+                        modal += '<div class="col-md-5"><input type="text" class="form-control" name="attribute_names[]" value="print_type" readonly style="background-color: #f8f9fa;"></div>';
+                        modal += '<div class="col-md-5"><input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. bw, color"></div>';
+                        modal += '<div class="col-md-2"><button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button></div>';
+                        modal += '</div>';
+                    } else {
+                        modal += '<div class="attribute-row row mb-2">';
+                        modal += '<div class="col-md-5"><input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name (e.g. Size, Color)"></div>';
+                        modal += '<div class="col-md-5"><input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value"></div>';
+                        modal += '<div class="col-md-2"><button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button></div>';
+                        modal += '</div>';
+                    }
+
+                    modal += '</div>';
+                    modal += '<button type="button" class="btn btn-sm btn-secondary" id="addEditAttribute">Add Attribute</button>';
+                    modal += '</form>';
+                    modal += '</div>';
+                    modal += '<div class="modal-footer">';
+                    modal += '<button type="button" class="btn btn-secondary" onclick="closeEditVariantModal()">Cancel</button>';
+                    modal += '<button type="button" class="btn btn-primary" id="updateVariantBtn">Update Variant</button>';
+                    modal += '</div>';
+                    modal += '</div></div></div>';
+
+                    // Append and show
+                    $('body').append(modal);
+                    document.body.classList.add('modal-open');
+
+                    // Handlers
+                    $('#addEditAttribute').on('click', function() {
+                        var newRow = '<div class="attribute-row row mb-2">';
+                        newRow += '<div class="col-md-5"><input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name"></div>';
+                        newRow += '<div class="col-md-5"><input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value"></div>';
+                        newRow += '<div class="col-md-2"><button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button></div>';
+                        newRow += '</div>';
+                        $('#editAttributeContainer').append(newRow);
+                    });
+
+                    $(document).on('click', '#editVariantModal .remove-attribute', function() {
+                        $(this).closest('.attribute-row').remove();
+                    });
+
+                    $(document).on('click', '#updateVariantBtn', function(e) {
+                        updateVariant(variant.id);
+                    });
+                })
+                .fail(function() {
+                    alert('Failed to load variant data');
+                });
+        }
 		
 		function closeEditVariantModal() {
 			$('#editVariantModal').remove();
 			document.body.classList.remove('modal-open');
 		}
 		
-		function updateVariant() {
-			var variantId = $('#edit_variant_id').val();
-			var formData = {
-				name: $('#editVariantModal input[name="name"]').val(),
-				sku: $('#editVariantModal input[name="sku"]').val(),
-				price: $('#editVariantModal input[name="price"]').val(),
-				harga_beli: $('#editVariantModal input[name="harga_beli"]').val(),
-				stock: $('#editVariantModal input[name="stock"]').val(),
-				weight: $('#editVariantModal input[name="weight"]').val() || {{ $product->weight ?? 0 }},
-				length: $('#editVariantModal input[name="length"]').val() || {{ $product->length ?? 0 }},
-				width: $('#editVariantModal input[name="width"]').val() || {{ $product->width ?? 0 }},
-				height: $('#editVariantModal input[name="height"]').val() || {{ $product->height ?? 0 }},
-				attributes: []
-			};
-			
-			$('#editVariantModal .attribute-row').each(function() {
-				var name = $(this).find('input[name="attribute_names[]"]').val();
-				var value = $(this).find('input[name="attribute_values[]"]').val();
-				if (name && value) {
-					formData.attributes.push({
-						attribute_name: name,
-						attribute_value: value
-					});
-				}
-			});
-			
-			if (formData.attributes.length === 0) {
-				alert('Please add at least one attribute for the variant');
-				return;
-			}
-			
-			$.ajax({
-				url: '/admin/variants/' + variantId,
-				method: 'PUT',
-				data: formData,
-				headers: {
-					'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-				},
-				success: function(response) {
-					closeEditVariantModal();
-					var currentUrl = new URL(window.location.href);
-					var variantPage = currentUrl.searchParams.get('variant_page') || 1;
-					window.location.href = currentUrl.pathname + '?variant_page=' + variantPage;
-				},
-				error: function(xhr) {
-					var message = 'Error updating variant';
-					if (xhr.responseJSON && xhr.responseJSON.message) {
-						message = xhr.responseJSON.message;
-					}
-					alert(message);
-				}
-			});
-		}
+        function updateVariant(variantId) {
+            var form = document.getElementById('editVariantForm');
+            var fd = new FormData();
+
+            // Required fields validation
+            var required = ['name','sku','price','stock'];
+            for (var i=0;i<required.length;i++){
+                var el = form.querySelector('[name="'+required[i]+'"]');
+                if (!el || !String(el.value).trim()){
+                    alert(required[i] + ' is required');
+                    if (el) el.focus();
+                    return;
+                }
+            }
+
+            // Append main fields
+            ['name','sku','price','harga_beli','stock','weight','length','width','height'].forEach(function(k){
+                var el = form.querySelector('[name="'+k+'"]');
+                if (el) fd.append(k, el.value);
+            });
+
+            // Attributes
+            var nameInputs = Array.from(form.querySelectorAll('input[name="attribute_names[]"]'));
+            var valueInputs = Array.from(form.querySelectorAll('input[name="attribute_values[]"]'));
+            if (nameInputs.length === 0) {
+                alert('Please add at least one attribute for the variant');
+                return;
+            }
+            for (var i=0;i<nameInputs.length;i++){
+                var n = nameInputs[i] ? String(nameInputs[i].value).trim() : '';
+                var v = valueInputs[i] ? String(valueInputs[i].value).trim() : '';
+                if (!n || !v) {
+                    alert('Each attribute must have a name and value');
+                    return;
+                }
+                fd.append('attributes['+i+'][attribute_name]', n);
+                fd.append('attributes['+i+'][attribute_value]', v);
+            }
+
+            // Method override for PUT
+            fd.append('_method','PUT');
+
+            // CSRF header
+            var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+            $.ajax({
+                url: '/admin/variants/' + variantId,
+                method: 'POST',
+                data: fd,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function(response) {
+                    closeEditVariantModal();
+                    var currentUrl = new URL(window.location.href);
+                    var variantPage = currentUrl.searchParams.get('variant_page') || 1;
+                    window.location.href = currentUrl.pathname + '?variant_page=' + variantPage;
+                },
+                error: function(xhr) {
+                    var message = 'Error updating variant';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        message = xhr.responseJSON.message;
+                    } else if (xhr.responseText) {
+                        try { var j = JSON.parse(xhr.responseText); if (j && j.message) message = j.message; } catch(e){}
+                    }
+                    alert(message + '\n\nFull response:\n' + (xhr.responseText || JSON.stringify(xhr)));
+                }
+            });
+        }
 		
 		function deleteVariant(variantId, variantName) {
 			if (confirm('Are you sure you want to delete variant "' + variantName + '"? This action cannot be undone.')) {

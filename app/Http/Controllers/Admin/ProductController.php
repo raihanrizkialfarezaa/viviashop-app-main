@@ -13,6 +13,7 @@ use App\Models\ProductInventory;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use App\Models\ProductAttributeValue;
 use App\Http\Requests\Admin\ProductRequest;
 use App\Services\ProductVariantService;
@@ -259,8 +260,8 @@ class ProductController extends Controller
                     
                     // Auto-create variants for smart print products
                     if ($data['is_smart_print_enabled'] && $data['is_print_service']) {
-                        $this->createDefaultSmartPrintVariants($product);
-                    }
+                            $this->createDefaultSmartPrintVariants($product, $data);
+                        }
                 }
             }
 
@@ -287,18 +288,37 @@ class ProductController extends Controller
         }
     }
     
-    private function createDefaultSmartPrintVariants(Product $product)
+    private function createDefaultSmartPrintVariants(Product $product, array $data = [])
     {
         // Refresh product with related inventory data
         $product->load('productInventory');
-        
-        $basePrice = $product->price; // Use exact parent price without fallback
-        $baseCost = $product->harga_beli; // Use exact parent cost without fallback
-        $baseStock = $product->productInventory ? $product->productInventory->qty : 100;
-        $baseWeight = $product->weight ?? 0.1;
-        $baseLength = $product->length ?? 0;
-        $baseWidth = $product->width ?? 0;
-        $baseHeight = $product->height ?? 0;
+        // Prefer the provided $data (form input) when available, otherwise use saved product values
+        $basePrice = isset($data['price']) && $data['price'] !== null ? $data['price'] : $product->price;
+        $baseCost = isset($data['harga_beli']) && $data['harga_beli'] !== null ? $data['harga_beli'] : $product->harga_beli;
+
+        // Fallback to 0 to prevent DB NOT NULL constraint errors when parent price/cost not set
+        if ($basePrice === null) {
+            Log::warning('Auto-creating smart print variants: parent product id ' . $product->id . ' has null price. Falling back to 0.');
+            $basePrice = 0;
+        }
+        if ($baseCost === null) {
+            Log::warning('Auto-creating smart print variants: parent product id ' . $product->id . ' has null harga_beli. Falling back to 0.');
+            $baseCost = 0;
+        }
+
+        $baseStock = null;
+        if (isset($data['qty']) && $data['qty'] !== null) {
+            $baseStock = $data['qty'];
+        } elseif ($product->productInventory) {
+            $baseStock = $product->productInventory->qty;
+        } else {
+            $baseStock = 100;
+        }
+
+        $baseWeight = isset($data['weight']) && $data['weight'] !== null ? $data['weight'] : ($product->weight ?? 0.1);
+        $baseLength = isset($data['length']) && $data['length'] !== null ? $data['length'] : ($product->length ?? 0);
+        $baseWidth = isset($data['width']) && $data['width'] !== null ? $data['width'] : ($product->width ?? 0);
+        $baseHeight = isset($data['height']) && $data['height'] !== null ? $data['height'] : ($product->height ?? 0);
         
         $defaultVariants = [
             [
