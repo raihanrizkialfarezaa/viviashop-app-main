@@ -292,8 +292,8 @@ class ProductController extends Controller
         // Refresh product with related inventory data
         $product->load('productInventory');
         
-        $basePrice = $product->price ?? 2000;
-        $baseCost = $product->harga_beli ?? 1000;
+        $basePrice = $product->price; // Use exact parent price without fallback
+        $baseCost = $product->harga_beli; // Use exact parent cost without fallback
         $baseStock = $product->productInventory ? $product->productInventory->qty : 100;
         $baseWeight = $product->weight ?? 0.1;
         $baseLength = $product->length ?? 0;
