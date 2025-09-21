@@ -289,9 +289,13 @@ class ProductController extends Controller
     
     private function createDefaultSmartPrintVariants(Product $product)
     {
-        $basePrice = $product->price;
-        $baseCost = $product->harga_beli;
+        $basePrice = $product->price ?? 2000;
+        $baseCost = $product->harga_beli ?? 1000;
         $baseStock = $product->productInventory ? $product->productInventory->qty : 100;
+        $baseWeight = $product->weight ?? 0.1;
+        $baseLength = $product->length ?? 0;
+        $baseWidth = $product->width ?? 0;
+        $baseHeight = $product->height ?? 0;
         
         $defaultVariants = [
             [
@@ -302,6 +306,10 @@ class ProductController extends Controller
                 'stock' => $baseStock,
                 'price' => $basePrice,
                 'harga_beli' => $baseCost,
+                'weight' => $baseWeight,
+                'length' => $baseLength,
+                'width' => $baseWidth,
+                'height' => $baseHeight,
                 'attributes' => [
                     'print_type' => 'Black & White',
                     'paper_size' => 'A4'
@@ -313,8 +321,12 @@ class ProductController extends Controller
                 'paper_size' => 'A4', 
                 'print_type' => 'color',
                 'stock' => $baseStock,
-                'price' => $basePrice,
-                'harga_beli' => $baseCost,
+                'price' => $basePrice, // Same price as parent
+                'harga_beli' => $baseCost, // Same cost as parent
+                'weight' => $baseWeight,
+                'length' => $baseLength,
+                'width' => $baseWidth,
+                'height' => $baseHeight,
                 'attributes' => [
                     'print_type' => 'Color',
                     'paper_size' => 'A4'
@@ -330,14 +342,14 @@ class ProductController extends Controller
                 'price' => $variantData['price'],
                 'harga_beli' => $variantData['harga_beli'],
                 'stock' => $variantData['stock'],
-                'weight' => $product->weight ?: 0.1,
-                'length' => $product->length,
-                'width' => $product->width,
-                'height' => $product->height,
-                'print_type' => $variantData['print_type'],
-                'paper_size' => $variantData['paper_size'],
+                'weight' => $variantData['weight'],
+                'length' => $variantData['length'],
+                'width' => $variantData['width'],
+                'height' => $variantData['height'],
+                'print_type' => $variantData['print_type'], // Include in initial creation
+                'paper_size' => $variantData['paper_size'], // Include in initial creation
                 'is_active' => true,
-                'min_stock_threshold' => $variantData['stock'] * 0.1,
+                'min_stock_threshold' => max(1, $variantData['stock'] * 0.1),
             ]);
 
             foreach ($variantData['attributes'] as $attrName => $attrValue) {

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Test Updated Variant UI</title>
+        <link
+            href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.0/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <style>
+            .modal-backdrop {
+                background-color: rgba(0, 0, 0, 0.5);
+            }
+            .test-container {
+                margin: 50px auto;
+                max-width: 800px;
+            }
+            .attribute-display {
+                background: #f8f9fa;
+                padding: 15px;
+                margin: 10px 0;
+                border-radius: 5px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="test-container">
+            <h2>Updated Variant UI Test</h2>
+            <p>
+                <strong>Testing:</strong> New paper_size and print_type select
+                controls instead of generic attribute inputs
+            </p>
+
+            <button class="btn btn-primary" onclick="showAddVariantModal()">
+                Test Add Product Variant Modal
+            </button>
+            <button
+                class="btn btn-secondary ml-2"
+                onclick="showEditVariantModal()"
+            >
+                Test Edit Product Variant Modal
+            </button>
+
+            <div class="attribute-display mt-4">
+                <h4>Expected UI Changes:</h4>
+                <ul>
+                    <li>
+                        ✅ No more generic "Attribute Name" and "Attribute
+                        Value" inputs
+                    </li>
+                    <li>
+                        ✅ Direct "Paper Size" select dropdown (A4, A3, A5, F4)
+                    </li>
+                    <li>
+                        ✅ Direct "Print Type" select dropdown (Black & White,
+                        Color)
+                    </li>
+                    <li>
+                        ✅ No "Add Attribute" button (fixed 2 attributes max)
+                    </li>
+                    <li>✅ Clean, focused UI for print service variants</li>
+                </ul>
+            </div>
+
+            <div class="attribute-display">
+                <h4>Expected Backend Changes:</h4>
+                <ul>
+                    <li>✅ Form sends paper_size and print_type directly</li>
+                    <li>
+                        ✅ Validation updated to accept paper_size/print_type
+                        instead of attributes array
+                    </li>
+                    <li>
+                        ✅ Controller converts to attribute format for storage
+                        compatibility
+                    </li>
+                    <li>
+                        ✅ Simple product default creation inherits parent data
+                        properly
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Add Variant Modal -->
+        <div
+            class="modal fade"
+            id="addVariantModal"
+            tabindex="-1"
+            style="display: none"
+        >
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add Product Variant</h5>
+                        <button
+                            type="button"
+                            class="close"
+                            onclick="closeModal('addVariantModal')"
+                        >
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Variant Name</label>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            name="name"
+                                            placeholder="Enter variant name"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>SKU</label>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            name="sku"
+                                            placeholder="Enter SKU"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Price</label>
+                                        <input
+                                            type="number"
+                                            class="form-control"
+                                            name="price"
+                                            placeholder="Enter price"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Stock</label>
+                                        <input
+                                            type="number"
+                                            class="form-control"
+                                            name="stock"
+                                            placeholder="Enter stock"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- NEW UI: Direct paper_size and print_type selects -->
+                            <h6>Variant Attributes</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label
+                                        style="font-size: 14px; color: #495057"
+                                        >Paper Size</label
+                                    >
+                                    <select
+                                        class="form-control"
+                                        name="paper_size"
+                                        style="border: 1px solid #ced4da"
+                                    >
+                                        <option value="">
+                                            Select Paper Size
+                                        </option>
+                                        <option value="A4">A4</option>
+                                        <option value="A3">A3</option>
+                                        <option value="A5">A5</option>
+                                        <option value="F4">F4</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label
+                                        style="font-size: 14px; color: #495057"
+                                        >Print Type</label
+                                    >
+                                    <select
+                                        class="form-control"
+                                        name="print_type"
+                                        style="border: 1px solid #ced4da"
+                                    >
+                                        <option value="">
+                                            Select Print Type
+                                        </option>
+                                        <option value="bw">
+                                            Black & White
+                                        </option>
+                                        <option value="color">Color</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            onclick="closeModal('addVariantModal')"
+                        >
+                            Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary">
+                            Save Variant
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Variant Modal -->
+        <div
+            class="modal fade"
+            id="editVariantModal"
+            tabindex="-1"
+            style="display: none"
+        >
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Product Variant</h5>
+                        <button
+                            type="button"
+                            class="close"
+                            onclick="closeModal('editVariantModal')"
+                        >
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Variant Name</label>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            name="name"
+                                            value="Test Variant A4 BW"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>SKU</label>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            name="sku"
+                                            value="TEST-A4-BW"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Price</label>
+                                        <input
+                                            type="number"
+                                            class="form-control"
+                                            name="price"
+                                            value="2000"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Stock</label>
+                                        <input
+                                            type="number"
+                                            class="form-control"
+                                            name="stock"
+                                            value="100"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- NEW UI: Direct paper_size and print_type selects with current values -->
+                            <h6>Variant Attributes</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label
+                                        style="font-size: 14px; color: #495057"
+                                        >Paper Size</label
+                                    >
+                                    <select
+                                        class="form-control"
+                                        name="paper_size"
+                                        style="border: 1px solid #ced4da"
+                                    >
+                                        <option value="">
+                                            Select Paper Size
+                                        </option>
+                                        <option value="A4" selected>A4</option>
+                                        <option value="A3">A3</option>
+                                        <option value="A5">A5</option>
+                                        <option value="F4">F4</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label
+                                        style="font-size: 14px; color: #495057"
+                                        >Print Type</label
+                                    >
+                                    <select
+                                        class="form-control"
+                                        name="print_type"
+                                        style="border: 1px solid #ced4da"
+                                    >
+                                        <option value="">
+                                            Select Print Type
+                                        </option>
+                                        <option value="bw" selected>
+                                            Black & White
+                                        </option>
+                                        <option value="color">Color</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            onclick="closeModal('editVariantModal')"
+                        >
+                            Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary">
+                            Update Variant
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.0/js/bootstrap.bundle.min.js"></script>
+
+        <script>
+            function showAddVariantModal() {
+                $("#addVariantModal").modal("show");
+            }
+
+            function showEditVariantModal() {
+                $("#editVariantModal").modal("show");
+            }
+
+            function closeModal(modalId) {
+                $("#" + modalId).modal("hide");
+            }
+
+            // Simulate form data collection like the real implementation
+            function testFormData() {
+                var formData = {
+                    product_id: 123,
+                    name: $('#addVariantModal input[name="name"]').val(),
+                    sku: $('#addVariantModal input[name="sku"]').val(),
+                    price: $('#addVariantModal input[name="price"]').val(),
+                    stock: $('#addVariantModal input[name="stock"]').val(),
+                    paper_size: $(
+                        '#addVariantModal select[name="paper_size"]'
+                    ).val(),
+                    print_type: $(
+                        '#addVariantModal select[name="print_type"]'
+                    ).val(),
+                };
+
+                console.log("Form data to be sent:", formData);
+                alert("Check console for form data structure");
+            }
+
+            // Test form data collection on change
+            $("#addVariantModal select, #editVariantModal select").on(
+                "change",
+                function () {
+                    console.log(
+                        "Selected:",
+                        $(this).attr("name"),
+                        "=",
+                        $(this).val()
+                    );
+                }
+            );
+        </script>
+    </body>
+</html>

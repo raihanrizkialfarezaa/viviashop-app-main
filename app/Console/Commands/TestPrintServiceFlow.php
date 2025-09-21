@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Category;
@@ -11,7 +12,6 @@ use App\Models\ProductInventory;
 use App\Models\VariantAttribute;
 use App\Services\ProductVariantService;
 use App\Services\StockManagementService;
-use Illuminate\Support\Facades\DB;
 
 class TestPrintServiceFlow extends Command
 {
@@ -85,8 +85,44 @@ class TestPrintServiceFlow extends Command
             throw new \Exception("Should create 2 default variants, got: " . $variants->count());
         }
         
-        $bwVariant = $variants->where('print_type', 'bw')->first();
-        $colorVariant = $variants->where('print_type', 'color')->first();
+        // Debug: Let's see what values are actually stored in database vs accessors
+        $this->info("Variants created:");
+        foreach ($variants as $variant) {
+            // Get fresh data from database
+            $dbRow = DB::table('product_variants')->where('id', $variant->id)->first();
+            $this->info("- Variant ID: {$variant->id}, print_type DB: '{$dbRow->print_type}', print_type accessor: '{$variant->print_type}'");
+        }
+        
+        // Use database query to find variants since accessors pull from variant_attributes table
+        $bwVariantId = DB::table('product_variants')
+            ->where('product_id', $product->id)
+            ->where('print_type', 'bw')
+            ->value('id');
+            
+        $colorVariantId = DB::table('product_variants')
+            ->where('product_id', $product->id)
+            ->where('print_type', 'color')
+            ->value('id');
+        
+        if (!$bwVariantId) {
+            $dbValues = DB::table('product_variants')
+                ->where('product_id', $product->id)
+                ->pluck('print_type')
+                ->toArray();
+            throw new \Exception("BW variant not found. Available print_types in DB: " . implode(', ', $dbValues));
+        }
+        
+        if (!$colorVariantId) {
+            $dbValues = DB::table('product_variants')
+                ->where('product_id', $product->id)
+                ->pluck('print_type')
+                ->toArray();
+            throw new \Exception("Color variant not found. Available print_types in DB: " . implode(', ', $dbValues));
+        }
+        
+        // Get the actual variant models
+        $bwVariant = $variants->where('id', $bwVariantId)->first();
+        $colorVariant = $variants->where('id', $colorVariantId)->first();
         
         if ($bwVariant->price != 2) {
             throw new \Exception("BW variant price should inherit from parent (2), got: " . $bwVariant->price);
@@ -189,8 +225,10 @@ class TestPrintServiceFlow extends Command
             throw new \Exception("New variant paper_size should be A3, got: " . $newVariant->paper_size);
         }
         
-        if ($newVariant->print_type !== 'color') {
-            throw new \Exception("New variant print_type should be 'color', got: " . $newVariant->print_type);
+        // Check database value for print_type, not accessor value
+        $dbRow = DB::table('product_variants')->where('id', $newVariant->id)->first();
+        if ($dbRow->print_type !== 'color') {
+            throw new \Exception("New variant print_type in DB should be 'color', got: " . $dbRow->print_type . " (accessor returns: " . $newVariant->print_type . ")");
         }
         
         $attributes = $newVariant->variantAttributes->keyBy('attribute_name');
@@ -298,9 +336,13 @@ class TestPrintServiceFlow extends Command
     
     private function createDefaultSmartPrintVariants(Product $product)
     {
-        $basePrice = $product->price;
-        $baseCost = $product->harga_beli;
+        $basePrice = $product->price ?? 2000;
+        $baseCost = $product->harga_beli ?? 1000;
         $baseStock = $product->productInventory ? $product->productInventory->qty : 100;
+        $baseWeight = $product->weight ?? 0.1;
+        $baseLength = $product->length ?? 0;
+        $baseWidth = $product->width ?? 0;
+        $baseHeight = $product->height ?? 0;
         
         $defaultVariants = [
             [
@@ -311,6 +353,10 @@ class TestPrintServiceFlow extends Command
                 'stock' => $baseStock,
                 'price' => $basePrice,
                 'harga_beli' => $baseCost,
+                'weight' => $baseWeight,
+                'length' => $baseLength,
+                'width' => $baseWidth,
+                'height' => $baseHeight,
                 'attributes' => [
                     'print_type' => 'Black & White',
                     'paper_size' => 'A4'
@@ -322,8 +368,12 @@ class TestPrintServiceFlow extends Command
                 'paper_size' => 'A4', 
                 'print_type' => 'color',
                 'stock' => $baseStock,
-                'price' => $basePrice,
-                'harga_beli' => $baseCost,
+                'price' => $basePrice, // Same price as parent, not multiplied
+                'harga_beli' => $baseCost, // Same cost as parent, not multiplied
+                'weight' => $baseWeight,
+                'length' => $baseLength,
+                'width' => $baseWidth,
+                'height' => $baseHeight,
                 'attributes' => [
                     'print_type' => 'Color',
                     'paper_size' => 'A4'
@@ -339,14 +389,14 @@ class TestPrintServiceFlow extends Command
                 'price' => $variantData['price'],
                 'harga_beli' => $variantData['harga_beli'],
                 'stock' => $variantData['stock'],
-                'weight' => $product->weight ?: 0.1,
-                'length' => $product->length,
-                'width' => $product->width,
-                'height' => $product->height,
-                'print_type' => $variantData['print_type'],
-                'paper_size' => $variantData['paper_size'],
+                'weight' => $variantData['weight'],
+                'length' => $variantData['length'],
+                'width' => $variantData['width'],
+                'height' => $variantData['height'],
+                'print_type' => $variantData['print_type'], // Include in initial creation
+                'paper_size' => $variantData['paper_size'], // Include in initial creation
                 'is_active' => true,
-                'min_stock_threshold' => $variantData['stock'] * 0.1,
+                'min_stock_threshold' => max(1, $variantData['stock'] * 0.1),
             ]);
 
             foreach ($variantData['attributes'] as $attrName => $attrValue) {

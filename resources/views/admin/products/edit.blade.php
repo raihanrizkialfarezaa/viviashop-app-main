@@ -560,21 +560,30 @@
 									<hr style="margin: 20px 0;">
 									<h6 style="color: #495057; margin-bottom: 15px; font-weight: 600;">Variant Attributes</h6>
 									<div id="attributeContainer">
-										<div class="attribute-row row mb-3" style="align-items: end;">
+										<div class="attribute-row row mb-2">
 											<div class="col-md-5">
-												<label style="font-size: 14px; color: #495057;">Attribute Name</label>
-												<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name (e.g. Color, Size)" style="border: 1px solid #ced4da;">
+												<input type="text" class="form-control" name="attribute_names[]" value="paper_size" placeholder="Attribute Name">
 											</div>
 											<div class="col-md-5">
-												<label style="font-size: 14px; color: #495057;">Attribute Value</label>
-												<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value (e.g. Red, XL)" style="border: 1px solid #ced4da;">
+												<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. A4, A3, A1001">
 											</div>
 											<div class="col-md-2">
-												<button type="button" class="btn btn-sm btn-danger remove-attribute" style="margin-top: 5px;">Remove</button>
+												<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
+											</div>
+										</div>
+										<div class="attribute-row row mb-2">
+											<div class="col-md-5">
+												<input type="text" class="form-control" name="attribute_names[]" value="print_type" placeholder="Attribute Name">
+											</div>
+											<div class="col-md-5">
+												<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. bw, color, multi color">
+											</div>
+											<div class="col-md-2">
+												<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
 											</div>
 										</div>
 									</div>
-									<button type="button" class="btn btn-sm btn-secondary" id="addAttribute" style="margin-bottom: 15px;">Add Attribute</button>
+									<button type="button" class="btn btn-sm btn-secondary" id="addAttribute">Add Attribute</button>
 								</form>
 							</div>
 							<div class="modal-footer" style="background-color: #f8f9fa; border-top: 1px solid #dee2e6; padding: 15px 20px;">
@@ -590,24 +599,21 @@
 			document.body.classList.add('modal-open');
 			
 			$('#addAttribute').on('click', function() {
-				var newRow = `
-					<div class="attribute-row row mb-3" style="align-items: end;">
+				$('#attributeContainer').append(`
+					<div class="attribute-row row mb-2">
 						<div class="col-md-5">
-							<label style="font-size: 14px; color: #495057;">Attribute Name</label>
-							<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name" style="border: 1px solid #ced4da;">
+							<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name">
 						</div>
 						<div class="col-md-5">
-							<label style="font-size: 14px; color: #495057;">Attribute Value</label>
-							<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value" style="border: 1px solid #ced4da;">
+							<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value">
 						</div>
 						<div class="col-md-2">
-							<button type="button" class="btn btn-sm btn-danger remove-attribute" style="margin-top: 5px;">Remove</button>
+							<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
 						</div>
 					</div>
-				`;
-				$('#attributeContainer').append(newRow);
+				`);
 			});
-			
+
 			$(document).on('click', '.remove-attribute', function() {
 				$(this).closest('.attribute-row').remove();
 			});
@@ -777,10 +783,21 @@
 					modal += `
 						<div class="attribute-row row mb-2">
 							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name">
+								<input type="text" class="form-control" name="attribute_names[]" value="paper_size" placeholder="Attribute Name">
 							</div>
 							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value">
+								<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. A4, A3, A1001">
+							</div>
+							<div class="col-md-2">
+								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
+							</div>
+						</div>
+						<div class="attribute-row row mb-2">
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_names[]" value="print_type" placeholder="Attribute Name">
+							</div>
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. bw, color, multi color">
 							</div>
 							<div class="col-md-2">
 								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>

@@ -136,13 +136,20 @@ class PrintServiceController extends Controller
                         'id' => $product->id,
                         'name' => $product->name,
                         'variants' => $product->activeVariants->map(function($variant) {
+                            // Get database values directly to bypass accessors
+                            $dbValues = DB::table('product_variants')
+                                ->select('print_type', 'paper_size')
+                                ->where('id', $variant->id)
+                                ->first();
+                                
                             return [
                                 'id' => $variant->id,
                                 'name' => $variant->name,
                                 'price' => $variant->price,
-                                'print_type' => $variant->print_type,
-                                'paper_size' => $variant->paper_size,
-                                'stock' => $variant->stock
+                                'print_type' => $dbValues->print_type ?: $variant->print_type,
+                                'paper_size' => $dbValues->paper_size ?: $variant->paper_size,
+                                'stock' => $variant->stock,
+                                'min_stock_threshold' => $variant->min_stock_threshold
                             ];
                         })
                     ];
