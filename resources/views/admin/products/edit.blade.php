@@ -124,9 +124,303 @@
                                     @else
                                         <div class="no-variants">
                                             <p class="text-muted">No variants created yet for this configurable product.</p>
-                                            <button type="button" class="btn btn-success" id="addFirstVariant">
+                                            <button type="button" class="btn btn-success" id="addFirstVariant" onclick="showProperVariantModal();">
                                                 <i class="fa fa-plus"></i> Create First Variant
                                             </button>
+                                            
+                                            <script>
+                                            function showProperVariantModal() {
+                                                // Get product info (from Blade)
+                                                var isSmartPrint = {{ $product->is_smart_print_enabled && $product->is_print_service ? 'true' : 'false' }};
+                                                var modalTitle = isSmartPrint ? 'Add Smart Print Variant' : 'Add Product Variant';
+                                                var productId = {{ $product->id }};
+                                                
+                                                // Create modal overlay
+                                                var overlay = document.createElement('div');
+                                                overlay.id = 'variantModal';
+                                                overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; display: flex; align-items: center; justify-content: center; overflow-y: auto;';
+                                                
+                                                // Create modal content
+                                                var modalHtml = '<div style="background: white; border-radius: 8px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">';
+                                                
+                                                // Header
+                                                var headerStyle = isSmartPrint ? 'background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%); border-bottom: 2px solid #007bff;' : 'background: #f8f9fa; border-bottom: 1px solid #dee2e6;';
+                                                var titleStyle = isSmartPrint ? 'color: #007bff; font-weight: 600;' : 'color: #495057;';
+                                                
+                                                modalHtml += '<div style="padding: 20px; ' + headerStyle + '">';
+                                                modalHtml += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+                                                modalHtml += '<h4 style="margin: 0; ' + titleStyle + '">' + modalTitle + '</h4>';
+                                                modalHtml += '<button onclick="closeVariantModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6c757d;">&times;</button>';
+                                                modalHtml += '</div>';
+                                                modalHtml += '</div>';
+                                                
+                                                // Body
+                                                modalHtml += '<div style="padding: 30px;">';
+                                                modalHtml += '<form id="variantForm">';
+                                                
+                                                // Basic Info Row
+                                                modalHtml += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">';
+                                                modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Variant Name *</label>';
+                                                modalHtml += '<input type="text" name="name" required style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">SKU *</label>';
+                                                modalHtml += '<input type="text" name="sku" required style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                modalHtml += '</div>';
+                                                
+                                                // Price Row
+                                                modalHtml += '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">';
+                                                modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Harga Jual *</label>';
+                                                modalHtml += '<input type="number" name="price" step="0.01" required style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Harga Beli</label>';
+                                                modalHtml += '<input type="number" name="harga_beli" step="0.01" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Stock *</label>';
+                                                modalHtml += '<input type="number" name="stock" required style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                modalHtml += '</div>';
+                                                
+                                                // Dimensions Row
+                                                modalHtml += '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">';
+                                                modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Berat (kg)</label>';
+                                                modalHtml += '<input type="number" name="weight" step="0.01" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Panjang (cm)</label>';
+                                                modalHtml += '<input type="number" name="length" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Lebar (cm)</label>';
+                                                modalHtml += '<input type="number" name="width" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Tinggi (cm)</label>';
+                                                modalHtml += '<input type="number" name="height" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                modalHtml += '</div>';
+                                                
+                                                // Divider
+                                                modalHtml += '<hr style="margin: 30px 0; border: none; border-top: 2px solid #e9ecef;">';
+                                                
+                                                // Attributes Section
+                                                modalHtml += '<h5 style="margin-bottom: 15px; color: #495057;">Variant Attributes</h5>';
+                                                
+                                                // Smart Print vs Regular Info
+                                                if (isSmartPrint) {
+                                                    modalHtml += '<div style="background: #e3f2fd; border: 1px solid #1976d2; border-radius: 4px; padding: 15px; margin-bottom: 20px;">';
+                                                    modalHtml += '<div style="display: flex; align-items: center; color: #1976d2;"><i class="fas fa-info-circle" style="margin-right: 8px;"></i>';
+                                                    modalHtml += '<strong>Smart Print Service:</strong> paper_size dan print_type fields sudah dioptimalkan untuk layanan print</div>';
+                                                    modalHtml += '</div>';
+                                                } else {
+                                                    modalHtml += '<div style="background: #f8f9fa; border: 1px solid #6c757d; border-radius: 4px; padding: 15px; margin-bottom: 20px;">';
+                                                    modalHtml += '<div style="display: flex; align-items: center; color: #6c757d;"><i class="fas fa-box" style="margin-right: 8px;"></i>';
+                                                    modalHtml += '<strong>Regular Product:</strong> konfigurasi atribut fleksibel untuk produk umum</div>';
+                                                    modalHtml += '</div>';
+                                                }
+                                                
+                                                // Attributes Container
+                                                modalHtml += '<div id="attributeContainer">';
+                                                
+                                                if (isSmartPrint) {
+                                                    // Smart Print - readonly paper_size and print_type
+                                                    modalHtml += '<div class="attribute-row" style="display: grid; grid-template-columns: 1fr 1fr 100px; gap: 10px; margin-bottom: 10px; align-items: end;">';
+                                                    modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Name</label>';
+                                                    modalHtml += '<input type="text" name="attribute_names[]" value="paper_size" readonly style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; background-color: #f8f9fa;"></div>';
+                                                    modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Value</label>';
+                                                    modalHtml += '<input type="text" name="attribute_values[]" placeholder="e.g. A4, A3, Letter" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                    modalHtml += '<div><button type="button" onclick="removeAttribute(this)" style="padding: 10px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove</button></div>';
+                                                    modalHtml += '</div>';
+                                                    
+                                                    modalHtml += '<div class="attribute-row" style="display: grid; grid-template-columns: 1fr 1fr 100px; gap: 10px; margin-bottom: 10px; align-items: end;">';
+                                                    modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Name</label>';
+                                                    modalHtml += '<input type="text" name="attribute_names[]" value="print_type" readonly style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; background-color: #f8f9fa;"></div>';
+                                                    modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Value</label>';
+                                                    modalHtml += '<input type="text" name="attribute_values[]" placeholder="e.g. bw, color, grayscale" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                    modalHtml += '<div><button type="button" onclick="removeAttribute(this)" style="padding: 10px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove</button></div>';
+                                                    modalHtml += '</div>';
+                                                } else {
+                                                    // Regular Product - flexible attributes
+                                                    modalHtml += '<div class="attribute-row" style="display: grid; grid-template-columns: 1fr 1fr 100px; gap: 10px; margin-bottom: 10px; align-items: end;">';
+                                                    modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Name</label>';
+                                                    modalHtml += '<input type="text" name="attribute_names[]" placeholder="e.g. Size, Color, Material" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                    modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Value</label>';
+                                                    modalHtml += '<input type="text" name="attribute_values[]" placeholder="Attribute Value" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                    modalHtml += '<div><button type="button" onclick="removeAttribute(this)" style="padding: 10px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove</button></div>';
+                                                    modalHtml += '</div>';
+                                                }
+                                                
+                                                modalHtml += '</div>';
+                                                
+                                                // Add Attribute Button
+                                                modalHtml += '<button type="button" onclick="addAttribute(' + isSmartPrint + ')" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">+ Add Attribute</button>';
+                                                
+                                                modalHtml += '</form>';
+                                                modalHtml += '</div>';
+                                                
+                                                // Footer
+                                                modalHtml += '<div style="padding: 20px; background: #f8f9fa; border-top: 1px solid #dee2e6; display: flex; justify-content: flex-end; gap: 10px;">';
+                                                modalHtml += '<button onclick="closeVariantModal()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>';
+                                                modalHtml += '<button onclick="saveVariant(' + productId + ')" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Variant</button>';
+                                                modalHtml += '</div>';
+                                                
+                                                modalHtml += '</div>';
+                                                
+                                                overlay.innerHTML = modalHtml;
+                                                document.body.appendChild(overlay);
+                                            }
+                                            
+                                            function closeVariantModal() {
+                                                var modal = document.getElementById('variantModal');
+                                                if (modal) {
+                                                    modal.remove();
+                                                }
+                                            }
+                                            
+                                            function addAttribute(isSmartPrint) {
+                                                var container = document.getElementById('attributeContainer');
+                                                var row = document.createElement('div');
+                                                row.className = 'attribute-row';
+                                                row.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr 100px; gap: 10px; margin-bottom: 10px; align-items: end;';
+                                                
+                                                var namePlaceholder = isSmartPrint ? 'e.g. material, finish, binding' : 'e.g. Size, Color, Material';
+                                                
+                                                row.innerHTML = '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Name</label>' +
+                                                    '<input type="text" name="attribute_names[]" placeholder="' + namePlaceholder + '" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>' +
+                                                    '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Value</label>' +
+                                                    '<input type="text" name="attribute_values[]" placeholder="Attribute Value" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>' +
+                                                    '<div><button type="button" onclick="removeAttribute(this)" style="padding: 10px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove</button></div>';
+                                                
+                                                container.appendChild(row);
+                                            }
+                                            
+                                            function removeAttribute(button) {
+                                                button.closest('.attribute-row').remove();
+                                            }
+                                            
+                                            function saveVariant(productId) {
+                                                var form = document.getElementById('variantForm');
+
+                                                // Build FormData manually to avoid sending duplicate or unexpected fields
+                                                var formData = new FormData();
+
+
+                                                // Collect attribute name/value pairs from the form
+                                                var nameInputs = Array.from(form.querySelectorAll('input[name="attribute_names[]"]'));
+                                                var valueInputs = Array.from(form.querySelectorAll('input[name="attribute_values[]"]'));
+
+                                                // Client-side validation: required fields
+                                                var requiredFields = [
+                                                    { name: 'name', label: 'Variant Name' },
+                                                    { name: 'sku', label: 'SKU' },
+                                                    { name: 'price', label: 'Harga Jual' },
+                                                    { name: 'stock', label: 'Stock' }
+                                                ];
+                                                for (var f of requiredFields) {
+                                                    var el = form.querySelector('[name="' + f.name + '"]');
+                                                    if (!el || !String(el.value).trim()) {
+                                                        alert(f.label + ' is required.');
+                                                        if (el) el.focus();
+                                                        return;
+                                                    }
+                                                }
+
+                                                // Ensure at least one attribute is present (controller requires attributes array)
+                                                if (nameInputs.length === 0) {
+                                                    alert('Please add at least one attribute for this variant.');
+                                                    return;
+                                                }
+
+                                                // Ensure each attribute has both name and value
+                                                var attrErrors = [];
+                                                for (var i = 0; i < nameInputs.length; i++) {
+                                                    var aName = nameInputs[i] ? String(nameInputs[i].value).trim() : '';
+                                                    var aValue = valueInputs[i] ? String(valueInputs[i].value).trim() : '';
+                                                    if (!aName) attrErrors.push('Attribute #' + (i+1) + ': name is required');
+                                                    if (!aValue) attrErrors.push('Attribute #' + (i+1) + ': value is required');
+                                                }
+                                                if (attrErrors.length) {
+                                                    alert('Please fix attribute errors:\n' + attrErrors.join('\n'));
+                                                    return;
+                                                }
+
+                                                // Append attributes in the expected nested format: attributes[0][attribute_name], attributes[0][attribute_value]
+                                                for (var i = 0; i < nameInputs.length; i++) {
+                                                    var aName = (nameInputs[i] && nameInputs[i].value) ? nameInputs[i].value : '';
+                                                    var aValue = (valueInputs[i] && valueInputs[i].value) ? valueInputs[i].value : '';
+                                                    formData.append('attributes[' + i + '][attribute_name]', aName);
+                                                    formData.append('attributes[' + i + '][attribute_value]', aValue);
+                                                }
+
+                                                // Append main fields explicitly to avoid collisions
+                                                ['name','sku','price','harga_beli','stock','weight','length','width','height'].forEach(function(k){
+                                                    var el = form.querySelector('[name="' + k + '"]');
+                                                    if (el) formData.append(k, el.value);
+                                                });
+
+                                                formData.append('product_id', productId);
+
+                                                // Show loading (robustly determine the button)
+                                                var saveBtn = (typeof event !== 'undefined' && event && event.target) ? event.target : null;
+                                                if (saveBtn && saveBtn.tagName !== 'BUTTON') saveBtn = null;
+                                                if (saveBtn) {
+                                                    saveBtn.disabled = true;
+                                                    saveBtn.textContent = 'Saving...';
+                                                }
+
+                                                // Debug: log important form data keys
+                                                console.log('Sending form data (summary):');
+                                                ['name','sku','price','harga_beli','stock','weight','length','width','height','product_id'].forEach(function(k){
+                                                    console.log(k, formData.get(k));
+                                                });
+                                                // Log attributes
+                                                for (let pair of formData.entries()) {
+                                                    if (pair[0].startsWith('attributes')) console.log(pair[0], pair[1]);
+                                                }
+
+                                                fetch('/admin/variants/create', {
+                                                    method: 'POST',
+                                                    body: formData,
+                                                    headers: {
+                                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                                                        'X-Requested-With': 'XMLHttpRequest'
+                                                    }
+                                                })
+                                                .then(response => {
+                                                    console.log('Response status:', response.status);
+                                                    const contentType = response.headers.get('content-type') || '';
+                                                    if (!contentType.includes('application/json')) {
+                                                        // Try to read text for debugging
+                                                        return response.text().then(text => {
+                                                            throw new Error('Server returned non-JSON response. Status: ' + response.status + '\n' + text);
+                                                        });
+                                                    }
+                                                    return response.json().then(json => ({ status: response.status, json }));
+                                                })
+                                                .then(({ status, json }) => {
+                                                    console.log('Parsed JSON response:', json);
+                                                    if (status === 422) {
+                                                        // Validation errors
+                                                        var errors = json.errors || {};
+                                                        var messages = [];
+                                                        Object.keys(errors).forEach(function(k) {
+                                                            if (Array.isArray(errors[k])) {
+                                                                messages = messages.concat(errors[k]);
+                                                            } else if (typeof errors[k] === 'string') {
+                                                                messages.push(errors[k]);
+                                                            }
+                                                        });
+                                                        var msg = messages.length ? messages.join('\n') : (json.message || 'Validation failed');
+                                                        console.error('Validation errors from server:', json);
+                                                        alert('Validation failed:\n' + msg + '\n\nFull response:\n' + JSON.stringify(json, null, 2));
+                                                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Variant'; }
+                                                        return;
+                                                    }
+
+                                                    if (json.success || json.message && json.message.toLowerCase().includes('created')) {
+                                                        alert('Variant saved successfully!');
+                                                        closeVariantModal();
+                                                        location.reload();
+                                                    } else {
+                                                        alert('Error: ' + (json.message || 'Failed to save variant'));
+                                                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Variant'; }
+                                                    }
+                                                })
+                                                .catch(error => {
+                                                    console.error('Save error:', error);
+                                                    alert('Error: ' + error.message + '\n\nCheck browser console for details.');
+                                                    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Variant'; }
+                                                });
+                                            }
+                                            </script>
                                         </div>
                                     @endif
                                 </div>
@@ -468,9 +762,14 @@
 				showHideConfigurableAttributes();
 			});
 			
-			$('#addFirstVariant, #addNewVariant').on('click', function() {
-				showVariantModal();
-			});
+            $('#addFirstVariant, #addNewVariant').on('click', function() {
+                // Use the new proper modal implementation that supports smart-print and attributes
+                if (typeof showProperVariantModal === 'function') {
+                    showProperVariantModal();
+                } else {
+                    showVariantModal();
+                }
+            });
 			
 			$('.edit-variant').on('click', function() {
 				var variantId = $(this).data('variant-id');
@@ -484,288 +783,60 @@
 			});
 		});
 		
-		function showVariantModal() {
-			var modal = `
-				<div class="modal fade show" id="variantModal" tabindex="-1" style="display: block; background-color: rgba(0,0,0,0.5);">
-					<div class="modal-dialog modal-lg">
-						<div class="modal-content">
-							<div class="modal-header">
-								<h5 class="modal-title">Add Product Variant</h5>
-								<button type="button" class="close" onclick="closeVariantModal()">
-									<span>&times;</span>
-								</button>
-							</div>
-							<div class="modal-body">
-								<form id="variantForm">
-									<div class="row">
-										<div class="col-md-6">
-											<div class="form-group">
-												<label>Variant Name</label>
-												<input type="text" class="form-control" name="name" required>
-											</div>
-										</div>
-										<div class="col-md-6">
-											<div class="form-group">
-												<label>SKU</label>
-												<input type="text" class="form-control" name="sku" required>
-											</div>
-										</div>
-									</div>
-									<div class="row">
-										<div class="col-md-4">
-											<div class="form-group">
-												<label>Harga Jual</label>
-												<input type="number" class="form-control" name="price" step="0.01" required>
-											</div>
-										</div>
-										<div class="col-md-4">
-											<div class="form-group">
-												<label>Harga Beli</label>
-												<input type="number" class="form-control" name="harga_beli" step="0.01">
-											</div>
-										</div>
-										<div class="col-md-4">
-											<div class="form-group">
-												<label>Stock</label>
-												<input type="number" class="form-control" name="stock" required>
-											</div>
-										</div>
-									</div>
-									<div class="row">
-										<div class="col-md-3">
-											<div class="form-group">
-												<label>Berat (kg)</label>
-												<input type="number" step="0.01" class="form-control" name="weight">
-											</div>
-										</div>
-										<div class="col-md-3">
-											<div class="form-group">
-												<label>Panjang (cm)</label>
-												<input type="number" class="form-control" name="length">
-											</div>
-										</div>
-										<div class="col-md-3">
-											<div class="form-group">
-												<label>Lebar (cm)</label>
-												<input type="number" class="form-control" name="width">
-											</div>
-										</div>
-										<div class="col-md-3">
-											<div class="form-group">
-												<label>Tinggi (cm)</label>
-												<input type="number" class="form-control" name="height">
-											</div>
-										</div>
-									</div>
-									<hr style="margin: 20px 0;">
-									<h6 style="color: #495057; margin-bottom: 15px; font-weight: 600;">Variant Attributes</h6>
-									<div id="attributeContainer">
-										<div class="attribute-row row mb-2">
-											<div class="col-md-5">
-												<input type="text" class="form-control" name="attribute_names[]" value="paper_size" placeholder="Attribute Name" readonly style="background-color: #f8f9fa;">
-											</div>
-											<div class="col-md-5">
-												<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. A4, A3, A1001">
-											</div>
-											<div class="col-md-2">
-												<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
-											</div>
-										</div>
-										<div class="attribute-row row mb-2">
-											<div class="col-md-5">
-												<input type="text" class="form-control" name="attribute_names[]" value="print_type" placeholder="Attribute Name" readonly style="background-color: #f8f9fa;">
-											</div>
-											<div class="col-md-5">
-												<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. bw, color, multi color">
-											</div>
-											<div class="col-md-2">
-												<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
-											</div>
-										</div>
-									</div>
-									<button type="button" class="btn btn-sm btn-secondary" id="addAttribute">Add Attribute</button>
-								</form>
-							</div>
-							<div class="modal-footer" style="background-color: #f8f9fa; border-top: 1px solid #dee2e6; padding: 15px 20px;">
-								<button type="button" class="btn btn-secondary" onclick="closeVariantModal()" style="margin-right: 10px;">Cancel</button>
-								<button type="button" class="btn btn-primary" id="saveVariant">Save Variant</button>
-							</div>
-						</div>
-					</div>
-				</div>
-			`;
-			
-			$('body').append(modal);
-			document.body.classList.add('modal-open');
-			
-			$('#addAttribute').on('click', function() {
-				$('#attributeContainer').append(`
-					<div class="attribute-row row mb-2">
-						<div class="col-md-5">
-							<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name">
-						</div>
-						<div class="col-md-5">
-							<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value">
-						</div>
-						<div class="col-md-2">
-							<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
-						</div>
-					</div>
-				`);
-			});
-
-			$(document).on('click', '.remove-attribute', function() {
-				$(this).closest('.attribute-row').remove();
-			});
-			
-			$('#saveVariant').on('click', function() {
-				saveVariant();
-			});
-		}
-		
-		function closeVariantModal() {
-			$('#variantModal').remove();
-			document.body.classList.remove('modal-open');
-		}
-		
-		function saveVariant() {
-			var formData = {
-				product_id: {{ $product->id }},
-				name: $('#variantModal input[name="name"]').val(),
-				sku: $('#variantModal input[name="sku"]').val(),
-				price: $('#variantModal input[name="price"]').val(),
-				harga_beli: $('#variantModal input[name="harga_beli"]').val(),
-				stock: $('#variantModal input[name="stock"]').val(),
-				weight: $('#variantModal input[name="weight"]').val() || {{ $product->weight ?? 0 }},
-				length: $('#variantModal input[name="length"]').val() || {{ $product->length ?? 0 }},
-				width: $('#variantModal input[name="width"]').val() || {{ $product->width ?? 0 }},
-				height: $('#variantModal input[name="height"]').val() || {{ $product->height ?? 0 }},
-				attributes: []
-			};
-			
-			$('#variantModal .attribute-row').each(function() {
-				var name = $(this).find('input[name="attribute_names[]"]').val();
-				var value = $(this).find('input[name="attribute_values[]"]').val();
-				if (name && value) {
-					formData.attributes.push({
-						attribute_name: name,
-						attribute_value: value
-					});
-				}
-			});
-			
-			if (formData.attributes.length === 0) {
-				alert('Please add at least one attribute for the variant');
-				return;
-			}
-			
-			$.ajax({
-				url: '/admin/variants/create',
-				method: 'POST',
-				data: formData,
-				headers: {
-					'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-				},
-				success: function(response) {
-					closeVariantModal();
-					var currentUrl = new URL(window.location.href);
-					var variantPage = currentUrl.searchParams.get('variant_page') || 1;
-					window.location.href = currentUrl.pathname + '?variant_page=' + variantPage;
-				},
-				error: function(xhr) {
-					var message = 'Error creating variant';
-					if (xhr.responseJSON && xhr.responseJSON.message) {
-						message = xhr.responseJSON.message;
-					}
-					alert(message);
-				}
-			});
-		}
+        
 		
 		function editVariant(variantId) {
-			$.get('/admin/variants/' + variantId, function(response) {
-				var variant = response.variant;
+			// Temporary disabled - akan diperbaiki setelah Create First Variant berfungsi
+			alert('Edit Variant functionality temporarily disabled. Testing Create First Variant first.');
+			return;
 				
-				var modal = `
-					<div class="modal fade show" id="editVariantModal" tabindex="-1" style="display: block; background-color: rgba(0,0,0,0.5);">
-						<div class="modal-dialog modal-lg">
-							<div class="modal-content">
-								<div class="modal-header">
-									<h5 class="modal-title">Edit Product Variant</h5>
-									<button type="button" class="close" onclick="closeEditVariantModal()">
-										<span>&times;</span>
-									</button>
-								</div>
-								<div class="modal-body">
-									<form id="editVariantForm">
-										<input type="hidden" id="edit_variant_id" value="${variant.id}">
-										<div class="row">
-											<div class="col-md-6">
-												<div class="form-group">
-													<label>Variant Name</label>
-													<input type="text" class="form-control" name="name" value="${variant.name}" required>
-												</div>
-											</div>
-											<div class="col-md-6">
-												<div class="form-group">
-													<label>SKU</label>
-													<input type="text" class="form-control" name="sku" value="${variant.sku}" required>
-												</div>
-											</div>
-										</div>
-										<div class="row">
-											<div class="col-md-4">
-												<div class="form-group">
-													<label>Harga Jual</label>
-													<input type="number" class="form-control" name="price" value="${variant.price}" step="0.01" required>
-												</div>
-											</div>
-											<div class="col-md-4">
-												<div class="form-group">
-													<label>Harga Beli</label>
-													<input type="number" class="form-control" name="harga_beli" value="${variant.harga_beli !== null ? variant.harga_beli : ''}" step="0.01">
-												</div>
-											</div>
-											<div class="col-md-4">
-												<div class="form-group">
-													<label>Stock</label>
-													<input type="number" class="form-control" name="stock" value="${variant.stock}" required>
-												</div>
-											</div>
-										</div>
-										<div class="row">
-											<div class="col-md-3">
-												<div class="form-group">
-													<label>Berat (kg)</label>
-													<input type="number" step="0.01" class="form-control" name="weight" value="${variant.weight !== null ? variant.weight : ''}">
-												</div>
-											</div>
-											<div class="col-md-3">
-												<div class="form-group">
-													<label>Panjang (cm)</label>
-													<input type="number" class="form-control" name="length" value="${variant.length !== null ? variant.length : ''}">
-												</div>
-											</div>
-											<div class="col-md-3">
-												<div class="form-group">
-													<label>Lebar (cm)</label>
-													<input type="number" class="form-control" name="width" value="${variant.width !== null ? variant.width : ''}">
-												</div>
-											</div>
-											<div class="col-md-3">
-												<div class="form-group">
-													<label>Tinggi (cm)</label>
-													<input type="number" class="form-control" name="height" value="${variant.height !== null ? variant.height : ''}">
-												</div>
-											</div>
-										</div>
-										<h6>Variant Attributes</h6>
-										<div id="editAttributeContainer">
+				var modal = '<div class="modal fade show" id="editVariantModal" tabindex="-1" style="display: block; background-color: rgba(0,0,0,0.5);">';
+				modal += '<div class="modal-dialog modal-lg">';
+				modal += '<div class="modal-content">';
+				modal += '<div class="modal-header" ' + headerStyle + '>';
+				modal += '<h5 class="modal-title" style="' + titleStyle + '">' + modalTitle + '</h5>';
+				modal += '<button type="button" class="close" onclick="closeEditVariantModal()"><span>&times;</span></button>';
+				modal += '</div>';
+				modal += '<div class="modal-body">';
+				modal += '<form id="editVariantForm">';
+				modal += '<input type="hidden" id="edit_variant_id" value="' + variant.id + '">';
+				modal += '<div class="row">';
+				modal += '<div class="col-md-6"><div class="form-group"><label>Variant Name</label><input type="text" class="form-control" name="name" value="' + variant.name + '" required></div></div>';
+				modal += '<div class="col-md-6"><div class="form-group"><label>SKU</label><input type="text" class="form-control" name="sku" value="' + variant.sku + '" required></div></div>';
+				modal += '</div>';
+				modal += '<div class="row">';
+				modal += '<div class="col-md-4"><div class="form-group"><label>Harga Jual</label><input type="number" class="form-control" name="price" value="' + variant.price + '" step="0.01" required></div></div>';
+				modal += '<div class="col-md-4"><div class="form-group"><label>Harga Beli</label><input type="number" class="form-control" name="harga_beli" value="' + (variant.harga_beli !== null ? variant.harga_beli : '') + '" step="0.01"></div></div>';
+				modal += '<div class="col-md-4"><div class="form-group"><label>Stock</label><input type="number" class="form-control" name="stock" value="' + variant.stock + '" required></div></div>';
+				modal += '</div>';
+				modal += '<div class="row">';
+				modal += '<div class="col-md-3"><div class="form-group"><label>Berat (kg)</label><input type="number" step="0.01" class="form-control" name="weight" value="' + (variant.weight !== null ? variant.weight : '') + '"></div></div>';
+				modal += '<div class="col-md-3"><div class="form-group"><label>Panjang (cm)</label><input type="number" class="form-control" name="length" value="' + (variant.length !== null ? variant.length : '') + '"></div></div>';
+				modal += '<div class="col-md-3"><div class="form-group"><label>Lebar (cm)</label><input type="number" class="form-control" name="width" value="' + (variant.width !== null ? variant.width : '') + '"></div></div>';
+				modal += '<div class="col-md-3"><div class="form-group"><label>Tinggi (cm)</label><input type="number" class="form-control" name="height" value="' + (variant.height !== null ? variant.height : '') + '"></div></div>';
+				modal += '</div>';
+				modal += '<hr style="margin: 20px 0;">';
+				modal += '<h6 style="color: #495057; margin-bottom: 15px; font-weight: 600;">Variant Attributes</h6>';
+				modal += '<div id="editAttributeContainer">';
+				
+				if (isSmartPrint) {
+					modal += `
+						<div class="alert alert-info" style="margin-bottom: 15px; padding: 10px; background-color: #e3f2fd; border: 1px solid #1976d2; border-radius: 4px;">
+							<small><i class="fas fa-info-circle"></i> Smart Print Service: paper_size dan print_type fields are optimized for print services</small>
+						</div>`;
+				} else {
+					modal += `
+						<div class="alert alert-secondary" style="margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border: 1px solid #6c757d; border-radius: 4px;">
+							<small><i class="fas fa-box"></i> Regular Product: flexible attribute configuration for general products</small>
+						</div>`;
+				}
+				
+				modal += `<div id="editAttributeContainer">
 								`;
 								
 				if (variant.variant_attributes && variant.variant_attributes.length > 0) {
 					variant.variant_attributes.forEach(function(attr, index) {
-						const isReadonly = attr.attribute_name === 'paper_size' || attr.attribute_name === 'print_type';
+						const isReadonly = isSmartPrint && (attr.attribute_name === 'paper_size' || attr.attribute_name === 'print_type');
 						const readonlyAttr = isReadonly ? 'readonly style="background-color: #f8f9fa;"' : '';
 						modal += `
 							<div class="attribute-row row mb-2">
@@ -774,6 +845,51 @@
 								</div>
 								<div class="col-md-5">
 									<input type="text" class="form-control" name="attribute_values[]" value="${attr.attribute_value}" placeholder="Attribute Value">
+								</div>
+								<div class="col-md-2">
+									<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
+								</div>
+							</div>
+						`;
+					});
+				} else if (isSmartPrint) {
+					modal += `
+						<div class="attribute-row row mb-2">
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_names[]" value="paper_size" placeholder="Attribute Name" readonly style="background-color: #f8f9fa;">
+							</div>
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. A4, A3, A1001">
+							</div>
+							<div class="col-md-2">
+								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
+							</div>
+						</div>
+						<div class="attribute-row row mb-2">
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_names[]" value="print_type" placeholder="Attribute Name" readonly style="background-color: #f8f9fa;">
+							</div>
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. bw, color, multi color">
+							</div>
+							<div class="col-md-2">
+								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
+							</div>
+						</div>`;
+				} else {
+					modal += `
+						<div class="attribute-row row mb-2">
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name (e.g. Size, Color)">
+							</div>
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value">
+							</div>
+							<div class="col-md-2">
+								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
+							</div>
+						</div>`;
+				}
 								</div>
 								<div class="col-md-2">
 									<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
@@ -826,8 +942,19 @@
 				document.body.classList.add('modal-open');
 				
 				$('#addEditAttribute').on('click', function() {
-					var newRow = `
-						<div class="attribute-row row mb-2">
+					const newRow = isSmartPrint ? 
+						`<div class="attribute-row row mb-2">
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name (e.g. material, finish)">
+							</div>
+							<div class="col-md-5">
+								<input type="text" class="form-control" name="attribute_values[]" placeholder="Attribute Value">
+							</div>
+							<div class="col-md-2">
+								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
+							</div>
+						</div>` :
+						`<div class="attribute-row row mb-2">
 							<div class="col-md-5">
 								<input type="text" class="form-control" name="attribute_names[]" placeholder="Attribute Name">
 							</div>
@@ -837,8 +964,8 @@
 							<div class="col-md-2">
 								<button type="button" class="btn btn-sm btn-danger remove-attribute">Remove</button>
 							</div>
-						</div>
-					`;
+						</div>`;
+					
 					$('#editAttributeContainer').append(newRow);
 				});
 				
