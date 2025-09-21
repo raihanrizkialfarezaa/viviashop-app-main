@@ -47,6 +47,14 @@ use Illuminate\Support\Facades\Auth;
 
 Auth::routes();
 
+Route::get('storage/{path}', function($path) {
+    $full = storage_path('app/public/' . $path);
+    if (!file_exists($full)) {
+        abort(404);
+    }
+    return response()->file($full);
+})->where('path', '.*');
+
 // $cart = Cart::content()->count();
 // dd($cart);
 // view()->share('countCart', $cart);
