@@ -976,6 +976,12 @@ Route::group(['middleware' => ['auth', 'is_admin'], 'prefix' => 'admin', 'as' =>
         Route::get('/product/{productId}', [\App\Http\Controllers\Admin\StockCardController::class, 'showProduct'])->name('product');
         Route::get('/report', [\App\Http\Controllers\Admin\StockCardController::class, 'report'])->name('report');
     });
+
+    Route::resource('paper-types', \App\Http\Controllers\Admin\PaperTypeController::class);
+    Route::get('/paper-types/api/active', [\App\Http\Controllers\Admin\PaperTypeController::class, 'getActivePaperTypes'])->name('paper-types.api.active');
+    
+    Route::resource('print-types', \App\Http\Controllers\Admin\PrintTypeController::class);
+    Route::get('/print-types/api/active', [\App\Http\Controllers\Admin\PrintTypeController::class, 'getActivePrintTypes'])->name('print-types.api.active');
 });
 
 Route::get('/smart-print', function () {
