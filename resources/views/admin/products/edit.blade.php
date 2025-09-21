@@ -562,7 +562,7 @@
 									<div id="attributeContainer">
 										<div class="attribute-row row mb-2">
 											<div class="col-md-5">
-												<input type="text" class="form-control" name="attribute_names[]" value="paper_size" placeholder="Attribute Name">
+												<input type="text" class="form-control" name="attribute_names[]" value="paper_size" placeholder="Attribute Name" readonly style="background-color: #f8f9fa;">
 											</div>
 											<div class="col-md-5">
 												<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. A4, A3, A1001">
@@ -573,7 +573,7 @@
 										</div>
 										<div class="attribute-row row mb-2">
 											<div class="col-md-5">
-												<input type="text" class="form-control" name="attribute_names[]" value="print_type" placeholder="Attribute Name">
+												<input type="text" class="form-control" name="attribute_names[]" value="print_type" placeholder="Attribute Name" readonly style="background-color: #f8f9fa;">
 											</div>
 											<div class="col-md-5">
 												<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. bw, color, multi color">
@@ -765,10 +765,12 @@
 								
 				if (variant.variant_attributes && variant.variant_attributes.length > 0) {
 					variant.variant_attributes.forEach(function(attr, index) {
+						const isReadonly = attr.attribute_name === 'paper_size' || attr.attribute_name === 'print_type';
+						const readonlyAttr = isReadonly ? 'readonly style="background-color: #f8f9fa;"' : '';
 						modal += `
 							<div class="attribute-row row mb-2">
 								<div class="col-md-5">
-									<input type="text" class="form-control" name="attribute_names[]" value="${attr.attribute_name}" placeholder="Attribute Name">
+									<input type="text" class="form-control" name="attribute_names[]" value="${attr.attribute_name}" placeholder="Attribute Name" ${readonlyAttr}>
 								</div>
 								<div class="col-md-5">
 									<input type="text" class="form-control" name="attribute_values[]" value="${attr.attribute_value}" placeholder="Attribute Value">
@@ -783,7 +785,7 @@
 					modal += `
 						<div class="attribute-row row mb-2">
 							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_names[]" value="paper_size" placeholder="Attribute Name">
+								<input type="text" class="form-control" name="attribute_names[]" value="paper_size" placeholder="Attribute Name" readonly style="background-color: #f8f9fa;">
 							</div>
 							<div class="col-md-5">
 								<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. A4, A3, A1001">
@@ -794,7 +796,7 @@
 						</div>
 						<div class="attribute-row row mb-2">
 							<div class="col-md-5">
-								<input type="text" class="form-control" name="attribute_names[]" value="print_type" placeholder="Attribute Name">
+								<input type="text" class="form-control" name="attribute_names[]" value="print_type" placeholder="Attribute Name" readonly style="background-color: #f8f9fa;">
 							</div>
 							<div class="col-md-5">
 								<input type="text" class="form-control" name="attribute_values[]" placeholder="e.g. bw, color, multi color">

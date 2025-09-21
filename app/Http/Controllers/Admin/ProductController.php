@@ -289,6 +289,9 @@ class ProductController extends Controller
     
     private function createDefaultSmartPrintVariants(Product $product)
     {
+        // Refresh product with related inventory data
+        $product->load('productInventory');
+        
         $basePrice = $product->price ?? 2000;
         $baseCost = $product->harga_beli ?? 1000;
         $baseStock = $product->productInventory ? $product->productInventory->qty : 100;
