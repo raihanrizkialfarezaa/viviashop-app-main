@@ -117,7 +117,7 @@
                                         </div>
                                         
                                         <div class="mt-3">
-                                            <button type="button" class="btn btn-success" id="addNewVariant">
+                                            <button type="button" class="btn btn-success" id="addNewVariant" onclick="showProperVariantModal();">
                                                 <i class="fa fa-plus"></i> Add New Variant
                                             </button>
                                         </div>
@@ -257,12 +257,22 @@
                                                 overlay.innerHTML = modalHtml;
                                                 document.body.appendChild(overlay);
                                             }
+
+                                            // Ensure global wrapper can call this concrete implementation
+                                            try {
+                                                if (typeof showProperVariantModal === 'function') {
+                                                    window._internal_showProperVariantModal = showProperVariantModal;
+                                                }
+                                            } catch (e) {
+                                                console.warn('Could not bind internal showProperVariantModal to window:', e);
+                                            }
                                             
                                             function closeVariantModal() {
                                                 var modal = document.getElementById('variantModal');
                                                 if (modal) {
                                                     modal.remove();
                                                 }
+                                                try { document.body.classList.remove('modal-open'); } catch(e) {}
                                             }
                                             
                                             function addAttribute(isSmartPrint) {
@@ -285,6 +295,112 @@
                                             function removeAttribute(button) {
                                                 button.closest('.attribute-row').remove();
                                             }
+
+                                                    // Global showProperVariantModal so Add New Variant works when product has existing variants
+                                                    function showProperVariantModal() {
+                                                        var isSmartPrint = {{ $product->is_smart_print_enabled && $product->is_print_service ? 'true' : 'false' }};
+                                                        var modalTitle = isSmartPrint ? 'Add Smart Print Variant' : 'Add Product Variant';
+                                                        var productId = {{ $product->id }};
+
+                                                        var overlay = document.createElement('div');
+                                                        overlay.id = 'variantModal';
+                                                        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; display: flex; align-items: center; justify-content: center; overflow-y: auto;';
+
+                                                        var modalHtml = '<div style="background: white; border-radius: 8px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">';
+
+                                                        var headerStyle = isSmartPrint ? 'background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%); border-bottom: 2px solid #007bff;' : 'background: #f8f9fa; border-bottom: 1px solid #dee2e6;';
+                                                        var titleStyle = isSmartPrint ? 'color: #007bff; font-weight: 600;' : 'color: #495057;';
+
+                                                        modalHtml += '<div style="padding: 20px; ' + headerStyle + '">';
+                                                        modalHtml += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+                                                        modalHtml += '<h4 style="margin: 0; ' + titleStyle + '">' + modalTitle + '</h4>';
+                                                        modalHtml += '<button onclick="closeVariantModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6c757d;">&times;</button>';
+                                                        modalHtml += '</div>';
+                                                        modalHtml += '</div>';
+
+                                                        modalHtml += '<div style="padding: 30px;">';
+                                                        modalHtml += '<form id="variantForm">';
+                                                        modalHtml += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">';
+                                                        modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Variant Name *</label>';
+                                                        modalHtml += '<input type="text" name="name" required style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                        modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">SKU *</label>';
+                                                        modalHtml += '<input type="text" name="sku" required style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                        modalHtml += '</div>';
+
+                                                        modalHtml += '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">';
+                                                        modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Harga Jual *</label>';
+                                                        modalHtml += '<input type="number" name="price" step="0.01" required style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                        modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Harga Beli</label>';
+                                                        modalHtml += '<input type="number" name="harga_beli" step="0.01" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                        modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Stock *</label>';
+                                                        modalHtml += '<input type="number" name="stock" required style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                        modalHtml += '</div>';
+
+                                                        modalHtml += '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">';
+                                                        modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Berat (kg)</label>';
+                                                        modalHtml += '<input type="number" name="weight" step="0.01" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                        modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Panjang (cm)</label>';
+                                                        modalHtml += '<input type="number" name="length" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                        modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Lebar (cm)</label>';
+                                                        modalHtml += '<input type="number" name="width" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                        modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Tinggi (cm)</label>';
+                                                        modalHtml += '<input type="number" name="height" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                        modalHtml += '</div>';
+
+                                                        modalHtml += '<hr style="margin: 30px 0; border: none; border-top: 2px solid #e9ecef;">';
+                                                        modalHtml += '<h5 style="margin-bottom: 15px; color: #495057;">Variant Attributes</h5>';
+
+                                                        if (isSmartPrint) {
+                                                            modalHtml += '<div style="background: #e3f2fd; border: 1px solid #1976d2; border-radius: 4px; padding: 15px; margin-bottom: 20px;">';
+                                                            modalHtml += '<div style="display: flex; align-items: center; color: #1976d2;"><i class="fas fa-info-circle" style="margin-right: 8px;"></i>';
+                                                            modalHtml += '<strong>Smart Print Service:</strong> paper_size dan print_type fields sudah dioptimalkan untuk layanan print</div>';
+                                                            modalHtml += '</div>';
+                                                        } else {
+                                                            modalHtml += '<div style="background: #f8f9fa; border: 1px solid #6c757d; border-radius: 4px; padding: 15px; margin-bottom: 20px;">';
+                                                            modalHtml += '<div style="display: flex; align-items: center; color: #6c757d;"><i class="fas fa-box" style="margin-right: 8px;"></i>';
+                                                            modalHtml += '<strong>Regular Product:</strong> konfigurasi atribut fleksibel untuk produk umum</div>';
+                                                            modalHtml += '</div>';
+                                                        }
+
+                                                        modalHtml += '<div id="attributeContainer">';
+                                                        if (isSmartPrint) {
+                                                            modalHtml += '<div class="attribute-row" style="display: grid; grid-template-columns: 1fr 1fr 100px; gap: 10px; margin-bottom: 10px; align-items: end;">';
+                                                            modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Name</label>';
+                                                            modalHtml += '<input type="text" name="attribute_names[]" value="paper_size" readonly style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; background-color: #f8f9fa;"></div>';
+                                                            modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Value</label>';
+                                                            modalHtml += '<input type="text" name="attribute_values[]" placeholder="e.g. A4, A3, Letter" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                            modalHtml += '<div><button type="button" onclick="removeAttribute(this)" style="padding: 10px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove</button></div>';
+                                                            modalHtml += '</div>';
+                                                            modalHtml += '<div class="attribute-row" style="display: grid; grid-template-columns: 1fr 1fr 100px; gap: 10px; margin-bottom: 10px; align-items: end;">';
+                                                            modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Name</label>';
+                                                            modalHtml += '<input type="text" name="attribute_names[]" value="print_type" readonly style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; background-color: #f8f9fa;"></div>';
+                                                            modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Value</label>';
+                                                            modalHtml += '<input type="text" name="attribute_values[]" placeholder="e.g. bw, color, grayscale" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                            modalHtml += '<div><button type="button" onclick="removeAttribute(this)" style="padding: 10px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove</button></div>';
+                                                            modalHtml += '</div>';
+                                                        } else {
+                                                            modalHtml += '<div class="attribute-row" style="display: grid; grid-template-columns: 1fr 1fr 100px; gap: 10px; margin-bottom: 10px; align-items: end;">';
+                                                            modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Name</label>';
+                                                            modalHtml += '<input type="text" name="attribute_names[]" placeholder="e.g. Size, Color, Material" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                            modalHtml += '<div><label style="display: block; margin-bottom: 5px; font-weight: 600;">Attribute Value</label>';
+                                                            modalHtml += '<input type="text" name="attribute_values[]" placeholder="Attribute Value" style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"></div>';
+                                                            modalHtml += '<div><button type="button" onclick="removeAttribute(this)" style="padding: 10px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove</button></div>';
+                                                            modalHtml += '</div>';
+                                                        }
+
+                                                        modalHtml += '</div>';
+                                                        modalHtml += '<button type="button" onclick="addAttribute(' + isSmartPrint + ')" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">+ Add Attribute</button>';
+                                                        modalHtml += '</form>';
+                                                        modalHtml += '</div>';
+                                                        modalHtml += '<div style="padding: 20px; background: #f8f9fa; border-top: 1px solid #dee2e6; display: flex; justify-content: flex-end; gap: 10px;">';
+                                                        modalHtml += '<button onclick="closeVariantModal()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>';
+                                                        modalHtml += '<button onclick="saveVariant(' + productId + ')" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Variant</button>';
+                                                        modalHtml += '</div>';
+                                                        modalHtml += '</div>';
+
+                                                        overlay.innerHTML = modalHtml;
+                                                        document.body.appendChild(overlay);
+                                                    }
                                             
                                             function saveVariant(productId) {
                                                 var form = document.getElementById('variantForm');
@@ -878,6 +994,96 @@
                     $('body').append(modal);
                     document.body.classList.add('modal-open');
 
+                    // Debug: inspect returned variant in console
+                    console.log('editVariant loaded variant:', variant);
+
+                    // Helper: normalize values to avoid locale-format issues (comma vs dot)
+                    function parseNumberFrom(v) {
+                        if (v === null || v === undefined) return '';
+                        var s = String(v);
+                        // Remove currency symbols and spaces
+                        s = s.replace(/[^0-9,.-]/g, '');
+                        // If comma is used as decimal separator and dot as thousand, normalize by
+                        // converting commas to dots and removing other non-digit/point characters.
+                        // First convert comma to dot
+                        s = s.replace(/,/g, '.');
+                        // Remove any extra dots beyond the first (thousands separators)
+                        var parts = s.split('.');
+                        if (parts.length > 2) {
+                            var first = parts.shift();
+                            s = first + '.' + parts.join('');
+                        }
+                        // Trim leading/trailing non-number
+                        s = s.replace(/^[^0-9.-]+|[^0-9.-]+$/g, '');
+                        return s;
+                    }
+
+                    // Populate main fields defensively (some APIs may return formatted strings)
+                    try {
+                        $('#editVariantModal input[name="name"]').val(variant.name || '');
+                        $('#editVariantModal input[name="sku"]').val(variant.sku || '');
+
+                        // Price: prefer variant.price if present and >0, otherwise fallback to parent product price
+                        var rawPrice = variant.price ?? variant.price_formatted ?? variant.price_formatted_display ?? null;
+                        var parsedPrice = parseFloat(parseNumberFrom(rawPrice));
+                        if (!parsedPrice || parsedPrice <= 0) {
+                            // Try to read live parent product input first, then fallback to blade value
+                            var parentPriceVal = (typeof $ !== 'undefined' && $('#parent_price').length) ? $('#parent_price').val() : null;
+                            parsedPrice = parseFloat(parseNumberFrom(parentPriceVal !== null ? parentPriceVal : ({{ $product->price ?? 0 }}))) || '';
+                        }
+                        $('#editVariantModal input[name="price"]').val(parsedPrice !== '' ? parsedPrice : '');
+
+                        // Harga Beli (cost) fallback logic
+                        var rawHarga = variant.harga_beli ?? variant.hargaBeli ?? variant.cost ?? null;
+                        var parsedHarga = parseFloat(parseNumberFrom(rawHarga));
+                        if (!parsedHarga || parsedHarga <= 0) {
+                            var parentHargaVal = (typeof $ !== 'undefined' && $('#parent_harga_beli').length) ? $('#parent_harga_beli').val() : null;
+                            parsedHarga = parseFloat(parseNumberFrom(parentHargaVal !== null ? parentHargaVal : ({{ $product->harga_beli ?? 0 }}))) || '';
+                        }
+                        $('#editVariantModal input[name="harga_beli"]').val(parsedHarga !== '' ? parsedHarga : '');
+
+                        // Stock
+                        var rawStock = variant.stock ?? variant.qty ?? variant.quantity ?? 0;
+                        $('#editVariantModal input[name="stock"]').val(parseNumberFrom(rawStock) !== '' ? parseNumberFrom(rawStock) : '');
+
+                        // Dimensions / weight (use product defaults if missing)
+                        var parentWeight = (typeof $ !== 'undefined' && $('#parent_weight').length) ? $('#parent_weight').val() : ({{ $product->weight ?? 0 }});
+                        var parentLength = (typeof $ !== 'undefined' && $('#parent_length').length) ? $('#parent_length').val() : ({{ $product->length ?? 0 }});
+                        var parentWidth = (typeof $ !== 'undefined' && $('#parent_width').length) ? $('#parent_width').val() : ({{ $product->width ?? 0 }});
+                        var parentHeight = (typeof $ !== 'undefined' && $('#parent_height').length) ? $('#parent_height').val() : ({{ $product->height ?? 0 }});
+
+                        // For dimensions and weight: if variant value is missing or <= 0, fallback to parent value
+                        var vWeight = parseFloat(parseNumberFrom(variant.weight));
+                        if (isNaN(vWeight) || vWeight <= 0) {
+                            $('#editVariantModal input[name="weight"]').val(parseNumberFrom(parentWeight));
+                        } else {
+                            $('#editVariantModal input[name="weight"]').val(vWeight);
+                        }
+
+                        var vLength = parseFloat(parseNumberFrom(variant.length));
+                        if (isNaN(vLength) || vLength <= 0) {
+                            $('#editVariantModal input[name="length"]').val(parseNumberFrom(parentLength));
+                        } else {
+                            $('#editVariantModal input[name="length"]').val(vLength);
+                        }
+
+                        var vWidth = parseFloat(parseNumberFrom(variant.width));
+                        if (isNaN(vWidth) || vWidth <= 0) {
+                            $('#editVariantModal input[name="width"]').val(parseNumberFrom(parentWidth));
+                        } else {
+                            $('#editVariantModal input[name="width"]').val(vWidth);
+                        }
+
+                        var vHeight = parseFloat(parseNumberFrom(variant.height));
+                        if (isNaN(vHeight) || vHeight <= 0) {
+                            $('#editVariantModal input[name="height"]').val(parseNumberFrom(parentHeight));
+                        } else {
+                            $('#editVariantModal input[name="height"]').val(vHeight);
+                        }
+                    } catch (e) {
+                        console.warn('Failed to populate edit variant fields:', e);
+                    }
+
                     // Handlers
                     $('#addEditAttribute').on('click', function() {
                         var newRow = '<div class="attribute-row row mb-2">';
@@ -1051,5 +1257,105 @@
 		        handlePrintServiceLogic();
 		    });
 		});
+
+// Defensive handlers: ensure Add buttons always open the variant modal and
+// remove any leftover modal overlay that might block clicks.
+$(function() {
+    // Remove any stale modal overlay left in DOM (prevents click-blocking)
+    if (document.getElementById('variantModal')) {
+        document.getElementById('variantModal').remove();
+        try { document.body.classList.remove('modal-open'); } catch (e) {}
+    }
+
+    // Delegated click handler so the Add buttons work even if inline onclick
+    // was not bound or got removed. This also cleans up any lingering overlay
+    // before opening a fresh modal.
+    $(document).on('click', '#addNewVariant, #addFirstVariant', function(e) {
+        e.preventDefault();
+        // Clean up existing overlay if present
+        $('#variantModal').remove();
+        try { document.body.classList.remove('modal-open'); } catch (e) {}
+
+        if (typeof showProperVariantModal === 'function') {
+            showProperVariantModal();
+        } else {
+            console.error('showProperVariantModal is not defined');
+            alert('Cannot open variant modal: helper function missing. See console for details.');
+        }
+    });
+});
+
+// Ensure global function names exist even if earlier conditional script blocks
+// didn't define them (this prevents Uncaught ReferenceError on button onclicks).
+if (typeof window.showProperVariantModal === 'undefined') {
+    window.showProperVariantModal = function() {
+        // Prefer the concrete internal implementation if available
+        if (typeof window._internal_showProperVariantModal === 'function') {
+            return window._internal_showProperVariantModal();
+        }
+
+        // Fallback: show a clear debug modal (do not attempt to call other wrappers to avoid recursion)
+        console.warn('showProperVariantModal: internal implementation not available. Showing debug modal.');
+        var overlay = document.getElementById('variantModal');
+        if (overlay) overlay.remove();
+        try { document.body.classList.remove('modal-open'); } catch (e) {}
+        overlay = document.createElement('div');
+        overlay.id = 'variantModal';
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; display: flex; align-items: center; justify-content: center;';
+        overlay.innerHTML = '<div style="background: white; padding: 20px; border-radius: 8px;">Debug: variant modal missing. Please check console for details.<br><br><button onclick="(function(){document.getElementById(\'variantModal\').remove(); try{document.body.classList.remove(\'modal-open\');}catch(e){} })()">Close</button></div>';
+        document.body.appendChild(overlay);
+    };
+}
+
+if (typeof window.showVariantModal === 'undefined') {
+    window.showVariantModal = function() {
+        // Prefer the concrete internal implementation if available
+        if (typeof window._internal_showProperVariantModal === 'function') {
+            return window._internal_showProperVariantModal();
+        }
+
+        // Fallback: debug modal (do not call other wrappers to avoid recursion)
+        console.warn('showVariantModal: internal implementation not available. Showing debug modal.');
+        var overlay = document.getElementById('variantModal');
+        if (overlay) overlay.remove();
+        try { document.body.classList.remove('modal-open'); } catch (e) {}
+        overlay = document.createElement('div');
+        overlay.id = 'variantModal';
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; display: flex; align-items: center; justify-content: center;';
+        overlay.innerHTML = '<div style="background: white; padding: 20px; border-radius: 8px;">Debug: variant modal missing. Please check console for details.<br><br><button onclick="(function(){document.getElementById(\'variantModal\').remove(); try{document.body.classList.remove(\'modal-open\');}catch(e){} })()">Close</button></div>';
+        document.body.appendChild(overlay);
+    };
+}
+
+// Extra defensive binding: if internal implementation exists under another name,
+// expose it so the delegated handler above can always call it.
+(function() {
+    try {
+        if (typeof window.showProperVariantModal === 'function') {
+            // Avoid binding the debug/wrapper implementation to the internal name (this would cause recursion).
+            var fnStr = String(window.showProperVariantModal || '');
+            if (fnStr.indexOf('Debug: variant modal missing') === -1 && fnStr.indexOf('no implementation found') === -1) {
+                window._internal_showProperVariantModal = window.showProperVariantModal;
+            }
+        }
+    } catch (e) {
+        console.warn('Defensive bind failed', e);
+    }
+
+    // Ensure add buttons always open modal (covers edge cases where inline onclick may be stripped)
+    $(document).off('click', '#addNewVariant, #addFirstVariant').on('click', '#addNewVariant, #addFirstVariant', function(e){
+        e.preventDefault();
+        $('#variantModal').remove();
+        try { document.body.classList.remove('modal-open'); } catch(e) {}
+        if (typeof window._internal_showProperVariantModal === 'function') {
+            return window._internal_showProperVariantModal();
+        }
+        if (typeof window.showProperVariantModal === 'function') {
+            return window.showProperVariantModal();
+        }
+        console.error('No variant modal implementation available');
+    });
+})();
 </script>
+@include('admin.products.partials.variant-modal-script')
 @endpush
