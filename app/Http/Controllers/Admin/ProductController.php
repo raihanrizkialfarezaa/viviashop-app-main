@@ -289,15 +289,19 @@ class ProductController extends Controller
     
     private function createDefaultSmartPrintVariants(Product $product)
     {
+        $basePrice = $product->price;
+        $baseCost = $product->harga_beli;
+        $baseStock = $product->productInventory ? $product->productInventory->qty : 100;
+        
         $defaultVariants = [
             [
                 'name' => $product->name . ' - Black & White',
                 'sku' => $product->sku . '-BW',
                 'paper_size' => 'A4',
                 'print_type' => 'bw',
-                'stock' => 100,
-                'price' => $product->price ?: 1000,
-                'harga_beli' => $product->harga_beli ?: 500,
+                'stock' => $baseStock,
+                'price' => $basePrice,
+                'harga_beli' => $baseCost,
                 'attributes' => [
                     'print_type' => 'Black & White',
                     'paper_size' => 'A4'
@@ -308,9 +312,9 @@ class ProductController extends Controller
                 'sku' => $product->sku . '-CLR',
                 'paper_size' => 'A4', 
                 'print_type' => 'color',
-                'stock' => 50,
-                'price' => ($product->price ?: 1000) * 1.5,
-                'harga_beli' => $product->harga_beli ?: 500,
+                'stock' => $baseStock,
+                'price' => $basePrice,
+                'harga_beli' => $baseCost,
                 'attributes' => [
                     'print_type' => 'Color',
                     'paper_size' => 'A4'

@@ -993,6 +993,7 @@ Route::prefix('print-service')->group(function () {
     Route::delete('/file/{file_id}', [\App\Http\Controllers\PrintServiceController::class, 'deleteFile'])->name('print-service.delete-file');
     Route::get('/preview/{file_id}', [\App\Http\Controllers\PrintServiceController::class, 'previewFile'])->name('print-service.preview-file');
     Route::get('/products', [\App\Http\Controllers\PrintServiceController::class, 'getProducts'])->name('print-service.products');
+    Route::post('/get-session-files', [\App\Http\Controllers\PrintServiceController::class, 'getSessionFiles'])->name('print-service.get-session-files');
     Route::post('/calculate', [\App\Http\Controllers\PrintServiceController::class, 'calculate'])->name('print-service.calculate');
     Route::post('/checkout', [\App\Http\Controllers\PrintServiceController::class, 'checkout'])->name('print-service.checkout');
     Route::get('/status/{orderCode}', [\App\Http\Controllers\PrintServiceController::class, 'status'])->name('print-service.status');

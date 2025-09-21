@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PrintSession;
 use App\Models\PrintOrder;
+use App\Models\PrintFile;
 use App\Services\PrintService;
 use App\Services\StockService;
 use Illuminate\Http\Request;
@@ -444,6 +445,43 @@ class PrintServiceController extends Controller
         } catch (\Exception $e) {
             Log::error('Payment error callback error: ' . $e->getMessage());
             return redirect('/')->with('error', 'Terjadi kesalahan saat memproses callback');
+        }
+    }
+
+    public function getSessionFiles(Request $request)
+    {
+        try {
+            $request->validate([
+                'session_token' => 'required|string'
+            ]);
+
+            $session = $this->printService->getSession($request->session_token);
+            
+            if (!$session) {
+                return response()->json(['error' => 'Session expired'], 400);
+            }
+
+            $files = PrintFile::where('print_session_id', $session->id)->get();
+            $totalPages = $files->sum('pages_count');
+
+            return response()->json([
+                'success' => true,
+                'files' => $files->map(function($file) {
+                    return [
+                        'id' => $file->id,
+                        'name' => $file->file_name,
+                        'file_name' => $file->file_name,
+                        'file_type' => $file->file_type,
+                        'file_size' => $file->file_size,
+                        'pages_count' => $file->pages_count,
+                        'file_path' => $file->file_path
+                    ];
+                })->toArray(),
+                'total_pages' => $totalPages
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Get session files error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 400);
         }
     }
 }
