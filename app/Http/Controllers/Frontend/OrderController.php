@@ -1345,6 +1345,12 @@ view()->share('setting', $setting);
 							'status' => $transactionStatus,
 							'token' => $order->payment_token,
 							'payloads' => is_object($status) ? json_encode($status) : json_encode($status),
+							'number' => $transactionId,
+							'payment_type' => $paymentType,
+							'va_number' => (is_object($status) && isset($status->va_numbers[0]->va_number)) ? $status->va_numbers[0]->va_number : (is_array($status) && isset($status['va_numbers'][0]['va_number']) ? $status['va_numbers'][0]['va_number'] : null),
+							'va_bank' => (is_object($status) && isset($status->va_numbers[0]->bank)) ? $status->va_numbers[0]->bank : (is_array($status) && isset($status['va_numbers'][0]['bank']) ? $status['va_numbers'][0]['bank'] : null),
+							'bill_key' => is_object($status) ? ($status->bill_key ?? null) : ($status['bill_key'] ?? null),
+							'biller_code' => is_object($status) ? ($status->biller_code ?? null) : ($status['biller_code'] ?? null),
 						]);
 					} catch (\Exception $e) {
 						Log::warning('Failed creating payment record during reconciliation: ' . $e->getMessage());
