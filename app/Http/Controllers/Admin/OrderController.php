@@ -134,12 +134,29 @@ class OrderController extends Controller
 	}
 
     public function invoices($id)
-    {
-        $order = Order::where('id', $id)->first();
-        $pdf  = Pdf::loadView('admin.orders.invoices', compact('order'))->setOptions(['defaultFont' => 'sans-serif']);
-        $pdf->setPaper('a4', 'potrait');
-        return $pdf->stream('invoice.pdf');
-    }
+{
+    $order = Order::where('id', $id)->first();
+    
+    // Hitung estimasi tinggi berdasarkan jumlah items
+    $baseHeight = 200; // Base height untuk header, customer info, dll
+    $itemHeight = 20; // Height per item
+    $totalItems = $order->orderItems->count();
+    $estimatedHeight = $baseHeight + ($totalItems * $itemHeight * 2); // x2 untuk qty dan total
+    
+    $pdf = Pdf::loadView('admin.orders.invoices', compact('order'))
+        ->setOptions([
+            'defaultFont' => 'sans-serif',
+            'isHtml5ParserEnabled' => true,
+            'isPhpEnabled' => true,
+            'dpi' => 96,
+        ]);
+    
+    // Gunakan tinggi yang dihitung
+    $customPaper = [0, 0, 226.77, 2000];
+    $pdf->setPaper($customPaper, 'portrait');
+    
+    return $pdf->stream('invoice.pdf');
+}
 
     public function edit(string $id)
     {

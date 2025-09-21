@@ -101,7 +101,7 @@ class OrderController extends Controller
 		$order = Order::forUser(auth()->user())->findOrFail($id);
 		$cart = Cart::content()->count();
         $setting = Setting::first();
-view()->share('setting', $setting);
+		view()->share('setting', $setting);
 		view()->share('countCart', $cart);
 		return view('frontend.orders.show',compact('order'));
 	}
@@ -809,6 +809,7 @@ view()->share('setting', $setting);
         $setting = Setting::first();
 view()->share('setting', $setting);
 		view()->share('countCart', $cart);
+		
 		return redirect()->route('admin.orders.show', $id);
 	}
 
@@ -1263,7 +1264,8 @@ view()->share('setting', $setting);
 		
 		$pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.orders.invoices', compact('order'))
 			->setOptions(['defaultFont' => 'sans-serif']);
-		$pdf->setPaper('a4', 'portrait');
+		$customPaper = array(0, 0, (58 * 2.83), auto);
+        $pdf->setPaper($customPaper);
 		
 		return $pdf->stream('invoice-' . $order->code . '.pdf');
 	}
