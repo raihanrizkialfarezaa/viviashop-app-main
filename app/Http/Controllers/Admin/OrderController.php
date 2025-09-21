@@ -63,13 +63,16 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $statuses = Order::STATUSES;
-        $orders = Order::latest();
+	$orders = Order::orderBy('order_date', 'desc');
 
-        $q = $request->input('q');
+
+		$q = $request->input('q');
 		if ($q) {
-			$orders = $orders->where('code', 'like', '%'. $q .'%')
-				->orWhere('customer_first_name', 'like', '%'. $q .'%')
-				->orWhere('customer_last_name', 'like', '%'. $q .'%');
+			$orders = $orders->where(function($query) use ($q) {
+				$query->where('code', 'like', '%'. $q .'%')
+					->orWhere('customer_first_name', 'like', '%'. $q .'%')
+					->orWhere('customer_last_name', 'like', '%'. $q .'%');
+			});
 		}
 
 		if ($request->input('status') && in_array($request->input('status'), array_keys(Order::STATUSES))) {
@@ -95,13 +98,21 @@ class OrderController extends Controller
 				return redirect('admin/orders');
 			}
 
-			$order = $orders->whereRaw("DATE(order_date) >= ?", $startDate)
-				->whereRaw("DATE(order_date) <= ? ", $endDate);
-        }
+			$orders = $orders->whereDate('order_date', '>=', $startDate)
+				->whereDate('order_date', '<=', $endDate);
+		}
 
-        $orders = $orders->get();;
+		$ordersQuery = $orders;
 
-		return view('admin.orders.index', compact('orders','statuses'));
+		$counts = [
+			'paid' => (clone $ordersQuery)->where('payment_status', Order::PAID)->count(),
+			'waiting' => (clone $ordersQuery)->where('payment_status', Order::WAITING)->count(),
+			'unpaid' => (clone $ordersQuery)->where('payment_status', Order::UNPAID)->count(),
+		];
+
+		$orders = $ordersQuery->get();
+
+		return view('admin.orders.index', compact('orders','statuses','counts'));
     }
 
     public function create()
