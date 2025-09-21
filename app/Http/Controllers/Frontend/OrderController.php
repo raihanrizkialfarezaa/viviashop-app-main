@@ -495,6 +495,8 @@ class OrderController extends Controller
 						'order_id' => $order->id,
 						'redirect' => url('orders/received/' . $order->id),
 						'payment_url' => $order->payment_url ?? null,
+						'token' => isset($paymentResponse['token']) ? $paymentResponse['token'] : null,
+						'order_code' => isset($paymentResponse['order_code']) ? $paymentResponse['order_code'] : ($order->code ?? null),
 						'message' => 'Order created successfully'
 					]);
 				}
@@ -934,6 +936,7 @@ view()->share('setting', $setting);
 					'success' => true,
 					'token' => $snap->token,
 					'redirect_url' => $snap->redirect_url,
+					'order_code' => $order->code,
 				];
 			} else {
 				Log::error('Midtrans response missing token', ['response' => $snap]);
@@ -1304,11 +1307,59 @@ view()->share('setting', $setting);
 	public function getOrderStatus($id)
 	{
 		$order = Order::find($id);
-		
+
 		if (!$order) {
 			return response()->json(['error' => 'Order not found'], 404);
 		}
-		
+
+		// Ensure only owner or admin can query order status
+		if (auth()->check() && auth()->id() !== $order->user_id && !auth()->user()->is_admin) {
+			return response()->json(['error' => 'Unauthorized'], 403);
+		}
+
+		// If automatic payment and still unpaid, try to reconcile with Midtrans
+		if ($order->payment_method == 'automatic' && $order->payment_status != Order::PAID) {
+			try {
+				$this->initPaymentGateway();
+				$status = \Midtrans\Transaction::status($order->code);
+
+				$transactionStatus = is_object($status) ? $status->transaction_status : ($status['transaction_status'] ?? null);
+				$paymentType = is_object($status) ? $status->payment_type : ($status['payment_type'] ?? null);
+				$transactionId = is_object($status) ? ($status->transaction_id ?? null) : ($status['transaction_id'] ?? null);
+
+				if (in_array($transactionStatus, ['settlement', 'capture'])) {
+					$order->payment_status = Order::PAID;
+					if ($order->shipping_service_name == 'Self Pickup') {
+						$order->status = Order::CONFIRMED;
+					} else {
+						$order->status = Order::COMPLETED;
+						$order->approved_at = now();
+					}
+
+					try {
+						\App\Models\Payment::create([
+							'order_id' => $order->id,
+							'transaction_id' => $transactionId,
+							'amount' => $order->grand_total,
+							'method' => $paymentType,
+							'status' => $transactionStatus,
+							'token' => $order->payment_token,
+							'payloads' => is_object($status) ? json_encode($status) : json_encode($status),
+						]);
+					} catch (\Exception $e) {
+						Log::warning('Failed creating payment record during reconciliation: ' . $e->getMessage());
+					}
+
+					$order->save();
+				} elseif ($transactionStatus == 'pending') {
+					$order->payment_status = Order::WAITING;
+					$order->save();
+				}
+			} catch (\Exception $e) {
+				Log::warning('Order status reconciliation failed for order ' . $order->code . ': ' . $e->getMessage());
+			}
+		}
+
 		return response()->json([
 			'payment_status' => $order->payment_status,
 			'status' => $order->status,

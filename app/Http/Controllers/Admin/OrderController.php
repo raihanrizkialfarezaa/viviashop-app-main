@@ -1053,40 +1053,41 @@ class OrderController extends Controller
 	private function recordOrderStockMovements($order, $description = 'Admin Sale')
 	{
 		// Check if stock movements have already been recorded for this order
-		$existingMovements = \App\Models\StockMovement::where('reference_type', 'order')
-			->where('reference_id', $order->id)
+		$existingMovements = \App\Models\StockMovement::where('reference_id', $order->id)
 			->exists();
 		
 		if ($existingMovements) {
-			// Stock movements already recorded, skip to avoid double deduction
 			\Illuminate\Support\Facades\Log::info("Stock movements already recorded for order {$order->id}, skipping duplicate recording");
+			try {
+				app(\App\Services\StockService::class)->synchronizeStockTables();
+			} catch (\Exception $e) {
+				\Illuminate\Support\Facades\Log::warning('Stock synchronization failed: ' . $e->getMessage());
+			}
 			return;
 		}
 
 		foreach ($order->orderItems as $orderItem) {
 			try {
 				// Check if item has variant
-				if ($orderItem->product_variant_id) {
-					// For variant products, use StockService directly (it handles both stock update and movement recording)
+				if ($orderItem->variant_id) {
 					app(StockService::class)->recordMovement(
-						$orderItem->product_variant_id, // variantId
-						'out',                           // movementType
-						$orderItem->qty,                 // quantity
-						'order',                         // referenceType
-						$order->id,                      // referenceId
-						$description,                    // reason
-						"Order #{$order->code}"          // notes
+						$orderItem->variant_id,
+						\App\Models\StockMovement::MOVEMENT_OUT,
+						$orderItem->qty,
+						'order',
+						$order->id,
+						$description,
+						"Order #{$order->code}"
 					);
 				} else {
-					// For simple products without variants, use the simple product method
 					app(StockService::class)->recordSimpleProductMovement(
-						$orderItem->product_id,          // productId
-						'out',                           // movementType
-						$orderItem->qty,                 // quantity
-						'order',                         // referenceType
-						$order->id,                      // referenceId
-						$description,                    // reason
-						"Order #{$order->code}"          // notes
+						$orderItem->product_id,
+						\App\Models\StockMovement::MOVEMENT_OUT,
+						$orderItem->qty,
+						'order',
+						$order->id,
+						$description,
+						"Order #{$order->code}"
 					);
 				}
 			} catch (\Exception $e) {

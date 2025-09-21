@@ -466,19 +466,67 @@
                     console.log('Request headers will include CSRF token');
                     $('#shipping-province').html('<option value="">Loading provinces...</option>');
                 },
-                success: function(response) {
-                    console.log('Provinces response received:', response);
-                    console.log('Response type:', typeof response);
-                    console.log('Is array:', Array.isArray(response));
-                    
-                    var options = '<option value="">-- Pilih Provinsi --</option>';
-                    if (response && Array.isArray(response)) {
-                        console.log('Processing array response with', response.length, 'items');
-                        $.each(response, function(index, province) {
-                            var selected = province.id == '{{ auth()->user()->province_id }}' ? 'selected' : '';
-                            options += '<option value="' + province.id + '" ' + selected + '>' + province.name + '</option>';
-                        });
-                    } else if (response && typeof response === 'object') {
+                    success: function(resp) {
+                        console.log('checkout response', resp);
+                        if (resp.success) {
+                            // If Midtrans token returned, open Snap popup so we can control post-payment redirect
+                            if (resp.token) {
+                                // Determine snap.js URL based on environment; default to sandbox
+                                var snapUrl = 'https://app.sandbox.midtrans.com/snap/snap.js';
+                                if (typeof MIDTRANS_IS_PRODUCTION !== 'undefined' && MIDTRANS_IS_PRODUCTION) {
+                                    snapUrl = 'https://app.midtrans.com/snap/snap.js';
+                                }
+                                // Load snap script dynamically if not already loaded
+                                function loadScript(url, cb) {
+                                    var s = document.createElement('script');
+                                    s.src = url;
+                                    s.async = true;
+                                    s.onload = cb;
+                                    s.onerror = function() { cb(new Error('Failed to load script: ' + url)); };
+                                    document.head.appendChild(s);
+                                }
+
+                                loadScript(snapUrl, function(err) {
+                                    if (err) {
+                                        alert('Could not load payment library. Please try again.');
+                                        placeOrderBtn.prop('disabled', false).removeClass('loading');
+                                        return;
+                                    }
+                                    // Use snap.pay to open the payment UI and handle redirect on success
+                                    try {
+                                        snap.pay(resp.token, {
+                                            onSuccess: function(result) {
+                                                // After successful payment, redirect to our finish handler which will show received page
+                                                window.location = '/payments/finish?order_id=' + encodeURIComponent(resp.order_code || resp.order_id || '');
+                                            },
+                                            onPending: function(result) {
+                                                // Payment pending, also redirect to finish to show order status
+                                                window.location = '/payments/finish?order_id=' + encodeURIComponent(resp.order_code || resp.order_id || '');
+                                            },
+                                            onError: function(err) {
+                                                alert('Payment failed or cancelled.');
+                                                placeOrderBtn.prop('disabled', false).removeClass('loading');
+                                            }
+                                        });
+                                    } catch (e) {
+                                        console.error(e);
+                                        alert('Payment failed to start.');
+                                        placeOrderBtn.prop('disabled', false).removeClass('loading');
+                                    }
+                                });
+                                return;
+                            }
+
+                            if (resp.payment_url) {
+                                window.location = resp.payment_url;
+                                return;
+                            }
+                            window.location = '/orders/received/' + resp.order_id;
+                        } else {
+                            alert(resp.message || 'Failed to place order');
+                            placeOrderBtn.prop('disabled', false).removeClass('loading');
+                        }
+                    },
                         console.log('Processing object response');
                         $.each(response, function(id, name) {
                             var selected = id == '{{ auth()->user()->province_id }}' ? 'selected' : '';
