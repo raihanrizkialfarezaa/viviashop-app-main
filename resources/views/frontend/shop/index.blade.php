@@ -252,9 +252,10 @@
     }
     
     .btn-add-cart:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-        color: white;
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(40,167,69,0.18);
+        color: #ffffff !important;
+        background: linear-gradient(90deg, #2ecc71 0%, #28a745 100%);
     }
     
     .reset-btn, .view-all-btn {
@@ -855,9 +856,11 @@ $(document).on('click', '.add-to-card', function(e) {
 
 <style>
 .btn-add-cart-hover {
-    background: linear-gradient(45deg, var(--bs-success), var(--bs-primary)) !important;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    background: linear-gradient(90deg, #2ecc71 0%, #28a745 100%) !important;
+    color: #ffffff !important;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(40,167,69,0.18) !important;
+    border: none !important;
 }
 
 .is-valid {
