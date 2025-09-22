@@ -1358,4 +1358,44 @@ if (typeof window.showVariantModal === 'undefined') {
 })();
 </script>
 @include('admin.products.partials.variant-modal-script')
+
+@push('script-alt')
+<script>
+function onBarcodeKey(e) {
+    var val = e.target.value || '';
+    var preview = document.getElementById('barcode_preview') || document.getElementById('barcode_preview_create');
+    if (!preview) return;
+    if (val.trim() === '') {
+        preview.innerHTML = '<div style="font-size:12px;color:#888;">No barcode</div>';
+        return;
+    }
+    preview.innerHTML = '<div style="font-size:12px">' + val + '</div>';
+}
+
+function generateBarcodeSingle(id) {
+    var btn = document.getElementById('generateBarcodeBtn');
+    if (btn) btn.disabled = true;
+    fetch('/admin/products/generateSingleBarcode/' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest' }})
+        .then(function(res){ return res.json(); })
+        .then(function(json){
+            if (btn) btn.disabled = false;
+            if (json.success) {
+                var input = document.getElementById('barcode_input');
+                if (input) input.value = json.barcode;
+                var preview = document.getElementById('barcode_preview');
+                if (preview) {
+                    if (json.image) {
+                        preview.innerHTML = '<img src="data:image/png;base64,' + json.image + '" style="height:40px"><div style="font-size:12px">' + json.barcode + '</div>';
+                    } else {
+                        preview.innerHTML = '<div style="font-size:12px">' + json.barcode + '</div>';
+                    }
+                }
+            } else {
+                alert(json.message || 'Gagal membuat barcode');
+            }
+        })
+        .catch(function(){ if (btn) btn.disabled = false; alert('Request failed'); });
+}
+</script>
+@endpush
 @endpush
