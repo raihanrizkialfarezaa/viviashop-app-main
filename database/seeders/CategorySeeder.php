@@ -2,34 +2,27 @@
 
 namespace Database\Seeders;
 
-use App\Models\Category;
 use Illuminate\Database\Seeder;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class CategorySeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
-    public function run(): void
+    public function run()
     {
-        Category::create([
-            'id' => 1,
-            'name' => 'pakaian',
-            'slug' => 'pakaian',
-            'parent_id' => null
-        ]);
-        Category::create([
-            'id' => 2,
-            'name' => 'pakaian laki-laki',
-            'slug' => 'pakaian-laki-laki',
-            'parent_id' => 1
-        ]);
-        Category::create([
-            'id' => 3,
-            'name' => 'pakaian perempuan',
-            'slug' => 'pakaian-perempuan',
-            'parent_id' => 1
-        ]);
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        DB::table('categories')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+        $categories = [
+            ['id' => 1, 'name' => 'Cetak', 'slug' => Str::slug('Cetak')],
+            ['id' => 2, 'name' => 'Bag', 'slug' => Str::slug('Bag')],
+            ['id' => 3, 'name' => 'Slingback', 'slug' => Str::slug('Slingback')],
+            ['id' => 4, 'name' => 'Pouch', 'slug' => Str::slug('Pouch')],
+            ['id' => 5, 'name' => 'ATK', 'slug' => Str::slug('ATK')],
+            ['id' => 6, 'name' => 'Elektronik', 'slug' => Str::slug('Elektronik')],
+        ];
+
+        DB::table('categories')->insert($categories);
     }
 }
