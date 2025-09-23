@@ -62,6 +62,9 @@
 												@else
 													<a href="{{ url('orders/'. $order->id) }}" class="btn btn-info btn-sm">details</a>
 												@endif
+												@if(in_array($order->payment_status, ['unpaid', 'waiting']) && !in_array($order->status, ['completed','cancelled']))
+													<a href="{{ url('orders/checkout?order_id=' . $order->id) }}" class="btn btn-warning btn-sm">Resume Checkout</a>
+												@endif
 											</td>
 										</tr>
 									@empty
