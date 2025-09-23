@@ -915,6 +915,11 @@ view()->share('setting', $setting);
 					'unit' => Payment::EXPIRY_UNIT,
 					'duration' => Payment::EXPIRY_DURATION,
 				],
+				'callbacks' => [
+					'finish' => url('payments/finish?order_id=' . $order->code),
+					'unfinish' => url('payments/unfinish?order_id=' . $order->code),
+					'error' => url('payments/error?order_id=' . $order->code),
+				],
 			];
 
 			Log::info('Creating Midtrans transaction', ['order_code' => $order->code, 'params' => $params]);
