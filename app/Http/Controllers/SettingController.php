@@ -85,7 +85,7 @@ class SettingController extends Controller
             Alert::success('setting gagal di update!', 'Data setting gagal di update');
         }
 
-        return redirect()->route('setting.index');
+    return redirect()->route('admin.setting.index');
 
     }
 
