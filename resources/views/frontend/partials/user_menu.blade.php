@@ -1,14 +1,22 @@
-<div class="sidebar-widget mb-45 d-flex flex-column justify-content-center align-items-center" style="margin-top: 130px;">
-    <div class="sidebar-categories">
-        <ol class="text-center">
-            <h3 class="sidebar-title text-center" style="">User Menu</h3>
-			<h6><a style="color: black;" href="{{ url('profile') }}">Profile</a></h6>
-			<h6><a style="color: black;" href="{{ url('orders') }}">Orders</a></h6>
-			<h6><a style="color: black;" href="{{ url('carts') }}">Cart</a></h6>
-            <form action="{{ route('logout') }}" method="post">
-                @csrf
-                <button class="btn btn-primary mt-5">Logout</button>
-            </form>
-		</ol>
-	</div>
-</div>
+<aside class="user-sidebar p-3 p-md-4" style="margin-top: 5rem;">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-3 p-md-4">
+            <div class="d-flex align-items-center mb-3">
+                <div class="avatar rounded-circle bg-success text-white d-flex align-items-center justify-content-center me-3" style="width:48px;height:48px;">{{ strtoupper(substr(auth()->user()->name,0,1)) }}</div>
+                <div>
+                    <div class="fw-bold text-dark">{{ auth()->user()->name }}</div>
+                    <small class="text-muted">Member</small>
+                </div>
+            </div>
+            <nav class="nav flex-column">
+                <a class="nav-link text-dark py-2 px-2 rounded mb-1 {{ Request::is('profile') ? 'active' : '' }}" href="{{ url('profile') }}">Profile</a>
+                <a class="nav-link text-dark py-2 px-2 rounded mb-1 {{ Request::is('orders*') ? 'active' : '' }}" href="{{ url('orders') }}">Orders</a>
+                <a class="nav-link text-dark py-2 px-2 rounded mb-1 {{ Request::is('carts*') ? 'active' : '' }}" href="{{ url('carts') }}">Cart</a>
+                <form action="{{ route('logout') }}" method="post" class="mt-3">
+                    @csrf
+                    <button class="btn btn-success w-100">Logout</button>
+                </form>
+            </nav>
+        </div>
+    </div>
+</aside>
