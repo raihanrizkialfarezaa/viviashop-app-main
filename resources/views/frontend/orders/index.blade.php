@@ -21,6 +21,17 @@
 			.card .table tbody td:nth-child(3), .card .table tbody td:nth-child(4), .card .table tbody td:nth-child(5) { width: auto }
 		}
 	</style>
+	<style>
+		/* Scoped pagination fixes to ensure horizontal Bootstrap pagination */
+		.pagination-wrapper .pagination {
+			display: flex !important;
+			flex-wrap: nowrap !important;
+			gap: .25rem;
+			margin: 0;
+			padding: 0;
+		}
+		.pagination-wrapper .page-item { display: inline-block; }
+	</style>
 	<div class="breadcrumb-area pt-205 breadcrumb-padding pb-210" style="margin-top: 12rem;">
 		<div class="container-fluid">
 			<div class="breadcrumb-content text-center">
@@ -134,8 +145,8 @@
 										<div>
 											Showing {{ $orders->firstItem() ?? 0 }} to {{ $orders->lastItem() ?? 0 }} of {{ $orders->total() ?? 0 }} orders
 										</div>
-										<div>
-											{{ $orders->appends(request()->except('page'))->links() }}
+										<div class="d-flex pagination-wrapper justify-content-end">
+											{{ $orders->appends(request()->except('page'))->links('pagination::bootstrap-5') }}
 										</div>
 									</div>
 						</div>
