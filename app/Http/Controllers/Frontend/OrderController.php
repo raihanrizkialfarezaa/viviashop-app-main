@@ -83,10 +83,35 @@ class OrderController extends Controller
     }
 	public function index()
 	{
-		$orders = Order::forUser(auth()->user())
-			->orderBy('created_at', 'DESC')
-			->with(['shipment'])
-			->get();
+		$query = Order::forUser(auth()->user())->with(['shipment']);
+
+		// Search/filter
+		$q = request('q');
+		if (!empty($q)) {
+			$query->where(function($qr) use ($q) {
+				if (is_numeric($q)) {
+					$qr->where('id', $q);
+				}
+				$qr->orWhere('code', 'like', "%{$q}%")
+				   ->orWhere('status', 'like', "%{$q}%")
+				   ->orWhere('payment_status', 'like', "%{$q}%")
+				   ->orWhere('payment_method', 'like', "%{$q}%")
+				   ->orWhereHas('shipment', function($s) use ($q) {
+						$s->where('track_number', 'like', "%{$q}%");
+				   });
+			});
+		}
+
+		// Sorting
+		$allowedSorts = ['id', 'grand_total', 'status', 'payment_method', 'order_date', 'created_at'];
+		$sort = request('sort', 'created_at');
+		$direction = request('direction', 'desc') === 'asc' ? 'asc' : 'desc';
+		$sortColumn = in_array($sort, $allowedSorts) ? $sort : 'created_at';
+
+		// Pagination
+		$perPage = 8;
+		$orders = $query->orderBy($sortColumn, $direction)
+			->paginate($perPage);
 		// dd($orders[0]->shipment);
 		$cart = Cart::content()->count();
         $setting = Setting::first();

@@ -130,6 +130,14 @@
 									</tbody>
 								</table>
 							</div>
+									<div class="p-3 border-top d-flex justify-content-between align-items-center">
+										<div>
+											Showing {{ $orders->firstItem() ?? 0 }} to {{ $orders->lastItem() ?? 0 }} of {{ $orders->total() ?? 0 }} orders
+										</div>
+										<div>
+											{{ $orders->appends(request()->except('page'))->links() }}
+										</div>
+									</div>
 						</div>
 					</div>
 				</div>
