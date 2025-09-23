@@ -544,7 +544,6 @@
                         @php $stockQty = $parentProduct->type == 'configurable' ? $parentProduct->total_stock : ($parentProduct->productInventory->qty ?? 0); @endphp
                         @if ($stockQty)
                             <i class="fa fa-box me-2"></i>Stok : {{ $stockQty }} unit tersedia
-                        @endif
                                         @else
                                             <span class="badge bg-secondary badge-stock">Out of Stock</span>
                                         @endif
